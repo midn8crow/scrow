@@ -90,7 +90,7 @@ for m in re.finditer(r'hl\.bind\s*\(\s*(.*?)\s*,\s*(.*?)\)\s*', content):
     for vn, vv in vars.items():
         k = re.sub(r'\b' + vn + r'\b', vv, k)
         if vn == "menu":
-            c = re.sub(r'(?<![/\w])' + vn + r'\b', vv, c)
+            c = re.sub(r'(?<![/\w-])' + vn + r'\b', vv, c)
         else:
             c = re.sub(r'\b' + vn + r'\b', vv, c)
 
@@ -116,7 +116,7 @@ for m in re.finditer(r'hl\.bind\s*\(\s*(.*?)\s*,\s*(.*?)\)\s*', content):
     if desc is None and not ("XF86" in k or "key" in k):
         # Try friendly names first
         for pattern, name in FRIENDLY.items():
-            if pattern in orig_c:
+            if pattern in orig_c or pattern in c:
                 desc = name
                 break
 

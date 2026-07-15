@@ -1,0 +1,130 @@
+@import "colors.css";
+
+:root {
+  --bg: var(--md-sys-color-surface_container) !important;
+  --fg: var(--md-sys-color-on_surface) !important;
+  --primary: var(--md-sys-color-primary) !important;
+  --secondary: var(--md-sys-color-secondary) !important;
+  --surface: var(--md-sys-color-surface) !important;
+  --error: var(--md-sys-color-error) !important;
+}
+
+* {
+  scrollbar-color: var(--primary) transparent !important;
+}
+
+#toolbar-menubar,
+#TabsToolbar,
+#nav-bar,
+#PersonalToolbar,
+#urlbar-container,
+#search-container {
+  background-color: var(--bg) !important;
+  color: var(--fg) !important;
+  border: none !important;
+}
+
+#urlbar,
+#urlbar-background,
+.searchbar-textbox {
+  background-color: var(--surface) !important;
+  color: var(--fg) !important;
+  border: 1px solid var(--primary) !important;
+  border-radius: 8px !important;
+}
+
+#urlbar[focused="true"],
+#urlbar[open="true"] {
+  background-color: var(--surface) !important;
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 30%, transparent) !important;
+}
+
+#urlbar-input,
+.urlbar-input-box {
+  color: var(--fg) !important;
+}
+
+.tab-background {
+  background-color: var(--bg) !important;
+}
+
+.tab-background[selected="true"] {
+  background-color: var(--primary) !important;
+}
+
+.tabbrowser-tab .tab-label {
+  color: var(--fg) !important;
+}
+
+.tab-line {
+  background-color: var(--primary) !important;
+}
+
+toolbarbutton,
+#nav-bar toolbarbutton {
+  fill: var(--fg) !important;
+  color: var(--fg) !important;
+}
+
+toolbarbutton:hover {
+  background-color: color-mix(in srgb, var(--primary) 15%, transparent) !important;
+}
+
+#sidebar-box,
+#sidebar {
+  background-color: var(--bg) !important;
+  color: var(--fg) !important;
+}
+
+#PersonalToolbar toolbarbutton {
+  color: var(--fg) !important;
+}
+
+menupopup,
+panel {
+  background-color: var(--surface) !important;
+  color: var(--fg) !important;
+  border: 1px solid var(--primary) !important;
+}
+
+menuitem {
+  color: var(--fg) !important;
+}
+
+menuitem:hover {
+  background-color: var(--primary) !important;
+  color: var(--md-sys-color-on_primary) !important;
+}
+
+#statuspanel-label,
+.findbar-container {
+  background-color: var(--surface) !important;
+  color: var(--fg) !important;
+}
+
+#identity-box {
+  color: var(--secondary) !important;
+}
+
+#urlbar-results,
+#PopupAutoCompleteRichResult {
+  background-color: var(--surface) !important;
+  color: var(--fg) !important;
+}
+
+.urlbarView-row {
+  color: var(--fg) !important;
+}
+
+.urlbarView-row[selected] {
+  background-color: color-mix(in srgb, var(--primary) 20%, transparent) !important;
+}
+
+.urlbarView-title {
+  color: var(--fg) !important;
+}
+
+.urlbarView-url {
+  color: var(--secondary) !important;
+}

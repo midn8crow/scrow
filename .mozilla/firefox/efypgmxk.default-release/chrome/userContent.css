@@ -1,0 +1,115 @@
+@import "colors.css";
+
+:root {
+  --bg: var(--md-sys-color-surface_container) !important;
+  --fg: var(--md-sys-color-on_surface) !important;
+  --primary: var(--md-sys-color-primary) !important;
+  --secondary: var(--md-sys-color-secondary) !important;
+  --surface: var(--md-sys-color-surface) !important;
+  --error: var(--md-sys-color-error) !important;
+}
+
+@-moz-document url-prefix("about:newtab"),
+               url-prefix("about:home") {
+  body {
+    background-color: var(--bg) !important;
+    color: var(--fg) !important;
+  }
+
+  .outer-wrapper,
+  .search-wrapper,
+  .logo-and-wordmark {
+    background-color: transparent !important;
+  }
+
+  .search-handoff-button,
+  .search-inner-wrapper {
+    background-color: var(--surface) !important;
+    border: 1px solid var(--primary) !important;
+    border-radius: 24px !important;
+    color: var(--fg) !important;
+  }
+
+  .search-handoff-button .fake-textbox {
+    color: var(--fg) !important;
+  }
+
+  .top-site-outer,
+  .top-site-inner {
+    background-color: transparent !important;
+  }
+
+  .top-site-button {
+    background-color: color-mix(in srgb, var(--surface) 80%, transparent) !important;
+    border-radius: 12px !important;
+  }
+
+  .top-site-button:hover {
+    background-color: color-mix(in srgb, var(--primary) 20%, var(--surface)) !important;
+  }
+
+  .title {
+    color: var(--fg) !important;
+  }
+
+  .section-top-bar h3,
+  .section-title {
+    color: var(--fg) !important;
+  }
+
+  .card-outer,
+  .card {
+    background-color: var(--surface) !important;
+    border-radius: 12px !important;
+    color: var(--fg) !important;
+  }
+
+  .card-outer:hover {
+    background-color: color-mix(in srgb, var(--primary) 15%, var(--surface)) !important;
+  }
+
+  a {
+    color: var(--primary) !important;
+  }
+
+  .icon {
+    fill: var(--primary) !important;
+  }
+}
+
+@-moz-document url-prefix("about:preferences") {
+  :root {
+    background-color: var(--bg) !important;
+    color: var(--fg) !important;
+  }
+
+  .main-content {
+    background-color: var(--bg) !important;
+  }
+
+  button {
+    background-color: var(--primary) !important;
+    color: var(--md-sys-color-on_primary) !important;
+    border: none !important;
+    border-radius: 6px !important;
+  }
+
+  input[type="text"],
+  input[type="search"],
+  select {
+    background-color: var(--surface) !important;
+    color: var(--fg) !important;
+    border: 1px solid var(--primary) !important;
+  }
+
+  checkbox,
+  label {
+    color: var(--fg) !important;
+  }
+}
+
+@-moz-document url-prefix("about:blank") {
+  body {
+    background-color: var(--bg) !important;
+  }
+}
