@@ -657,6 +657,47 @@ UNINSTALL
     chmod +x "$HOME/.local/bin/uninstall-dotfiles"
 }
 
+create_initial_backup() {
+    print_step "Creating initial backup..."
+    
+    local backup_dir="$HOME/.config/backup/initial"
+    mkdir -p "$backup_dir"
+    
+    local configs=(
+        ".config/hypr"
+        ".config/waybar"
+        ".config/kitty"
+        ".config/rofi"
+        ".config/swaync"
+        ".config/starship.toml"
+        ".config/fastfetch"
+        ".config/mpv"
+        ".config/btop"
+        ".config/cava"
+        ".config/matugen"
+        ".config/gtk-3.0"
+        ".config/gtk-4.0"
+        ".config/qt6ct"
+        ".mozilla/firefox"
+        ".config/VSCodium/User"
+        ".zshrc"
+        ".local/bin"
+        "user_scripts"
+    )
+    
+    for config in "${configs[@]}"; do
+        local src="$HOME/$config"
+        local dst="$backup_dir/$config"
+        
+        if [[ -e "$src" ]]; then
+            mkdir -p "$(dirname "$dst")"
+            cp -r "$src" "$dst"
+        fi
+    done
+    
+    print_ok "Initial backup created at $backup_dir"
+}
+
 print_summary() {
     echo -e "\n${GREEN}"
     cat << 'EOF'
@@ -744,6 +785,7 @@ main() {
     
     # Final
     create_uninstall_script
+    create_initial_backup
     print_summary
     
     echo "=== Installation completed at $(date) ===" >> "$LOG_FILE"
