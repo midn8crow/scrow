@@ -1,0 +1,11 @@
+@import "../../colors/colors.css";
+
+@define-color surface_container @module-bg;
+@define-color surface_container_highest @module-bg;
+@define-color secondary_fixed_dim @fg;
+@define-color outline_variant @inactive;
+@define-color primary @highlight;
+@define-color on_primary @fg;
+@define-color tertiary @inactive;
+@define-color tertiary_fixed @inactive;
+@define-color error_container @red;

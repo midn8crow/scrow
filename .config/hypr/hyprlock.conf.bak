@@ -1,0 +1,25 @@
+background {
+    monitor =
+    path = screenshot
+    blur_passes = 3
+    blur_size = 8
+}
+
+input-field {
+    monitor =
+    size = 300, 45
+    outline_thickness = 2
+    dots_size = 0.25
+    dots_spacing = 0.2
+    dots_center = true
+    outer_color = #84d6c2
+    inner_color = #0e1513
+    font_color = #dee4e0
+    fade_on_empty = false
+    placeholder_text = <span foreground="##bfc9c4">Password...</span>
+    hide_input = false
+    rounding = 8
+    position = 0, -120
+    halign = center
+    valign = center
+}

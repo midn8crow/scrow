@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+count=$(cat /tmp/qs-notif-count 2>/dev/null | tr -dc '0-9')
+count=${count:-0}
+
+if [ "$count" -gt 0 ]; then
+    echo "{\"text\": \"${count}\", \"class\": \"has-notifs\", \"alt\": \"has-notifs\"}"
+else
+    echo "{\"text\": \"󰂚\", \"class\": \"empty\", \"alt\": \"empty\"}"
+fi

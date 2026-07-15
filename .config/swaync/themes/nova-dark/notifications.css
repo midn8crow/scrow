@@ -1,0 +1,197 @@
+@define-color text            @foreground;
+@define-color background-alt  @color1;
+@define-color selected        @color3;
+@define-color hover           @color5;
+@define-color urgent          @color2;
+
+* {
+  color: @text;
+  all: unset;
+  font-size: 13px;
+  font-family: "JetBrains Mono Nerd Font 10";
+  transition: 400ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ── Dynamic Island Animations ── */
+
+@keyframes di-pop-in {
+  0%   { opacity: 0; transform: translateY(-20px) scaleX(0.6) scaleY(0.5); }
+  40%  { opacity: 1; transform: translateY(4px) scaleX(1.05) scaleY(1.05); }
+  70%  { transform: translateY(-2px) scaleX(0.98) scaleY(0.98); }
+  100% { opacity: 1; transform: translateY(0) scaleX(1) scaleY(1); }
+}
+
+@keyframes di-glow-pulse {
+  0%, 100% { box-shadow: 0 0 20px 2px alpha(@selected, 0.15); }
+  50%      { box-shadow: 0 0 30px 4px alpha(@selected, 0.3); }
+}
+
+/* ── Notification Row ── */
+
+.notification-row {
+  outline: none;
+  margin: 24px 0 0 0;
+  padding: 0px;
+}
+
+.floating-notifications.background .notification-row {
+  animation: di-pop-in 600ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  transition: all 400ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ── The Pill ── */
+
+.floating-notifications.background .notification-row .notification-background {
+  background: @background;
+  border: 1px solid alpha(@selected, .5);
+  border-radius: 999px;
+  margin: 8px;
+  padding: 0;
+  max-width: 320px;
+  overflow: hidden;
+  transition: all 400ms cubic-bezier(0.16, 1, 0.3, 1);
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  box-shadow:
+    0 4px 24px 0 alpha(black, 0.3),
+    0 0 0 1px alpha(@selected, 0.1),
+    inset 0 1px 0 alpha(white, 0.05);
+}
+
+.floating-notifications.background .notification-row:hover .notification-background {
+  border-color: alpha(@selected, 0.6);
+  box-shadow:
+    0 8px 32px 0 alpha(black, 0.4),
+    0 0 20px 2px alpha(@selected, 0.15),
+    inset 0 1px 0 alpha(white, 0.08);
+  transform: scale(1.02);
+}
+
+/* ── Notification Content ── */
+
+.floating-notifications.background .notification-row .notification-background .notification {
+  box-shadow: none;
+  padding: 6px 14px;
+  border-radius: 999px;
+  overflow: hidden;
+  transition: all 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.floating-notifications.background .notification-row .notification-background .notification.critical {
+  border: 1.5px solid @urgent;
+  animation: di-glow-pulse 2s ease-in-out infinite;
+}
+
+.floating-notifications.background .notification-row .notification-background .notification .notification-content {
+  margin: 2px 8px;
+  text-align: center;
+}
+
+.floating-notifications.background .notification-row .notification-background .notification .notification-content .text-box {
+  text-align: center;
+}
+
+/* ── Text ── */
+
+.summary {
+  font-weight: 700;
+  font-size: 0.8rem;
+  text-align: center;
+  letter-spacing: 0.3px;
+}
+
+.body {
+  font-size: 0.7rem;
+  text-align: center;
+  opacity: 0.85;
+}
+
+/* ── Image ── */
+
+.image {
+  margin: 2px 8px 2px 0px;
+  border-radius: 999px;
+}
+
+/* ── Action Buttons ── */
+
+.floating-notifications.background .notification-row .notification-background .notification > *:last-child > * {
+  min-height: 2em;
+}
+
+.floating-notifications.background .notification-row .notification-background .notification > *:last-child > * .notification-action {
+  border-radius: 999px;
+  background-color: alpha(@selected, 0.25);
+  margin: 2px;
+  padding: 4px 12px;
+  border: 1px solid transparent;
+  font-size: 0.7rem;
+  font-weight: 600;
+  transition: all 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.floating-notifications.background .notification-row .notification-background .notification > *:last-child > * .notification-action:hover {
+  background-color: @selected;
+  color: @background;
+  border: 1px solid @selected;
+  transform: scale(1.05);
+}
+
+.floating-notifications.background .notification-row .notification-background .notification > *:last-child > * .notification-action:active {
+  background-color: @selected;
+  color: @background;
+  transform: scale(0.95);
+}
+
+/* ── Progress Bar ── */
+
+.floating-notifications.background .notification-row .notification-background progress,
+.floating-notifications.background .notification-row .notification-background progressbar,
+.floating-notifications.background .notification-row .notification-background trough {
+  min-height: 3px;
+  border-radius: 999px;
+  background: alpha(@selected, 0.15);
+}
+
+.floating-notifications.background .notification-row .notification-background progress {
+  background: @selected;
+}
+
+/* ── Close Button ── */
+
+.floating-notifications.background .notification-row .notification-background .close-button {
+  margin: 2px;
+  padding: 2px;
+  border-radius: 999px;
+  background-color: transparent;
+  border: 1px solid transparent;
+  min-width: 12px;
+  min-height: 12px;
+  opacity: 0;
+  transition: all 200ms ease;
+}
+
+.floating-notifications.background .notification-row .notification-background:hover .close-button {
+  opacity: 1;
+}
+
+.floating-notifications.background .notification-row .notification-background .close-button:hover {
+  background-color: @urgent;
+  border-color: @urgent;
+}
+
+.floating-notifications.background .notification-row .notification-background .close-button:active {
+  background-color: @urgent;
+  color: @background;
+}
+
+/* ── Critical ── */
+
+.notification.critical progress {
+  background-color: @urgent;
+}
+
+.notification.low progress,
+.notification.normal progress {
+  background-color: @selected;
+}

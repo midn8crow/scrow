@@ -1,0 +1,36 @@
+{
+  "layer": "top",
+  "height": 42,
+  "spacing": 6,
+  "include": [
+    "~/.config/waybar/athena/modules/groups.jsonc",
+    "~/.config/waybar/athena/modules/distro.jsonc",
+    "~/.config/waybar/athena/modules/storage.jsonc",
+    "~/.config/waybar/athena/modules/system.jsonc",
+    "~/.config/waybar/athena/modules/power-profiles-daemon.jsonc",
+    "~/.config/waybar/athena/modules/workspace.jsonc",
+    "~/.config/waybar/athena/modules/idle-inhibitor.jsonc",
+    "~/.config/waybar/athena/modules/audio.jsonc",
+    "~/.config/waybar/athena/modules/connections.jsonc",
+    "~/.config/waybar/athena/modules/battery.jsonc",
+    "~/.config/waybar/athena/modules/clock.jsonc",
+    "~/.config/waybar/athena/modules/tray-notif.jsonc"
+  ],
+  "modules-left": [
+    "group/distro-group",
+    "group/storage",
+    "group/system"
+  ],
+  "modules-center": [
+    "power-profiles-daemon",
+    "hyprland/workspaces",
+    "idle_inhibitor"
+  ],
+  "modules-right": [
+    "group/audio",
+    "group/connections",
+    "battery",
+    "clock",
+    "group/tray-group"
+  ],
+}

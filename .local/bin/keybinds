@@ -1,0 +1,162 @@
+#!/usr/bin/env python3
+
+import os
+import re
+import subprocess
+from pathlib import Path
+
+binds_file = Path.home() / ".config/hypr/modules/binds.lua"
+content = binds_file.read_text()
+
+vars = {}
+for m in re.finditer(r'local\s+(\w+)\s*=\s*"([^"]*)"', content):
+    vars[m.group(1)] = m.group(2)
+
+
+def script_desc(cmd):
+    """Auto-generate description from script path or command."""
+    m = re.search(r'([\w-]+)\.(?:sh|py)', cmd)
+    if m:
+        return m.group(1).replace("-", " ").replace("_", " ").title()
+    m = re.search(r'/([\w-]+)$', cmd)
+    if m:
+        return m.group(1).replace("-", " ").replace("_", " ").title()
+    return cmd.replace("-", " ").replace("_", " ").title()
+
+
+# (pattern, description) — checked in order, first match wins
+OVERRIDES = [
+    (lambda c, _: c.strip().startswith("function("), "Toggle blur"),
+    (lambda _, k: "XF86" in k or "key" in k, None),  # skip
+    (lambda c, _: "window.close" in c, "Close window"),
+    (lambda c, _: "window.float" in c, "Toggle float"),
+    (lambda c, _: "window.pseudo" in c, "Toggle pseudo"),
+    (lambda c, _: c.startswith("hl.dsp.layout") and "focus" not in c and "move" not in c, "Toggle split layout"),
+    (lambda c, _: "window.swap" in c, "Swap window"),
+    (lambda c, _: "focus({ direction" in c, "Move focus"),
+    (lambda c, k: "mouse:272" in k or c.startswith("hl.dsp.window.drag"), "Drag window"),
+    (lambda c, k: "mouse:273" in k or c.startswith("hl.dsp.window.resize"), "Resize window"),
+    (lambda c, _: "workspace.toggle_special" in c or "togglespecialworkspace" in c, "Toggle scratchpad"),
+    (lambda _, k: ("Scroll" in k), None),  # handled below
+    (lambda c, _: "hyprctl reload" in c, "Reload Hyprland"),
+    (lambda c, _: "hyprshutdown" in c or "exit()" in c, "Exit Hyprland"),
+]
+
+# Pattern → description for script names
+SCRIPT_PATTERNS = {
+    "wallpaper-switch": ("prev", "Next wallpaper", "Previous wallpaper"),
+    "switch-waybar": ("prev", "Next waybar", "Previous waybar"),
+    "vol-notify": ("up", "Volume up", "Volume down"),
+    "screenshot-region": None,
+    "screenshot-full": None,
+    "theme-menu": None,
+    "powermenu": None,
+    "wallpaper-select": None,
+    "gpu-recorder": None,
+    "ocr-toggle": None,
+    "pick-color": None,
+    "cliphist": None,
+    "keybinds": None,
+    "scratchpad-move": None,
+    "force-kill": None,
+}
+
+# Friendly names for known commands
+FRIENDLY = {
+    "music_recognition": "Songrec (Shazam)",
+    "theme-menu": "Settings",
+    "kitty": "Open terminal",
+    "terminal": "Open terminal",
+    "browser": "Open browser",
+    "brave": "Open browser",
+    "firefox": "Open browser",
+    "thunar": "Open file manager",
+    "fileManager": "Open file manager",
+    "rofi -show drun": "Application menu",
+    "swaync": "Notification center",
+    "swaync-client": "Notification center",
+    "fcitx5-remote": "Toggle Bangla/English",
+    "cliphist": "Clipboard history",
+}
+
+entries = []
+
+for m in re.finditer(r'hl\.bind\s*\(\s*(.*?)\s*,\s*(.*?)\)\s*', content):
+    k = m.group(1).strip()
+    c = m.group(2).strip()
+
+    orig_c = c
+
+    for vn, vv in vars.items():
+        k = re.sub(r'\b' + vn + r'\b', vv, k)
+        if vn == "menu":
+            c = re.sub(r'(?<![/\w])' + vn + r'\b', vv, c)
+        else:
+            c = re.sub(r'\b' + vn + r'\b', vv, c)
+
+    k = k.replace("..", "").replace('"', "").strip()
+    k = re.sub(r'\s+', ' ', k)
+    k = k.replace("mouse_down", "Scroll down").replace("mouse_up", "Scroll up")
+    k = k.replace("left", "Left").replace("right", "Right").replace("up", "Up").replace("down", "Down")
+    k = k.replace("LEFT", "Left").replace("RIGHT", "Right").replace("UP", "Up").replace("DOWN", "Down")
+    k = k.replace("space", "Space").replace("SPACE", "Space")
+    k = k.replace("period", "Period")
+    k = k.replace("SUpER", "SUPER")
+
+    desc = None
+
+    for check, d in OVERRIDES:
+        if check(c, k):
+            if d is None:
+                desc = None
+                break
+            desc = d
+            break
+
+    if desc is None and not ("XF86" in k or "key" in k):
+        # Try friendly names first
+        for pattern, name in FRIENDLY.items():
+            if pattern in orig_c:
+                desc = name
+                break
+
+        # Try script patterns with prev/next logic
+        if desc is None:
+            for script, info in SCRIPT_PATTERNS.items():
+                if script in orig_c:
+                    if info is None:
+                        desc = script_desc(orig_c)
+                    else:
+                        prev_key, fwd, prev = info
+                        desc = prev if prev_key in orig_c else fwd
+                    break
+
+        # Auto-generate from script path
+        if desc is None:
+            desc = script_desc(orig_c)
+
+    if "XF86" in k or "key" in k:
+        continue
+
+    # Scroll workspace handling
+    if "Scroll" in k and desc is None:
+        if c.startswith("hl.dsp.layout"):
+            desc = "Scroll columns"
+        elif c.startswith("hl.dsp.focus"):
+            desc = "Switch workspace" if "SHIFT" in k else "Scroll columns"
+
+    if desc is None:
+        desc = c[:40]
+
+    entries.append(f"  {k:25s} {desc}")
+
+for i in range(1, 10):
+    entries.append(f"  SUPER + {i:<22} Switch to workspace {i}")
+    entries.append(f"  SUPER + SHIFT + {i:<13} Move to workspace {i}")
+entries.append(f"  SUPER + 0               Switch to workspace 10")
+entries.append(f"  SUPER + SHIFT + 0        Move to workspace 10")
+
+entries = sorted(set(entries))
+rofi_input = "\n".join(entries)
+
+subprocess.run(["rofi", "-dmenu", "-p", "Keybinds", "-i"], input=rofi_input, text=True)

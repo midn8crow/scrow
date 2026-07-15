@@ -1,0 +1,133 @@
+@import "colors/colors.css";
+
+* {
+    font-size: 14px;
+    border-radius: 5px;
+}
+
+window#waybar {
+    font-family: "JetBrainsMono Nerd Font", "JetBrainsMono NF", "Font Awesome", monospace;
+    background-color: transparent;
+    border-bottom: 0px;
+    color: @fg;
+    transition-property: background-color;
+    transition-duration: .5s;
+}
+
+window#waybar.hidden {
+    opacity: 0.2;
+}
+
+.modules-right {
+    margin: 10px 10px 0 0;
+}
+.modules-center {
+    margin: 10px 0 0 0;
+}
+.modules-left {
+    margin: 10px 0 0 10px;
+}
+
+button {
+    border: none;
+}
+
+#workspaces {
+    background-color: @module-bg;
+}
+
+#workspaces button {
+    padding: 0 5px;
+    background-color: transparent;
+    color: @fg;
+    border-radius: 0;
+}
+
+#workspaces button:first-child {
+    border-radius: 5px 0 0 5px;
+}
+
+#workspaces button:last-child {
+    border-radius: 0 5px 5px 0;
+}
+
+#workspaces button:hover {
+    color: @yellow;
+}
+
+#workspaces button.focused {
+    background-color: @inactive;
+}
+
+#workspaces button.urgent {
+    background-color: @red;
+}
+
+#idle_inhibitor,
+#window,
+#clock,
+#battery,
+#backlight,
+#wireplumber,
+#tray,
+#mpris,
+#load {
+    padding: 0 10px;
+    background-color: @module-bg;
+    color: @fg;
+}
+
+.modules-left > widget:first-child > #workspaces {
+    margin-left: 0;
+}
+
+.modules-right > widget:last-child > #workspaces {
+    margin-right: 0;
+}
+
+#battery.charging, #battery.plugged {
+    background-color: @green;
+    color: #000000;
+}
+
+@keyframes blink {
+    to {
+        background-color: @module-bg;
+        color: @fg;
+    }
+}
+
+#battery.critical:not(.charging) {
+    background-color: @red;
+    color: @fg;
+    animation-name: blink;
+    animation-duration: 0.5s;
+    animation-timing-function: steps(12);
+    animation-iteration-count: infinite;
+    animation-direction: alternate;
+}
+
+label:focus {
+    background-color: #000000;
+}
+
+#wireplumber.muted {
+    background-color: @blue;
+}
+
+#tray > .passive {
+    -gtk-icon-effect: dim;
+}
+
+#tray > .needs-attention {
+    -gtk-icon-effect: highlight;
+}
+
+#mpris.playing {
+    background-color: @yellow;
+    color: #000000;
+}
+
+#tray menu {
+    font-family: sans-serif;
+}

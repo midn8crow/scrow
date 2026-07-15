@@ -1,0 +1,24 @@
+@import "athena/tokens/colors.css";
+@import "athena/tokens/state.css";
+@import "athena/tokens/workspace.css";
+@import "athena/tokens/widget.css";
+@import "athena/tokens/batt-clock.css";
+@import "athena/tokens/slider.css";
+
+* {
+  margin: 0;
+  padding: 0;
+  min-height: 0px;
+  border: none;
+  border-radius: 0;
+  font-family: "JetBrainsMono Nerd Font", "JetBrainsMono NF";
+}
+
+window#waybar {
+  background: transparent;
+}
+
+#custom-terminal {
+    color: #a6e3a1;
+}
+

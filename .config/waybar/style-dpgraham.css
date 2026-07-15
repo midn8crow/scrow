@@ -1,0 +1,85 @@
+@import "colors/colors.css";
+
+* {
+    border: none;
+    font-family: "JetBrainsMono Nerd Font", "JetBrainsMono NF", "Font Awesome", Roboto, Arial, sans-serif;
+    font-size: 13px;
+    color: @fg;
+    border-radius: 20px;
+}
+
+window#waybar {
+    background: transparent;
+}
+
+.modules-right {
+    background-color: @module-bg;
+    margin: 2px 10px 0 0;
+}
+.modules-center {
+    background-color: @module-bg;
+    margin: 2px 0 0 0;
+}
+.modules-left {
+    margin: 2px 0 0 5px;
+    background-color: @highlight;
+}
+
+#workspaces button {
+    padding: 1px 5px;
+    background-color: transparent;
+}
+#workspaces button:hover {
+    box-shadow: inherit;
+    background-color: @highlight;
+}
+
+#workspaces button.focused {
+    background-color: @module-bg;
+}
+
+#clock,
+#battery,
+#cpu,
+#memory,
+#temperature,
+#network,
+#pulseaudio,
+#custom-media,
+#tray,
+#mode,
+#custom-power,
+#custom-menu,
+#idle_inhibitor {
+    padding: 0 10px;
+}
+#mode {
+    color: @red;
+    font-weight: bold;
+}
+#custom-power {
+    background-color: @highlight;
+    border-radius: 100px;
+    margin: 5px 5px;
+    padding: 1px 1px 1px 6px;
+}
+
+#idle_inhibitor.activated {
+    color: @green;
+}
+#pulseaudio.muted {
+    color: @red;
+}
+#battery.charging {
+    color: @green;
+}
+#battery.warning:not(.charging) {
+    color: @yellow;
+}
+#battery.critical:not(.charging) {
+    color: @red;
+}
+#temperature.critical {
+    color: @red;
+}
+

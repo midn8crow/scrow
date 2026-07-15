@@ -1,0 +1,137 @@
+@import "colors.rasi"
+
+configuration {
+    show-icons:     true;
+    icon-theme:     "Papirus-Dark";
+    font:           "JetBrainsMono Nerd Font 11";
+    display-drun:   " Apps";
+    display-run:    " Run";
+    modi:           "drun,run";
+    drun-prompt:    "Apps";
+
+    kb-cancel:              "Escape";
+    kb-remove-char-back:    "BackSpace,Shift+BackSpace";
+    kb-accept-entry:        "Return,KP_Enter";
+
+    me-select-entry:        "";
+    me-accept-entry:        "MousePrimary";
+
+    sort:                   true;
+    sorting-method:         "fzf";
+    matching:               "fuzzy";
+    drun-match-fields:      "name,generic,exec,keywords";
+
+    scroll-method:          0;
+    click-to-exit:          false;
+    drun-use-gio:           false;
+}
+
+window {
+    location:           center;
+    anchor:             center;
+    width:              40%;
+    border:             1px;
+    border-color:       @purple;
+    border-radius:      12px;
+    padding:            20px;
+    background-color:   @bg0;
+    transparency:       "real";
+}
+
+mainbox {
+    children:           [ inputbar, listview ];
+    spacing:            15px;
+    background-color:   transparent;
+    border:             0;
+    padding:            0;
+}
+
+inputbar {
+    children:           [ prompt, entry ];
+    spacing:            10px;
+    padding:            12px;
+    border-radius:      8px;
+    background-color:   @bg1;
+    text-color:         @fg0;
+}
+
+prompt {
+    enabled:            true;
+    background-color:   transparent;
+    text-color:         @purple;
+    font:               "JetBrainsMono Nerd Font Bold 11";
+}
+
+entry {
+    placeholder:        "Search...";
+    placeholder-color:  @fg1;
+    background-color:   transparent;
+    text-color:         @fg0;
+    cursor:             text;
+}
+
+listview {
+    columns:            1;
+    lines:              8;
+    cycle:              true;
+    scrollbar:          false;
+    spacing:            8px;
+    fixed-height:       false;
+    background-color:   transparent;
+    border:             0;
+    padding:            0;
+}
+
+element {
+    padding:            8px 12px;
+    border-radius:      8px;
+    cursor:             pointer;
+    spacing:            6px;
+    border:             0;
+    background-color:   transparent;
+}
+
+element-icon {
+    size:               1.2em;
+    vertical-align:     0.5;
+    background-color:   transparent;
+    text-color:         inherit;
+    cursor:             inherit;
+}
+
+element-text {
+    vertical-align:     0.5;
+    background-color:   transparent;
+    text-color:         @fg1;
+    cursor:             inherit;
+    horizontal-align:   0;
+}
+
+element normal.normal,
+element alternate.normal {
+    background-color:   transparent;
+    text-color:         @fg1;
+}
+
+element selected.normal,
+element selected.active {
+    background-color:   @bg2;
+    text-color:         @purple;
+}
+
+element normal.active,
+element alternate.active {
+    background-color:   transparent;
+    text-color:         @fg1;
+}
+
+element normal.urgent,
+element alternate.urgent {
+    background-color:   @red;
+    text-color:         @fg0;
+}
+
+element selected.urgent {
+    background-color:   @red;
+    text-color:         @fg0;
+}

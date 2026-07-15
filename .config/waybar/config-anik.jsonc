@@ -1,0 +1,139 @@
+{
+    "layer": "top",
+    "position": "top",
+    "margin-left": 10,
+    "margin-right": 10,
+    "margin-top": 7,
+    "exclusive": true,
+    "passthrough": false,
+    "gtk-layer-shell": true,
+    "reload_style_on_change": true,
+
+    "modules-left": ["custom/smallspacer", "hyprland/workspaces", "custom/spacer", "mpris"],
+    "modules-center": ["custom/padd", "custom/l_end", "custom/r_end", "hyprland/window", "custom/padd"],
+    "modules-right": ["tray", "custom/padd", "custom/l_end", "network", "group/expand-3", "group/expand-2", "memory", "cpu", "clock", "custom/notification", "custom/padd"],
+
+    "custom/smallspacer": { "format": " " },
+    "custom/spacer": { "format": "|" },
+    "custom/padd": { "format": "  ", "interval": "once", "tooltip": false },
+    "custom/l_end": { "format": " ", "interval": "once", "tooltip": false },
+    "custom/r_end": { "format": " ", "interval": "once", "tooltip": false },
+
+    "memory": {
+        "interval": 1,
+        "format": "{icon}",
+        "format-icons": ["󰝦","󰪞","󰪟","󰪠","󰪡","󰪢","󰪣","󰪤","󰪥"],
+        "max-length": 10
+    },
+    "cpu": {
+        "interval": 1,
+        "format": "{icon}",
+        "format-icons": ["󰝦","󰪞","󰪟","󰪠","󰪡","󰪢","󰪣","󰪤","󰪥"]
+    },
+    "mpris": {
+        "format": "{player_icon} {dynamic}",
+        "format-paused": "<span color='grey'>{status_icon} {dynamic}</span>",
+        "max-length": 50,
+        "player-icons": { "default": "⏸", "mpv": "🎵" },
+        "status-icons": { "paused": "▶" }
+    },
+    "hyprland/workspaces": {
+        "format": "{icon}",
+        "format-icons": {
+            "default": "",
+            "active": ""
+        }
+    },
+    "hyprland/window": {
+        "format": "<span weight='bold'>{class}</span>",
+        "max-length": 120
+    },
+    "network": {
+        "format-wifi": "{icon} ",
+        "format-icons": ["󰤟", "󰤢", "󰤥"],
+        "format-ethernet": "󰈀 ",
+        "format-disconnected": " ",
+        "interval": 2,
+        "tooltip": true
+    },
+    "pulseaudio": {
+        "format": "{icon}",
+        "format-muted": "婢",
+        "format-icons": {
+            "headphone": "",
+            "hands-free": "",
+            "headset": "",
+            "phone": "",
+            "portable": "",
+            "car": "",
+            "default": ["", "", ""]
+        }
+    },
+    "pulseaudio/slider": {
+        "min": 5,
+        "max": 100
+    },
+    "backlight": {
+        "device": "intel_backlight",
+        "format": "{icon}",
+        "format-icons": ["󰃞", "󰃝", "󰃟", "󰃠"]
+    },
+    "backlight/slider": {
+        "min": 5,
+        "max": 100
+    },
+    "group/expand-2": {
+        "orientation": "horizontal",
+        "drawer": {
+            "transition-duration": 600,
+            "click-to-reveal": true
+        },
+        "modules": ["backlight", "backlight/slider", "custom/smallspacer"]
+    },
+    "group/expand-3": {
+        "orientation": "horizontal",
+        "drawer": {
+            "transition-duration": 600,
+            "click-to-reveal": true
+        },
+        "modules": ["pulseaudio", "pulseaudio/slider"]
+    },
+    "custom/notification": {
+        "format": "{icon}",
+        "format-icons": {
+            "notification": "󰅸",
+            "none": "󰂜",
+            "dnd-notification": "󰅸",
+            "dnd-none": "󱏨",
+            "inhibited-notification": "󰅸",
+            "inhibited-none": "󰂜",
+            "dnd-inhibited-notification": "󰅸",
+            "dnd-inhibited-none": "󱏨"
+        },
+        "return-type": "json",
+        "exec-if": "which swaync-client",
+        "exec": "swaync-client -swb",
+        "on-click-right": "swaync-client -d -sw",
+        "on-click": "swaync-client -t -sw",
+        "escape": true
+    },
+    "clock": {
+        "format": "{:%I:%M %p}",
+        "tooltip-format": "<tt>{calendar}</tt>"
+    },
+    "battery": {
+        "states": {
+            "good": 95,
+            "warning": 30,
+            "critical": 20
+        },
+        "format": "{icon}",
+        "format-charging": "<span color='#a6d189'>󱐋</span>",
+        "format-plugged": "󰂄",
+        "format-icons": ["󰝦","󰪞","󰪟","󰪠","󰪡","󰪢","󰪣","󰪤","󰪥"]
+    },
+    "tray": {
+        "icon-size": 18,
+        "spacing": 12
+    },
+}

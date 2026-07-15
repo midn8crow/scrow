@@ -1,0 +1,103 @@
+@import "colors.rasi"
+
+window {
+    location:           center;
+    anchor:             center;
+    width:              800px;
+    height:             500px;
+    border:             1px;
+    border-color:       @purple;
+    border-radius:      12px;
+    padding:            12px;
+    background-color:   @bg0;
+}
+
+mainbox {
+    children:           [ inputbar, listview ];
+    spacing:            10px;
+    background-color:   transparent;
+}
+
+inputbar {
+    children:           [ prompt, entry ];
+    spacing:            10px;
+    padding:            10px 12px;
+    border-radius:      8px;
+    background-color:   @bg1;
+    text-color:         @fg0;
+}
+
+prompt {
+    enabled:            true;
+    background-color:   transparent;
+    text-color:         @purple;
+    font:               "JetBrainsMono Nerd Font Bold 11";
+}
+
+entry {
+    placeholder:        "Search wallpapers...";
+    placeholder-color:  @fg1;
+    background-color:   transparent;
+    text-color:         @fg0;
+    cursor:             text;
+}
+
+listview {
+    columns:            3;
+    lines:              2;
+    cycle:              true;
+    scrollbar:          false;
+    spacing:            10px;
+    fixed-height:       true;
+    background-color:   transparent;
+}
+
+element {
+    orientation:        vertical;
+    padding:            0;
+    border-radius:      8px;
+    cursor:             pointer;
+    spacing:            4px;
+    background-color:   @bg1;
+}
+
+element-icon {
+    size:               160px;
+    expand:             true;
+    background-color:   transparent;
+}
+
+element-text {
+    expand:             false;
+    padding:            4px 8px;
+    background-color:   transparent;
+    text-color:         @fg1;
+    font:               "JetBrainsMono Nerd Font 9";
+    horizontal-align:   0.5;
+    vertical-align:     0.5;
+}
+
+element selected.normal,
+element selected.active {
+    background-color:   @bg2;
+    border:             2px;
+    border-color:       @purple;
+    text-color:         @purple;
+}
+
+element normal.active,
+element alternate.active {
+    background-color:   transparent;
+    text-color:         @fg1;
+}
+
+element normal.urgent,
+element alternate.urgent {
+    background-color:   @red;
+    text-color:         @fg0;
+}
+
+element selected.urgent {
+    background-color:   @red;
+    text-color:         @fg0;
+}

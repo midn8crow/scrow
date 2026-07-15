@@ -1,0 +1,173 @@
+#!/bin/bash
+PATH="/usr/bin:$HOME/.local/bin:$PATH"
+
+LOG_FILE="/tmp/theme-switcher.log"
+echo "[$(date)] Running with: $*" >> "$LOG_FILE"
+
+CSS_DIR="$HOME/.config/waybar/colors"
+GTK3_DIR="$HOME/.config/gtk-3.0"
+GTK4_DIR="$HOME/.config/gtk-4.0"
+CSS_FILE="$CSS_DIR/colors.css"
+
+apply_theme() {
+    local name="$1"
+    local bg_color="$2"
+    local active_border="$3"
+    local inactive_border="$4"
+    local gtk_theme="$5"
+    local icon_theme="$6"
+    local cursor_theme="$7"
+    local rofi_fg="$8"
+    local rofi_error="$9"
+    shift 9
+    local css_content="$*"
+
+    echo "Applying theme: $name"
+
+    # Wallpaper (solid color)
+    awww clear "${bg_color}" 2>/dev/null
+
+    # Waybar colors CSS
+    mkdir -p "$CSS_DIR"
+    cat > "$CSS_FILE" << EOF
+/* Theme: $name */
+$css_content
+EOF
+
+    # Hyprland border colors (persistent + immediate)
+    cat > "$HOME/.config/hypr/modules/borders.lua" << BEOF
+hl.config({
+    general = {
+        col = {
+            active_border   = "${active_border}",
+            inactive_border = "${inactive_border}",
+        },
+    },
+})
+BEOF
+    hyprctl eval "hl.config({ general = { col = { active_border = \"${active_border}\", inactive_border = \"${inactive_border}\" } } })"
+
+    # GTK settings
+    mkdir -p "$GTK3_DIR" "$GTK4_DIR"
+    cat > "$GTK3_DIR/settings.ini" << EOF
+[Settings]
+gtk-theme-name=$gtk_theme
+gtk-icon-theme-name=$icon_theme
+gtk-cursor-theme-name=$cursor_theme
+gtk-font-name=CaskaydiaCove Nerd Font Propo 10
+gtk-application-prefer-dark-theme=true
+gtk-enable-primary-paste=false
+EOF
+    cp "$GTK3_DIR/settings.ini" "$GTK4_DIR/settings.ini"
+
+    # Qt6 color scheme (Fusion dark)
+    mkdir -p "$HOME/.config/qt6ct"
+    cat > "$HOME/.config/qt6ct/qt6ct.conf" << QEOF
+[Appearance]
+color_scheme_path=
+icon_theme=$icon_theme
+style=Fusion
+color_scheme_type=2
+QEOF
+    cat > "$HOME/.config/qt6ct/qt6ct.conf" << QEOF
+[Appearance]
+color_scheme_path=$HOME/.config/qt6ct/colors/current.conf
+icon_theme=$icon_theme
+style=Fusion
+custom_palette=true
+color_scheme_type=2
+QEOF
+
+    # Rofi colors (dusky style)
+    bg_hex="${bg_color#\#}"
+    rofi_accent_hex=$(python3 -c "
+import re
+c='${active_border}'
+m=re.match(r'rgba\(#?([0-9a-fA-F]{6})([0-9a-fA-F]{2})?\)', c)
+if m:
+    print(m.group(1))
+else:
+    print('84d6c3')
+")
+    rofi_bg2=$(python3 -c "
+bg='${bg_hex}'
+accent='${rofi_accent_hex}'
+r0,g0,b0=int(bg[0:2],16),int(bg[2:4],16),int(bg[4:6],16)
+r1,g1,b1=int(accent[0:2],16),int(accent[2:4],16),int(accent[4:6],16)
+print(f'#{(r0+r1)//3:02x}{(g0+g1)//3:02x}{(b0+b1)//3:02x}')
+")
+    cat > "$HOME/.config/rofi/colors.rasi" << ROFI
+* {
+    bg0: #${bg_hex};
+    bg1: ${rofi_bg2};
+    bg2: ${rofi_bg2};
+    fg0: ${rofi_fg};
+    fg1: #6a7a74;
+
+    red: ${rofi_error};
+    green: ${rofi_fg};
+    yellow: ${rofi_fg};
+    blue: #${rofi_accent_hex};
+    purple: #${rofi_accent_hex};
+    aqua: ${rofi_bg2};
+}
+ROFI
+
+    # Reload waybar
+    killall -SIGUSR2 waybar 2>/dev/null
+    sleep 0.3
+    if ! pgrep -x waybar >/dev/null; then
+        waybar &>/dev/null &
+    fi
+}
+
+case "$(echo "$1" | tr '[:upper:]' '[:lower:]')" in
+    dark|default)
+        apply_theme \
+            "Dark" \
+            "1a1b26" \
+            "rgba(7aa2f7ee)" \
+            "rgba(3b4261aa)" \
+            "adw-gtk3-dark" \
+            "Tela-circle-dracula-dark" \
+            "Adwaita" \
+            "#acb0d0" \
+            "#f7768e" \
+            '@define-color module-bg     rgba(8, 8, 11, 0.9);
+@define-color tooltip-bg    @module-bg;
+@define-color inactive      #787c99;
+@define-color fg            #acb0d0;
+@define-color workspace-fg  @fg;
+@define-color highlight     @inactive;
+@define-color red           #f7768e;
+@define-color blue          #7aa2f7;
+@define-color yellow        #e0af68;
+@define-color green         #41a6b5;'
+        ;;
+    light)
+        apply_theme \
+            "Light" \
+            "e0e0e0" \
+            "rgba(2959aaee)" \
+            "rgba(707280aa)" \
+            "adw-gtk3-dark" \
+            "Tela-circle-dracula-light" \
+            "Adwaita" \
+            "#343B58" \
+            "#f7768e" \
+            '@define-color module-bg     rgba(214, 216, 223, 0.9);
+@define-color tooltip-bg    rgba(214, 216, 223, 1);
+@define-color inactive      #707280;
+@define-color fg            #343B58;
+@define-color workspace-fg  @fg;
+@define-color highlight     #dcdee0;
+@define-color red           #f7768e;
+@define-color blue          #2959aa;
+@define-color yellow        #e0af68;
+@define-color green         #41a6b5;'
+        ;;
+    *)
+        echo "Usage: theme-switcher {dark|light}"
+        exit 1
+        ;;
+esac

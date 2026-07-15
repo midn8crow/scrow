@@ -1,0 +1,212 @@
+@import "colors/colors.css";
+
+* {
+    font-family: "JetBrainsMono Nerd Font", "JetBrainsMono NF";
+    font-weight: bold;
+    font-size: 15px;
+}
+
+window#waybar {
+    background: @module-bg;
+    border: 3px solid alpha(@fg, 0.1);
+    border-radius: 10px;
+}
+
+tooltip {
+    background: @tooltip-bg;
+    color: @fg;
+    font-size: 13px;
+    border-radius: 7px;
+    border: 2px solid @module-bg;
+}
+
+#workspaces {
+    background: transparent;
+    color: @inactive;
+    box-shadow: none;
+    text-shadow: none;
+    border-radius: 9px;
+    transition: 0.2s ease;
+    padding-left: 4px;
+    padding-right: 4px;
+    padding-top: 1px;
+}
+
+#workspaces button {
+    background: transparent;
+    color: @fg;
+    box-shadow: none;
+    text-shadow: none;
+    border-radius: 9px;
+    transition: 0.2s ease;
+    padding-left: 4px;
+    padding-right: 4px;
+}
+
+#workspaces button.active {
+    color: @fg;
+    transition: all 0.3s ease;
+    padding-left: 4px;
+    padding-right: 4px;
+}
+
+#workspaces button:hover {
+    background: none;
+    color: @green;
+    transition: all 0.5s cubic-bezier(.55,-0.68,.48,1.682);
+}
+
+#custom-spacer {
+    opacity: 0.0;
+}
+#custom-smallspacer {
+    opacity: 0.0;
+}
+
+#backlight {
+    color: @highlight;
+    background: transparent;
+    font-weight: normal;
+    font-size: 19px;
+    margin: 1px 0px 0px 0px;
+    padding-left: 0px;
+    padding-right: 2px;
+}
+
+#battery {
+    font-weight: normal;
+    font-size: 22px;
+    color: @green;
+    background: transparent;
+    margin: 0px 0px 0px 0px;
+    padding-left: 0px;
+    padding-right: 0px;
+}
+
+#clock {
+    color: @fg;
+    font-size: 15px;
+    font-weight: 900;
+    font-family: "JetBrainsMono Nerd Font", "JetBrainsMono NF";
+    background: transparent;
+    margin: 3px 0px 0px 0px;
+    padding-left: 10px;
+    padding-right: 10px;
+    border: none;
+}
+
+#pulseaudio {
+    font-weight: normal;
+    font-size: 18px;
+    color: @blue;
+    background: transparent;
+    margin: 0px 0px 0px 0px;
+    padding-left: 3px;
+    padding-right: 3px;
+}
+
+#cpu {
+    font-weight: normal;
+    font-size: 22px;
+    color: @highlight;
+}
+
+#memory {
+    font-weight: normal;
+    font-size: 22px;
+    color: @yellow;
+}
+
+#mpris {
+    color: @fg;
+    animation-name: blink;
+    animation-duration: 3s;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    animation-direction: alternate;
+}
+
+@keyframes blink {
+    to {
+        color: @inactive;
+    }
+}
+
+#network {
+    color: @fg;
+    font-weight: normal;
+    font-size: 19px;
+    padding-right: 0px;
+    padding-left: 4px;
+}
+
+#custom-notification {
+    font-family: "JetBrainsMono Nerd Font", "JetBrainsMono NF";
+    font-size: 17px;
+    color: @fg;
+    margin: 2px 0px 0px 0px;
+}
+
+#mpris {
+    font-size: 15px;
+    font-weight: bold;
+}
+
+#backlight-slider slider,
+#pulseaudio-slider slider {
+    background: @fg;
+    background-color: transparent;
+    box-shadow: none;
+    margin-right: 7px;
+}
+
+#backlight-slider trough,
+#pulseaudio-slider trough {
+    margin-top: -3px;
+    min-width: 90px;
+    min-height: 10px;
+    margin-bottom: -4px;
+    border-radius: 8px;
+    background: @inactive;
+}
+
+#backlight-slider highlight,
+#pulseaudio-slider highlight {
+    border-radius: 8px;
+    background-color: @highlight;
+}
+
+#battery.charging, #battery.plugged {
+    color: @fg;
+}
+
+#battery.critical:not(.charging) {
+    color: @red;
+}
+
+#custom-r_end {
+    border-radius: 0px 7px 7px 0px;
+    margin-right: 1px;
+    padding-right: 3px;
+}
+
+#custom-l_end {
+    border-radius: 7px 0px 0px 7px;
+    margin-left: 1px;
+    padding-left: 3px;
+}
+
+#tray {
+    padding-left: 8px;
+    padding-right: 8px;
+}
+
+#tray > .passive {
+    -gtk-icon-effect: dim;
+}
+
+#tray > .needs-attention {
+    -gtk-icon-effect: highlight;
+    background-color: @red;
+}
+
