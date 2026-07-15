@@ -39,7 +39,7 @@ hl.bind("ALT + RIGHT", hl.dsp.exec_cmd("$HOME/.local/bin/vol-notify.sh up"), { r
 hl.bind("ALT + LEFT", hl.dsp.exec_cmd("$HOME/.local/bin/vol-notify.sh down"), { repeating = true })
 hl.bind("ALT + UP",    hl.dsp.exec_cmd("$HOME/.local/bin/brightness.sh up"))
 hl.bind("ALT + DOWN",  hl.dsp.exec_cmd("$HOME/.local/bin/brightness.sh down"))
-hl.bind(mainMod .. " + ALT + W", hl.dsp.exec_cmd("$HOME/.config/waybar/launch.sh"))
+hl.bind("ALT + 0", hl.dsp.exec_cmd("$HOME/.config/waybar/launch.sh"))
 hl.bind(mainMod .. " + N", hl.dsp.exec_cmd("swaync-client -t"))
 hl.bind(mainMod .. " + R", hl.dsp.exec_cmd("hyprctl reload"))
 hl.bind(mainMod .. " + B", hl.dsp.exec_cmd(browser))

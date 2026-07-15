@@ -26,7 +26,8 @@ def script_desc(cmd):
 
 # (pattern, description) — checked in order, first match wins
 OVERRIDES = [
-    (lambda c, _: c.strip().startswith("function("), "Toggle blur"),
+    (lambda c, k: c.strip().startswith("function(") and "Period" in k, "Toggle blur"),
+    (lambda c, k: c.strip().startswith("function(") and "SHIFT" in k and "L" in k, "Change layout"),
     (lambda _, k: "XF86" in k or "key" in k, None),  # skip
     (lambda c, _: "window.close" in c, "Close window"),
     (lambda c, _: "window.float" in c, "Toggle float"),
@@ -37,7 +38,6 @@ OVERRIDES = [
     (lambda c, k: "mouse:272" in k or c.startswith("hl.dsp.window.drag"), "Drag window"),
     (lambda c, k: "mouse:273" in k or c.startswith("hl.dsp.window.resize"), "Resize window"),
     (lambda c, _: "workspace.toggle_special" in c or "togglespecialworkspace" in c, "Toggle scratchpad"),
-    (lambda _, k: ("Scroll" in k), None),  # handled below
     (lambda c, _: "hyprctl reload" in c, "Reload Hyprland"),
     (lambda c, _: "hyprshutdown" in c or "exit()" in c, "Exit Hyprland"),
 ]
@@ -77,6 +77,7 @@ FRIENDLY = {
     "swaync-client": "Notification center",
     "fcitx5-remote": "Toggle Bangla/English",
     "cliphist": "Clipboard history",
+    "keybinds": "Keybind menu",
 }
 
 entries = []
@@ -114,11 +115,19 @@ for m in re.finditer(r'hl\.bind\s*\(\s*(.*?)\s*,\s*(.*?)\)\s*', content):
             break
 
     if desc is None and not ("XF86" in k or "key" in k):
+        # Scroll workspace handling
+        if "Scroll" in k:
+            if c.startswith("hl.dsp.layout"):
+                desc = "Scroll columns"
+            elif c.startswith("hl.dsp.focus"):
+                desc = "Move between workspaces" if "SHIFT" in k else "Scroll columns"
+
         # Try friendly names first
-        for pattern, name in FRIENDLY.items():
-            if pattern in orig_c or pattern in c:
-                desc = name
-                break
+        if desc is None:
+            for pattern, name in FRIENDLY.items():
+                if pattern in orig_c or pattern in c:
+                    desc = name
+                    break
 
         # Try script patterns with prev/next logic
         if desc is None:
@@ -138,21 +147,14 @@ for m in re.finditer(r'hl\.bind\s*\(\s*(.*?)\s*,\s*(.*?)\)\s*', content):
     if "XF86" in k or "key" in k:
         continue
 
-    # Scroll workspace handling
-    if "Scroll" in k and desc is None:
-        if c.startswith("hl.dsp.layout"):
-            desc = "Scroll columns"
-        elif c.startswith("hl.dsp.focus"):
-            desc = "Switch workspace" if "SHIFT" in k else "Scroll columns"
-
     if desc is None:
         desc = c[:40]
 
-    entries.append(f"  {k:25s} {desc}")
+    entries.append(f"  {k:30s}  {desc}")
 
 for i in range(1, 10):
-    entries.append(f"  SUPER + {i:<22} Switch to workspace {i}")
-    entries.append(f"  SUPER + SHIFT + {i:<13} Move to workspace {i}")
+    entries.append(f"  SUPER + {i:<27}  Switch to workspace {i}")
+    entries.append(f"  SUPER + SHIFT + {i:<17}  Move to workspace {i}")
 entries.append(f"  SUPER + 0               Switch to workspace 10")
 entries.append(f"  SUPER + SHIFT + 0        Move to workspace 10")
 
