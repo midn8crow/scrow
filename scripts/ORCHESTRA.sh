@@ -615,6 +615,40 @@ configure_services() {
     print_ok "Services configured"
 }
 
+configure_grub() {
+    print_step "Configuring GRUB theme..."
+    
+    ask_sudo
+    
+    local theme_dir="/boot/grub/themes/minegrub"
+    local dotfiles_grub="$DOTFILES_DIR/boot/grub"
+    
+    # Copy theme files
+    if [[ -d "$dotfiles_grub/themes/minegrub" ]]; then
+        sudo cp -r "$dotfiles_grub/themes/minegrub" /boot/grub/themes/
+        print_ok "Minecraft GRUB theme files copied"
+    else
+        print_warn "GRUB theme files not found, skipping"
+        return 0
+    fi
+    
+    # Update GRUB config if not already set
+    if ! grep -q "minegrub" /etc/default/grub 2>/dev/null; then
+        sudo sed -i 's|#.*GRUB_THEME=.*|GRUB_THEME=/boot/grub/themes/minegrub/theme.txt|' /etc/default/grub
+        if ! grep -q "GRUB_THEME" /etc/default/grub; then
+            echo "GRUB_THEME=/boot/grub/themes/minegrub/theme.txt" | sudo tee -a /etc/default/grub > /dev/null
+        fi
+        print_ok "GRUB config updated"
+    else
+        print_ok "GRUB theme already configured"
+    fi
+    
+    # Regenerate GRUB config
+    sudo grub-mkconfig -o /boot/grub/grub.cfg 2>/dev/null || print_warn "Could not regenerate GRUB config (run manually: sudo grub-mkconfig -o /boot/grub/grub.cfg)"
+    
+    print_ok "GRUB configured"
+}
+
 set_permissions() {
     print_step "Setting permissions..."
     
@@ -781,6 +815,7 @@ main() {
     configure_gtk
     configure_fonts
     configure_services
+    configure_grub
     set_permissions
     
     # Final

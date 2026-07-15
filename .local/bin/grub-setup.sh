@@ -1,27 +1,36 @@
 #!/bin/bash
+# =============================================================================
+# grub-setup.sh - Install Minecraft GRUB Theme
+# =============================================================================
 
-# One-time setup script for dotfiles
-# Run with sudo: sudo ./setup.sh
+set -euo pipefail
 
-RES=$(hyprctl monitors -j 2>/dev/null | python3 -c "
-import sys, json
-try:
-    m = json.load(sys.stdin)[0]
-    print(f\"{int(m['width'])}x{int(m['height'])}\")
-except:
-    print('1920x1080')
-" 2>/dev/null)
+THEME_DIR="/boot/grub/themes/minegrub"
+DOTFILES_GRUB="$HOME/dotfiles/boot/grub"
 
-[ -z "$RES" ] && RES="1920x1080"
+echo "Installing Minecraft GRUB theme..."
 
-echo "Detected resolution: $RES"
+# Copy theme files
+if [[ -d "$DOTFILES_GRUB/themes/minegrub" ]]; then
+    sudo cp -r "$DOTFILES_GRUB/themes/minegrub" /boot/grub/themes/
+    echo "✓ Theme files copied"
+else
+    echo "✗ Theme files not found in dotfiles"
+    exit 1
+fi
 
-# Update GRUB resolution
-sed -i "s/^GRUB_GFXMODE=.*/GRUB_GFXMODE=$RES/" /etc/default/grub
-echo "Set GRUB_GFXMODE=$RES"
+# Update GRUB config
+if ! grep -q "minegrub" /etc/default/grub; then
+    sudo sed -i 's|#GRUB_THEME=|GRUB_THEME=/boot/grub/themes/minegrub/theme.txt|' /etc/default/grub
+    echo "✓ GRUB config updated"
+else
+    echo "✓ GRUB config already set"
+fi
 
-# Regenerate GRUB config
-grub-mkconfig -o /boot/grub/grub.cfg
-echo "GRUB config updated"
+# Regenerate grub config
+sudo grub-mkconfig -o /boot/grub/grub.cfg
+echo "✓ GRUB config regenerated"
 
-echo "Done! Reboot to see changes."
+echo ""
+echo "Minecraft GRUB theme installed!"
+echo "Restart to see it."
