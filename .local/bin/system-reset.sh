@@ -191,9 +191,10 @@ fetch_fresh() {
 # =============================================================================
 
 main() {
-    CHOICE=$(printf "Update from Backup\nFetch from GitHub" | rofi -dmenu -p "System Reset" -theme-str 'configuration { show-icons: false; }')
+    CHOICE=$(printf "Back\nUpdate from Backup\nFetch from GitHub" | rofi -dmenu -p "System Reset" -theme-str 'configuration { show-icons: false; }')
     
     [ -z "$CHOICE" ] && exit 0
+    [ "$CHOICE" = "Back" ] && exit 0
     
     case "$CHOICE" in
         "Update from Backup")

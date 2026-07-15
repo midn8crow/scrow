@@ -35,9 +35,10 @@ RATES=$(echo "$DATA" | awk -v out="$OUTPUT" -v res="$CURRENT_RES" '
 
 [ -z "$RATES" ] && exit 1
 
-SEL=$(echo "$RATES" | rofi -dmenu -p "Refresh Rate ($CURRENT_RES)" -theme-str 'configuration { show-icons: false; }')
+SEL=$(printf "Back\n$RATES" | rofi -dmenu -p "Refresh Rate ($CURRENT_RES)" -theme-str 'configuration { show-icons: false; }')
 
 [ -z "$SEL" ] && exit 0
+[ "$SEL" = "Back" ] && exit 0
 
 NEW_HZ=$(echo "$SEL" | sed 's/ Hz\[active\]//; s/ Hz\[preferred\]//; s/ Hz//')
 

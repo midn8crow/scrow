@@ -29,9 +29,10 @@ RESOLUTIONS=$(echo "$DATA" | awk -v out="$OUTPUT" -v cur="$CURRENT_RES" '
 
 [ -z "$RESOLUTIONS" ] && exit 1
 
-SEL=$(echo "$RESOLUTIONS" | rofi -dmenu -p "Resolution" -theme-str 'configuration { show-icons: false; }')
+SEL=$(printf "Back\n$RESOLUTIONS" | rofi -dmenu -p "Resolution" -theme-str 'configuration { show-icons: false; }')
 
 [ -z "$SEL" ] && exit 0
+[ "$SEL" = "Back" ] && exit 0
 
 NEW_RES=$(echo "$SEL" | sed 's/ \[active\]//')
 
