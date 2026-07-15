@@ -65,6 +65,7 @@ SCRIPT_PATTERNS = {
 FRIENDLY = {
     "music_recognition": "Songrec (Shazam)",
     "theme-menu": "Settings",
+    "update-dots": "Push Dots",
     "kitty": "Open terminal",
     "terminal": "Open terminal",
     "browser": "Open browser",
