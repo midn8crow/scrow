@@ -3,7 +3,7 @@
 WAYBAR_DIR="${HOME}/.config/waybar"
 STATE_FILE="$WAYBAR_DIR/.current"
 
-CHOICE=$(printf "Waybar\nThemes\nCursors\nRefresh Rate\nResolution" | rofi -dmenu -p "Menu" -theme-str 'configuration { show-icons: false; }')
+CHOICE=$(printf "Waybar\nThemes\nCursors\nRefresh Rate\nResolution\nSystem Reset" | rofi -dmenu -p "Menu" -theme-str 'configuration { show-icons: false; }')
 
 [ -z "$CHOICE" ] && exit 0
 
@@ -91,5 +91,8 @@ case "$CHOICE" in
         ;;
     Resolution)
         "$HOME/.local/bin/resolution-menu.sh"
+        ;;
+    System\ Reset)
+        "$HOME/.local/bin/system-reset.sh"
         ;;
 esac

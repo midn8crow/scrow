@@ -78,6 +78,7 @@ FRIENDLY = {
     "fcitx5-remote": "Toggle Bangla/English",
     "cliphist": "Clipboard history",
     "keybinds": "Keybind menu",
+    "launch": "Toggle waybar",
 }
 
 entries = []
