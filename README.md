@@ -297,6 +297,7 @@ MIT License - see [LICENSE](LICENSE)
 
 ## Credits
 
+- [dusklinux/dusky](https://github.com/dusklinux/dusky) - Inspiration for this setup
 - [Hyprland](https://hyprland.org/)
 - [Waybar](https://github.com/Alexays/Waybar)
 - [Kitty](https://sw.kovidgoyal.net/kitty/)
