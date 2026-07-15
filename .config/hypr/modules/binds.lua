@@ -44,6 +44,7 @@ hl.bind(mainMod .. " + N", hl.dsp.exec_cmd("swaync-client -t"))
 hl.bind(mainMod .. " + R", hl.dsp.exec_cmd("hyprctl reload"))
 hl.bind(mainMod .. " + B", hl.dsp.exec_cmd(browser))
 hl.bind("ALT + V", hl.dsp.exec_cmd("cliphist list | rofi -dmenu -p Clipboard | cliphist decode | wl-copy"))
+hl.bind("CTRL + SUPER + space", hl.dsp.exec_cmd("hypremoji"))
 hl.bind("CTRL + SHIFT + space", hl.dsp.exec_cmd("$HOME/.local/bin/keybinds"))
 local blur_toggled = {}
 hl.bind(mainMod .. " + period", function()
@@ -81,6 +82,9 @@ local ws_layouts = {}
 hl.bind(mainMod .. " + SHIFT + L", function()
     local ws = hl.get_active_workspace()
     local id = tostring(ws.id)
+    if ws_layouts[id] == nil then
+        ws_layouts[id] = "scrolling"
+    end
     if ws_layouts[id] == "scrolling" then
         ws_layouts[id] = "dwindle"
     else

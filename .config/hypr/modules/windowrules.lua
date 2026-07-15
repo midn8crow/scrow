@@ -58,13 +58,22 @@ hl.window_rule({
 })
 
 hl.window_rule({
-    name  = "brave-popup-float",
+    name  = "messenger-call-float",
     match = {
-        class         = "brave-browser",
-        initial_title = "Untitled - Brave",
+        class = "brave-browser",
+        title = "about:blank - Brave",
     },
-    float = true,
-    size  = "900 700",
+    float  = true,
+    size   = "900 700",
+    center = true,
+})
+
+hl.window_rule({
+    name  = "polkit-float",
+    match = { class = "hyprpolkitagent" },
+    float  = true,
+    size   = "400 300",
+    center = true,
 })
 
 hl.layer_rule({
@@ -98,6 +107,13 @@ hl.window_rule({
     match = { class = "music_recognition.sh" },
     float = true,
     size  = "380 220",
+    center = true,
+})
+
+hl.window_rule({
+    name  = "hypremoji-float",
+    match = { class = "dev.musagy.hypremoji" },
+    float = true,
     center = true,
 })
 
