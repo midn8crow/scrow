@@ -50,7 +50,11 @@ notify() {
 }
 
 open_url() {
-    xdg-open "$1" &
+    if systemctl is-active --quiet tor 2>/dev/null; then
+        torsocks xdg-open "$1" &
+    else
+        xdg-open "$1" &
+    fi
     disown
 }
 
@@ -86,7 +90,13 @@ if [[ "${USE_UPLOAD_SERVICE}" == "true" ]]; then
     grim -g "${geometry}" "${tmp_file}"
     notify "Uploading..." "Sending image to secure host"
 
-    if ! response=$(curl -sSf -F "files[]=@${tmp_file}" 'https://uguu.se/upload'); then
+    CURL_OPTS=""
+    if systemctl is-active --quiet tor 2>/dev/null; then
+        CURL_OPTS="--socks5-hostname 127.0.0.1:9050"
+        notify "Tor Active" "Uploading through secure tunnel"
+    fi
+
+    if ! response=$(curl -sSf $CURL_OPTS -F "files[]=@${tmp_file}" 'https://uguu.se/upload'); then
         die "Upload connection failed."
     fi
 

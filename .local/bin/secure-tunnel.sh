@@ -62,9 +62,9 @@ show_menu() {
     STATUS=$(get_status)
 
     if [ "$STATUS" = "ON" ]; then
-        OPTIONS="Secure Tunnel (TOR)  [ON]\nStop Tunnel\nCheck IP"
+        OPTIONS="Secure Tunnel (TOR)  [ON]\nCheck IP"
     else
-        OPTIONS="Secure Tunnel (TOR)  [OFF]\nStart Tunnel\nCheck IP"
+        OPTIONS="Secure Tunnel (TOR)  [OFF]\nCheck IP"
     fi
 
     CHOICE=$(printf "$OPTIONS" | rofi -dmenu -p "Secure Tunnel" -theme-str 'configuration { show-icons: false; }')
@@ -72,11 +72,12 @@ show_menu() {
     [ -z "$CHOICE" ] && exit 0
 
     case "$CHOICE" in
-        *Start\ Tunnel)
-            start_tor
-            ;;
-        *Stop\ Tunnel)
-            stop_tor
+        *Secure\ Tunnel*)
+            if is_tor_running; then
+                stop_tor
+            else
+                start_tor
+            fi
             ;;
         *Check\ IP)
             check_ip
