@@ -4,8 +4,8 @@
 
 -- set programs that you use
 local terminal    = "kitty"
-local fileManager = "thunar"
-local browser     = "brave"
+local fileManager = "bash -c 'desktop=$(xdg-mime query default inode/directory 2>/dev/null); f=$(find /usr/share/applications ~/.local/share/applications -name \"$desktop\" 2>/dev/null | head -1); exec=\"$(grep ^Exec= \"$f\" 2>/dev/null | head -1 | cut -d= -f2-)\"; term=$(grep ^Terminal= \"$f\" 2>/dev/null | cut -d= -f2-); cmd=\"${exec%% %*}\"; [ \"$term\" = \"true\" ] && cmd=\"kitty $cmd\"; eval \"$cmd\"'"
+local browser     = "bash -c 'desktop=$(xdg-settings get default-web-browser 2>/dev/null); f=$(find /usr/share/applications ~/.local/share/applications -name \"$desktop\" 2>/dev/null | head -1); exec=\"$(grep ^Exec= \"$f\" 2>/dev/null | head -1 | cut -d= -f2-)\"; exec ${exec%% %*}'"
 local menu        = "rofi -show drun -drun-prompt Software"
 
 
@@ -69,6 +69,9 @@ hl.bind(mainMod .. " + T", hl.dsp.exec_cmd("$HOME/.local/bin/ocr-toggle.sh"))
 hl.bind(mainMod .. " + S", hl.dsp.exec_cmd("$HOME/.local/bin/screenshot-region.sh"))
 hl.bind(mainMod .. " + PRINT", hl.dsp.exec_cmd("$HOME/.local/bin/screenshot-full.sh"))
 hl.bind(mainMod .. " + L", hl.dsp.exec_cmd("fcitx5-remote -t"))
+
+-- Secure Tunnel (TOR)
+hl.bind(mainMod .. " + SHIFT + S", hl.dsp.exec_cmd("$HOME/.local/bin/secure-tunnel.sh"))
 
 -- Google Lens (Circle to Search)
 hl.bind(mainMod .. " + G", hl.dsp.exec_cmd("$HOME/user_scripts/google_image_search/google_image_search.sh"))

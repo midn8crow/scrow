@@ -32,7 +32,9 @@ OVERRIDES = [
     (lambda c, _: "window.close" in c, "Close window"),
     (lambda c, _: "window.float" in c, "Toggle float"),
     (lambda c, _: "window.pseudo" in c, "Toggle pseudo"),
-    (lambda c, _: c.startswith("hl.dsp.layout") and "focus" not in c and "move" not in c, "Toggle split layout"),
+    (lambda c, _: "window.fullscreen" in c, "Fullscreen"),
+    (lambda c, _: c.startswith("hl.dsp.layout") and "focus" not in c and "move" not in c and "colresize" not in c, "Toggle split layout"),
+    (lambda c, _: "colresize" in c, "Resize split"),
     (lambda c, _: "window.swap" in c, "Swap window"),
     (lambda c, _: "focus({ direction" in c, "Move focus"),
     (lambda c, k: "mouse:272" in k or c.startswith("hl.dsp.window.drag"), "Drag window"),
@@ -40,13 +42,15 @@ OVERRIDES = [
     (lambda c, _: "workspace.toggle_special" in c or "togglespecialworkspace" in c, "Toggle scratchpad"),
     (lambda c, _: "hyprctl reload" in c, "Reload Hyprland"),
     (lambda c, _: "hyprshutdown" in c or "exit()" in c, "Exit Hyprland"),
+    (lambda c, _: "exec_cmd" in c and "emoji" in c, "Emoji picker"),
+    (lambda c, _: "exec_cmd" in c and "rofi -show drun" in c, "Application menu"),
 ]
 
 # Pattern → description for script names
 SCRIPT_PATTERNS = {
     "wallpaper-switch": ("prev", "Next wallpaper", "Previous wallpaper"),
     "switch-waybar": ("prev", "Next waybar", "Previous waybar"),
-    "vol-notify": ("up", "Volume up", "Volume down"),
+    "vol-notify": ("down", "Volume up", "Volume down"),
     "screenshot-region": None,
     "screenshot-full": None,
     "theme-menu": None,
@@ -61,28 +65,32 @@ SCRIPT_PATTERNS = {
     "force-kill": None,
 }
 
-# Friendly names for known commands
+# Friendly names for known commands (matched against orig_c before variable expansion)
 FRIENDLY = {
     "music_recognition": "Songrec (Shazam)",
     "theme-menu": "Settings",
+    "theme-switcher": "Theme switcher",
+    "cursor-switcher": "Cursor switcher",
     "update-dots": "Push Dots",
     "kitty": "Open terminal",
     "terminal": "Open terminal",
     "browser": "Open browser",
-    "brave": "Open browser",
-    "firefox": "Open browser",
-    "thunar": "Open file manager",
     "fileManager": "Open file manager",
     "rofi -show drun": "Application menu",
+    "rofi -show emoji": "Emoji picker",
     "swaync": "Notification center",
     "swaync-client": "Notification center",
     "fcitx5-remote": "Toggle Bangla/English",
     "cliphist": "Clipboard history",
     "keybinds": "Keybind menu",
     "launch": "Toggle waybar",
+    "hyprctl reload": "Reload Hyprland",
+    "google_image_search": "Google Lens",
+    "fullscreen": "Fullscreen",
+    "emoji": "Emoji picker",
 }
 
-entries = []
+raw_entries = []
 
 for m in re.finditer(r'hl\.bind\s*\(\s*(.*?)\s*,\s*(.*?)\)\s*', content):
     k = m.group(1).strip()
@@ -91,20 +99,22 @@ for m in re.finditer(r'hl\.bind\s*\(\s*(.*?)\s*,\s*(.*?)\)\s*', content):
     orig_c = c
 
     for vn, vv in vars.items():
-        k = re.sub(r'\b' + vn + r'\b', vv, k)
+        safe_vv = vv.replace('\\', '\\\\')
+        k = re.sub(r'\b' + vn + r'\b', safe_vv, k)
         if vn == "menu":
-            c = re.sub(r'(?<![/\w-])' + vn + r'\b', vv, c)
+            if re.search(r'(?<!")\bmenu\b(?!")', orig_c) and not re.search(r'"[^"]*\bmenu\b[^"]*"', orig_c):
+                c = re.sub(r'(?<!")\bmenu\b(?!")', safe_vv, c)
         else:
-            c = re.sub(r'\b' + vn + r'\b', vv, c)
+            c = re.sub(r'\b' + vn + r'\b', safe_vv, c)
 
     k = k.replace("..", "").replace('"', "").strip()
     k = re.sub(r'\s+', ' ', k)
-    k = k.replace("mouse_down", "Scroll down").replace("mouse_up", "Scroll up")
-    k = k.replace("left", "Left").replace("right", "Right").replace("up", "Up").replace("down", "Down")
-    k = k.replace("LEFT", "Left").replace("RIGHT", "Right").replace("UP", "Up").replace("DOWN", "Down")
+    k = k.replace("mouse_down", "Scroll Down").replace("mouse_up", "Scroll Up")
+    k = k.replace("LEFT", "Left").replace("RIGHT", "Right").replace("DOWN", "Down")
+    k = k.replace("left", "Left").replace("right", "Right").replace("down", "Down")
+    k = re.sub(r'(?<!\w)(?:up|UP)(?!\w)', 'Up', k)
     k = k.replace("space", "Space").replace("SPACE", "Space")
     k = k.replace("period", "Period")
-    k = k.replace("SUpER", "SUPER")
 
     desc = None
 
@@ -117,21 +127,18 @@ for m in re.finditer(r'hl\.bind\s*\(\s*(.*?)\s*,\s*(.*?)\)\s*', content):
             break
 
     if desc is None and not ("XF86" in k or "key" in k):
-        # Scroll workspace handling
         if "Scroll" in k:
             if c.startswith("hl.dsp.layout"):
                 desc = "Scroll columns"
             elif c.startswith("hl.dsp.focus"):
                 desc = "Move between workspaces" if "SHIFT" in k else "Scroll columns"
 
-        # Try friendly names first
         if desc is None:
             for pattern, name in FRIENDLY.items():
-                if pattern in orig_c or pattern in c:
+                if pattern in orig_c:
                     desc = name
                     break
 
-        # Try script patterns with prev/next logic
         if desc is None:
             for script, info in SCRIPT_PATTERNS.items():
                 if script in orig_c:
@@ -142,7 +149,6 @@ for m in re.finditer(r'hl\.bind\s*\(\s*(.*?)\s*,\s*(.*?)\)\s*', content):
                         desc = prev if prev_key in orig_c else fwd
                     break
 
-        # Auto-generate from script path
         if desc is None:
             desc = script_desc(orig_c)
 
@@ -152,15 +158,19 @@ for m in re.finditer(r'hl\.bind\s*\(\s*(.*?)\s*,\s*(.*?)\)\s*', content):
     if desc is None:
         desc = c[:40]
 
-    entries.append(f"  {k:30s}  {desc}")
+    raw_entries.append((k, desc))
 
 for i in range(1, 10):
-    entries.append(f"  SUPER + {i:<27}  Switch to workspace {i}")
-    entries.append(f"  SUPER + SHIFT + {i:<17}  Move to workspace {i}")
-entries.append(f"  SUPER + 0               Switch to workspace 10")
-entries.append(f"  SUPER + SHIFT + 0        Move to workspace 10")
+    raw_entries.append((f"SUPER + {i}", f"Switch to workspace {i}"))
+    raw_entries.append((f"SUPER + SHIFT + {i}", f"Move to workspace {i}"))
+raw_entries.append(("SUPER + 0", "Switch to workspace 10"))
+raw_entries.append(("SUPER + SHIFT + 0", "Move to workspace 10"))
 
-entries = sorted(set(entries))
+raw_entries = sorted(set(raw_entries))
+
+max_key_len = max(len(k) for k, _ in raw_entries)
+
+entries = [f"  {k:<{max_key_len}}    {d}" for k, d in raw_entries]
 rofi_input = "\n".join(entries)
 
 subprocess.run(["rofi", "-dmenu", "-p", "Keybinds", "-i"], input=rofi_input, text=True)
