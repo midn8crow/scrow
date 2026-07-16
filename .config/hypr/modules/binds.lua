@@ -25,6 +25,7 @@ hl.bind(mainMod .. " + ALT + X", hl.dsp.exec_cmd("$HOME/.local/bin/force-kill.sh
 hl.bind(mainMod .. " + M", hl.dsp.exec_cmd("command -v hyprshutdown >/dev/null 2>&1 && hyprshutdown || hyprctl dispatch 'hl.dsp.exit()'"))
 hl.bind(mainMod .. " + E", hl.dsp.exec_cmd(fileManager))
 hl.bind(mainMod .. " + D", hl.dsp.window.float({ action = "toggle" }))
+hl.bind(mainMod .. " + F", hl.dsp.window.fullscreen())
 hl.bind("ALT + space", hl.dsp.exec_cmd(menu))
 hl.bind("CTRL + space", hl.dsp.exec_cmd("$HOME/.local/bin/wallpaper-menu.sh"))
 hl.bind("ALT + SHIFT + space", hl.dsp.exec_cmd("$HOME/.local/bin/powermenu.sh"))
