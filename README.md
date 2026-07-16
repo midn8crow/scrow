@@ -273,6 +273,36 @@ wpctl set-default <sink-id>
 hyprctl reload
 ```
 
+## Hardware Fixes
+
+### Keyboard Backlight (Not Supported on Linux)
+
+Some keyboards don't support Linux keyboard backlight control. Use this script to force the scrolllock LED on:
+
+```bash
+#!/bin/bash
+while true; do
+    LED_DIR=$(find /sys/class/leds/ -maxdepth 1 -name "*scrolllock" 2>/dev/null | head -1)
+    if [ -n "$LED_DIR" ] && [ -f "$LED_DIR/brightness" ]; then
+        echo 1 > "$LED_DIR/brightness" 2>/dev/null
+    fi
+    sleep 0.005
+done
+```
+
+Save as `~/.local/bin/kbd-backlight-keep.sh` and run:
+
+```bash
+chmod +x ~/.local/bin/kbd-backlight-keep.sh
+~/.local/bin/kbd-backlight-keep.sh &
+```
+
+To auto-start, add to `~/.config/hypr/modules/autostart.lua`:
+
+```lua
+hl.exec_cmd("bash -c '$HOME/.local/bin/kbd-backlight-keep.sh &'")
+```
+
 ## Uninstall
 
 ```bash
