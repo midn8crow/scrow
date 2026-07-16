@@ -4,7 +4,7 @@ WAYBAR_DIR="${HOME}/.config/waybar"
 STATE_FILE="$WAYBAR_DIR/.current"
 
 while true; do
-    CHOICE=$(printf "Waybar\nThemes\nCursors\nRefresh Rate\nResolution\nSystem Reset" | rofi -dmenu -p "Settings" -theme-str 'configuration { show-icons: false; }')
+    CHOICE=$(printf "Waybar\nThemes\nCursors\nRefresh Rate\nResolution\nDefault Browser\nDefault File Manager\nSystem Reset" | rofi -dmenu -p "Settings" -theme-str 'configuration { show-icons: false; }')
 
     [ -z "$CHOICE" ] && exit 0
 
@@ -89,6 +89,92 @@ while true; do
             ;;
         Resolution)
             "$HOME/.local/bin/resolution-menu.sh"
+            ;;
+        Default\ Browser)
+            declare -A browser_map=(
+                ["brave-browser.desktop"]="Brave"
+                ["firefox.desktop"]="Firefox"
+                ["zen.desktop"]="Zen Browser"
+                ["org.torproject.torbrowser-launcher.desktop"]="Tor Browser"
+            )
+
+            current_browser=$(xdg-settings get default-web-browser 2>/dev/null)
+
+            OPTIONS=("Brave" "Firefox" "Zen Browser" "Tor Browser")
+
+            TMPFILE=$(mktemp)
+            for opt in "${OPTIONS[@]}"; do
+                desktop_file=""
+                for key in "${!browser_map[@]}"; do
+                    if [[ "${browser_map[$key]}" == "$opt" ]]; then
+                        desktop_file="$key"
+                        break
+                    fi
+                done
+                if [[ "$desktop_file" == "$current_browser" ]]; then
+                    echo "${opt} [active]" >> "$TMPFILE"
+                else
+                    echo "$opt" >> "$TMPFILE"
+                fi
+            done
+
+            SEL=$(cat "$TMPFILE" | rofi -dmenu -p "Default Browser" -theme-str 'configuration { show-icons: false; }')
+            rm -f "$TMPFILE"
+
+            [ -z "$SEL" ] && continue
+            SEL=$(echo "$SEL" | sed 's/ \[active\]$//')
+
+            desktop_file=""
+            for key in "${!browser_map[@]}"; do
+                if [[ "${browser_map[$key]}" == "$SEL" ]]; then
+                    desktop_file="$key"
+                    break
+                fi
+            done
+
+            xdg-settings set default-web-browser "$desktop_file"
+            ;;
+        Default\ File\ Manager)
+            declare -A fm_map=(
+                ["thunar.desktop"]="Thunar"
+                ["yazi.desktop"]="Yazi"
+            )
+
+            current_fm=$(xdg-mime query default inode/directory 2>/dev/null)
+
+            OPTIONS=("Thunar" "Yazi")
+
+            TMPFILE=$(mktemp)
+            for opt in "${OPTIONS[@]}"; do
+                desktop_file=""
+                for key in "${!fm_map[@]}"; do
+                    if [[ "${fm_map[$key]}" == "$opt" ]]; then
+                        desktop_file="$key"
+                        break
+                    fi
+                done
+                if [[ "$desktop_file" == "$current_fm" ]]; then
+                    echo "${opt} [active]" >> "$TMPFILE"
+                else
+                    echo "$opt" >> "$TMPFILE"
+                fi
+            done
+
+            SEL=$(cat "$TMPFILE" | rofi -dmenu -p "Default File Manager" -theme-str 'configuration { show-icons: false; }')
+            rm -f "$TMPFILE"
+
+            [ -z "$SEL" ] && continue
+            SEL=$(echo "$SEL" | sed 's/ \[active\]$//')
+
+            desktop_file=""
+            for key in "${!fm_map[@]}"; do
+                if [[ "${fm_map[$key]}" == "$SEL" ]]; then
+                    desktop_file="$key"
+                    break
+                fi
+            done
+
+            xdg-mime default "$desktop_file" inode/directory x-scheme-handler/file
             ;;
         System\ Reset)
             "$HOME/.local/bin/system-reset.sh"
