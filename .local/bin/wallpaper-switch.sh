@@ -2,7 +2,7 @@
 
 WALL_DIR="$HOME/Pictures/Wallpapers"
 CSS_FILE="$HOME/.config/waybar/colors/colors.css"
-HISTORY_FILE="/tmp/wallpaper-history"
+HISTORY_FILE="$HOME/.cache/wallpaper-history"
 
 # Get all wallpapers sorted
 mapfile -t walls < <(find "$WALL_DIR" -type f \( -name '*.jpg' -o -name '*.png' -o -name '*.jpeg' -o -name '*.webp' \) | sort)
@@ -20,7 +20,22 @@ if [[ -f "$HISTORY_FILE" ]]; then
     current=${current:-0}
 fi
 
-if [[ "$1" == "prev" ]]; then
+if [[ "$1" == "restore" ]]; then
+    TYPE_FILE="$HOME/.cache/wallpaper-type"
+    if [[ -f "$TYPE_FILE" ]] && [[ "$(cat "$TYPE_FILE" 2>/dev/null)" == "live" ]]; then
+        LIVE_PATH="$HOME/.cache/wallpaper-live-path"
+        if [[ -f "$LIVE_PATH" ]]; then
+            LIVE_WALL=$(cat "$LIVE_PATH" 2>/dev/null)
+            if [[ -n "$LIVE_WALL" && -f "$LIVE_WALL" ]]; then
+                pgrep -x awww-daemon >/dev/null || awww-daemon &
+                sleep 0.2
+                mpvpaper -o "no-audio --loop" --no-config --hwdec=auto-safe HDMI-A-1 "$LIVE_WALL" >/dev/null 2>&1 &
+                exit 0
+            fi
+        fi
+    fi
+    : # keep current index as-is for static wallpapers
+elif [[ "$1" == "prev" ]]; then
     current=$(( (current - 1 + count) % count ))
 else
     current=$(( (current + 1) % count ))
@@ -28,14 +43,15 @@ fi
 
 wall="${walls[$current]}"
 echo "$current" > "$HISTORY_FILE"
+echo "static" > "$HOME/.cache/wallpaper-type"
 
-# Kill live wallpaper first, then start awww with transition
-pkill -f "mpvpaper" 2>/dev/null
+# Ensure awww-daemon is running, set correct wallpaper FIRST (while mpvpaper covers screen)
 pgrep -x awww-daemon >/dev/null || awww-daemon &
 sleep 0.2
-
-# Set wallpaper with transition (grow is the visual effect)
 awww img "$wall" --transition-fps 60 --transition-type grow --transition-duration 1
+
+# Now kill live wallpaper (awww already has the correct wallpaper ready)
+pkill -f "mpvpaper" 2>/dev/null
 
 # Generate colors with matugen (dark mode)
 json=$(matugen image -j hex --mode dark --prefer lightness "$wall" 2>/dev/null)

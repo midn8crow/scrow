@@ -41,3 +41,7 @@ pkill -f "mpvpaper" 2>/dev/null
 sleep 0.2
 
 mpvpaper -o "no-audio --loop" --no-config --hwdec=auto-safe HDMI-A-1 "$FULL" >/dev/null 2>&1 &
+
+# Save live wallpaper state for restore on reboot
+echo "live" > "$HOME/.cache/wallpaper-type"
+echo "$FULL" > "$HOME/.cache/wallpaper-live-path"

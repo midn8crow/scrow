@@ -35,10 +35,11 @@ for w in "${walls[@]}"; do
 done
 [ -z "$WALL" ] && exit 0
 
-pkill -f "mpvpaper" 2>/dev/null
 pgrep -x awww-daemon >/dev/null || awww-daemon &
 sleep 0.2
 awww img "$WALL" --transition-fps 60 --transition-type grow --transition-duration 1
+
+pkill -f "mpvpaper" 2>/dev/null
 
 json=$(matugen image -j hex --mode dark --prefer lightness "$WALL" 2>/dev/null)
 [[ -z "$json" ]] && exit 1

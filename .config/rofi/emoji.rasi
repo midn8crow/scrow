@@ -1,110 +1,97 @@
 @import "colors.rasi"
 
 configuration {
-    show-icons:     true;
-    icon-theme:     "Papirus-Dark";
-    font:           "JetBrainsMono Nerd Font 11";
-    display-drun:   " Apps";
-    display-run:    " Run";
-    modi:           "drun,run,emoji";
-    drun-prompt:    "Apps";
+    show-icons:     false;
+    font:           "Noto Color Emoji 16";
+    modi:           "emoji";
+    matching:       "normal";
+    sort:           false;
 
     kb-cancel:              "Escape";
     kb-remove-char-back:    "BackSpace,Shift+BackSpace";
     kb-accept-entry:        "Return,KP_Enter";
-
     me-select-entry:        "";
     me-accept-entry:        "MousePrimary";
-
-    sort:                   true;
-    sorting-method:         "fzf";
-    matching:               "fuzzy";
-    drun-match-fields:      "name,generic,exec,keywords";
-
-    scroll-method:          0;
-    click-to-exit:          false;
-    drun-use-gio:           false;
+    click-to-exit:          true;
 }
 
 window {
     location:           center;
     anchor:             center;
-    width:              40%;
-    border:             1px;
+    width:              420px;
+    border-width:       1px;
     border-color:       @purple;
-    border-radius:      12px;
-    padding:            20px;
+    border-radius:      10px;
+    padding:            12px;
     background-color:   @bg0;
     transparency:       "real";
 }
 
 mainbox {
     children:           [ inputbar, listview ];
-    spacing:            15px;
+    spacing:            8px;
     background-color:   transparent;
-    border:             0;
-    padding:            0;
 }
 
 inputbar {
     children:           [ prompt, entry ];
-    spacing:            10px;
-    padding:            12px;
-    border-radius:      8px;
+    spacing:            8px;
+    padding:            10px 12px;
+    border-radius:      10px;
     background-color:   @bg1;
-    text-color:         @fg0;
 }
 
 prompt {
     enabled:            true;
     background-color:   transparent;
     text-color:         @purple;
-    font:               "JetBrainsMono Nerd Font Bold 11";
+    font:               "JetBrainsMono Nerd Font Bold 13";
 }
 
 entry {
-    placeholder:        "Search...";
+    placeholder:        "Search emoji...";
     placeholder-color:  @fg1;
     background-color:   transparent;
     text-color:         @fg0;
     cursor:             text;
+    font:               "JetBrainsMono Nerd Font 13";
 }
 
 listview {
-    columns:            1;
-    lines:              8;
+    columns:            8;
+    lines:              6;
     cycle:              true;
     scrollbar:          false;
-    spacing:            8px;
-    fixed-height:       false;
+    spacing:            2px;
+    fixed-height:       true;
     background-color:   transparent;
-    border:             0;
-    padding:            0;
+    padding:            4px 0 0 0;
 }
 
 element {
-    padding:            8px 12px;
-    border-radius:      8px;
+    padding:            6px;
+    border-radius:      10px;
     cursor:             pointer;
-    spacing:            6px;
-    border:             0;
+    spacing:            0;
+    border-width:       2px;
+    border-color:       @bg1;
     background-color:   transparent;
+    horizontal-align:   0.5;
+    vertical-align:     0.5;
 }
 
 element-icon {
-    size:               1.2em;
-    vertical-align:     0.5;
+    size:               0em;
     background-color:   transparent;
-    text-color:         inherit;
-    cursor:             inherit;
 }
 
 element-text {
-    vertical-align:     0.5;
     background-color:   transparent;
     text-color:         @fg1;
     cursor:             inherit;
-    horizontal-align:   0;
+    expand:             true;
+    horizontal-align:   0.5;
+    vertical-align:     0.5;
 }
 
 element normal.normal,
@@ -116,7 +103,9 @@ element alternate.normal {
 element selected.normal,
 element selected.active {
     background-color:   @bg2;
-    text-color:         @purple;
+    border-width:       2px;
+    border-color:       @purple;
+    text-color:         @fg0;
 }
 
 element normal.active,
@@ -127,11 +116,11 @@ element alternate.active {
 
 element normal.urgent,
 element alternate.urgent {
-    background-color:   @red;
-    text-color:         @fg0;
+    background-color:   transparent;
+    text-color:         @fg1;
 }
 
 element selected.urgent {
-    background-color:   @red;
-    text-color:         @fg0;
+    background-color:   transparent;
+    text-color:         @fg1;
 }

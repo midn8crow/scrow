@@ -1,13 +1,28 @@
 #!/bin/bash
 WALL_DIR="$HOME/Pictures/Wallpapers"
-HISTORY_FILE="/tmp/wallpaper-history"
+HISTORY_FILE="$HOME/.cache/wallpaper-history"
+LIVE_ACTIVE=false
 
-# Get current wallpaper path
-idx=0
-[[ -f "$HISTORY_FILE" ]] && idx=$(cat "$HISTORY_FILE" 2>/dev/null) || idx=0
-mapfile -t walls < <(find "$WALL_DIR" -type f \( -name '*.jpg' -o -name '*.png' -o -name '*.jpeg' -o -name '*.webp' \) | sort)
-wall="${walls[$idx]:-}"
-[[ -z "$wall" ]] && notify-send "Color Pick" "No wallpaper found" && exit 1
+# Check if live wallpaper (mpvpaper) is running
+if pgrep -f "mpvpaper" >/dev/null 2>&1; then
+    LIVE_ACTIVE=true
+fi
+
+if [[ "$LIVE_ACTIVE" == true ]]; then
+    # Live wallpaper: capture current screen frame
+    SCREENSHOT="/tmp/color-pick-screen.png"
+    grim -o "$(hyprctl monitors -j | python3 -c 'import sys,json; print(json.load(sys.stdin)[0]["name"])')" -t png "$SCREENSHOT" 2>/dev/null
+    [[ ! -f "$SCREENSHOT" ]] && notify-send "Color Pick" "Failed to capture screen" && exit 1
+    img_src="$SCREENSHOT"
+else
+    # Static wallpaper: get current wallpaper path
+    idx=0
+    [[ -f "$HISTORY_FILE" ]] && idx=$(cat "$HISTORY_FILE" 2>/dev/null) || idx=0
+    mapfile -t walls < <(find "$WALL_DIR" -type f \( -name '*.jpg' -o -name '*.png' -o -name '*.jpeg' -o -name '*.webp' \) | sort)
+    wall="${walls[$idx]:-}"
+    [[ -z "$wall" ]] && notify-send "Color Pick" "No wallpaper found" && exit 1
+    img_src="$wall"
+fi
 
 # Get screen dimensions
 eval $(hyprctl monitors -j | python3 -c "
@@ -27,9 +42,9 @@ y=$(echo "$region" | cut -d, -f2 | cut -d' ' -f1)
 w=$(echo "$region" | cut -d' ' -f2 | cut -dx -f1)
 h=$(echo "$region" | cut -dx -f2)
 
-# Map screen coords to wallpaper coords
-img_w=$(ffprobe -v error -select_streams v:0 -show_entries stream=width  -of csv=p=0 "$wall")
-img_h=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 "$wall")
+# Get image dimensions
+img_w=$(ffprobe -v error -select_streams v:0 -show_entries stream=width  -of csv=p=0 "$img_src")
+img_h=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 "$img_src")
 
 rw=$(echo "$img_w $SW $w" | awk '{ printf "%d", ($1 / $2) * $3 }')
 rh=$(echo "$img_h $SH $h" | awk '{ printf "%d", ($1 / $2) * $3 }')
@@ -38,7 +53,7 @@ ry=$(echo "$img_h $SH $y" | awk '{ printf "%d", ($1 / $2) * $3 }')
 
 # Crop and resize
 crop="/tmp/cava-color-crop.png"
-ffmpeg -i "$wall" -vf "crop=${rw}:${rh}:${rx}:${ry},scale=400:400:force_original_aspect_ratio=decrease" -y "$crop" 2>/dev/null
+ffmpeg -i "$img_src" -vf "crop=${rw}:${rh}:${rx}:${ry},scale=400:400:force_original_aspect_ratio=decrease" -y "$crop" 2>/dev/null
 
 json=$(matugen image -j hex --mode dark --prefer lightness "$crop" 2>/dev/null)
 [[ -z "$json" ]] && notify-send "Color Pick" "matugen failed" && exit 1
