@@ -9,7 +9,7 @@ GTK4_DIR="$HOME/.config/gtk-4.0"
 STATE_FILE="$HOME/.config/hypr/.cursor-theme"
 
 case "$1" in
-    "ITSME (Recommended)")
+    "SCROW (Recommended)")
         CURSOR_THEME="Bibata-Modern-Classic"
         ;;
     "Bibata Modern Ice")

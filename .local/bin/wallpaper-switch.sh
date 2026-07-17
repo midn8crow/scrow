@@ -122,7 +122,7 @@ style=Fusion
 color_scheme_type=2
 QEOF
 
-# Rofi colors (dusky style)
+# Rofi colors (scrow style)
 bg2=$(python3 -c "
 bg='${background}'
 sc='${surface_container}'

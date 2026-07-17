@@ -107,7 +107,7 @@ hl.config({
 BEOF
 hyprctl eval "hl.config({ general = { col = { active_border = \"rgba(${active_hex}ee)\", inactive_border = \"rgba(${inactive_hex}aa)\" } } })"
 
-# Rofi colors (dusky style)
+# Rofi colors (scrow style)
 bg2=$(python3 -c "
 bg='${background}'
 sc='${surface_container}'

@@ -14,7 +14,7 @@ while true; do
             current_cursor=$(cat "$CURSOR_STATE" 2>/dev/null)
 
             declare -A cursor_map=(
-                ["Bibata-Modern-Classic"]="ITSME (Recommended)"
+                ["Bibata-Modern-Classic"]="SCROW (Recommended)"
                 ["Bibata-Modern-Ice"]="Bibata Modern Ice"
                 ["Bibata-Original-Classic"]="Bibata Original Classic"
                 ["phinger-cursors-dark"]="Phinger Dark"
@@ -23,7 +23,7 @@ while true; do
                 ["Windows11Dark"]="Windows 11 Dark"
             )
 
-            OPTIONS=("ITSME (Recommended)" "Bibata Modern Ice" "Bibata Original Classic" "Phinger Dark" "Phinger Light" "Minecraft Animated" "Windows 11 Dark")
+            OPTIONS=("SCROW (Recommended)" "Bibata Modern Ice" "Bibata Original Classic" "Phinger Dark" "Phinger Light" "Minecraft Animated" "Windows 11 Dark")
 
             TMPFILE=$(mktemp)
             for opt in "${OPTIONS[@]}"; do
@@ -222,8 +222,8 @@ while true; do
                 local cfg="$HOME/.config/hypr/modules/decorations.lua"
                 local duky="$HOME/.config/hypr/modules/decorations.lua.bak"
                 sed -i '/animations = {/!b;n;s/enabled = false/enabled = true/' "$cfg"
-                # Restore dusky curves and animation structure from backup
-                local start=$(grep -n '^-- Dusky curves\|^-- Default curves' "$cfg" | head -1 | cut -d: -f1)
+                # Restore scrow curves and animation structure from backup
+                local start=$(grep -n '^-- Scrow curves\|^-- Default curves' "$cfg" | head -1 | cut -d: -f1)
                 local end=$(grep -n 'leaf = "specialWorkspace"\|leaf = "zoomFactor"' "$cfg" | tail -1 | cut -d: -f1)
                 if [[ -z "$start" ]]; then
                     # No animation section found, insert after animations block
@@ -231,7 +231,7 @@ while true; do
                     end=$(awk "NR>=$start && /^\\)/{print NR; exit}" "$cfg")
                     if [[ -n "$end" ]]; then
                         sed -i "${end}a\\
--- Dusky curves\\
+-- Scrow curves\\
 hl.curve(\"overshot\",  { type = \"bezier\", points = { {0.05, 0.9}, {0.1, 1.1} } })\\
 hl.curve(\"fluid\",     { type = \"bezier\", points = { {0.25, 1}, {0, 1} } })\\
 hl.curve(\"snap\",      { type = \"bezier\", points = { {0.5, 0.9}, {0.1, 1.05} } })\\
@@ -253,7 +253,7 @@ hl.animation({ leaf = \"specialWorkspace\", enabled = true, speed = $5, bezier =
                     fi
                     return
                 fi
-                # If already has dusky structure, just update speeds
+                # If already has scrow structure, just update speeds
                 sed -i "s/leaf = \"windowsIn\",.*speed = [0-9.]*/leaf = \"windowsIn\",     enabled = true,  speed = $1,  bezier = \"overshot\",   style = \"popin 80%\"/" "$cfg"
                 sed -i "s/leaf = \"windowsOut\",.*speed = [0-9.]*/leaf = \"windowsOut\",    enabled = true,  speed = $2,  bezier = \"snap\",       style = \"popin 80%\"/" "$cfg"
                 sed -i "s/leaf = \"windowsMove\",.*speed = [0-9.]*/leaf = \"windowsMove\",   enabled = true,  speed = $1,  bezier = \"overshot\",   style = \"slide\"/" "$cfg"
