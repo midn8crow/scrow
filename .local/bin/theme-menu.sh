@@ -223,7 +223,7 @@ while true; do
                 local duky="$HOME/.config/hypr/modules/decorations.lua.bak"
                 sed -i '/animations = {/!b;n;s/enabled = false/enabled = true/' "$cfg"
                 # Restore scrow curves and animation structure from backup
-                local start=$(grep -n '^-- Scrow curves\|^-- Default curves' "$cfg" | head -1 | cut -d: -f1)
+                local start=$(grep -n '^-- scrow curves\|^-- Default curves' "$cfg" | head -1 | cut -d: -f1)
                 local end=$(grep -n 'leaf = "specialWorkspace"\|leaf = "zoomFactor"' "$cfg" | tail -1 | cut -d: -f1)
                 if [[ -z "$start" ]]; then
                     # No animation section found, insert after animations block
@@ -231,7 +231,7 @@ while true; do
                     end=$(awk "NR>=$start && /^\\)/{print NR; exit}" "$cfg")
                     if [[ -n "$end" ]]; then
                         sed -i "${end}a\\
--- Scrow curves\\
+-- scrow curves\\
 hl.curve(\"overshot\",  { type = \"bezier\", points = { {0.05, 0.9}, {0.1, 1.1} } })\\
 hl.curve(\"fluid\",     { type = \"bezier\", points = { {0.25, 1}, {0, 1} } })\\
 hl.curve(\"snap\",      { type = \"bezier\", points = { {0.5, 0.9}, {0.1, 1.05} } })\\

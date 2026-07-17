@@ -54,7 +54,7 @@ hl.config({
     },
 })
 
--- Scrow curves
+-- scrow curves
 hl.curve("overshot",  { type = "bezier", points = { {0.05, 0.9}, {0.1, 1.1} } })
 hl.curve("fluid",     { type = "bezier", points = { {0.25, 1}, {0, 1} } })
 hl.curve("snap",      { type = "bezier", points = { {0.5, 0.9}, {0.1, 1.05} } })
