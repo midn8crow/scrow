@@ -17,7 +17,7 @@ NC='\033[0m'
 # Paths
 DOTFILES_DIR="$HOME/dotfiles"
 BACKUP_DIR="$HOME/.config/backup/initial"
-GITHUB_REPO="https://github.com/midnight-crow-69/itsme-setup.git"
+GITHUB_REPO="https://github.com/midnight-crow-69/scrow.git"
 
 # Configs to restore
 CONFIGS=(
