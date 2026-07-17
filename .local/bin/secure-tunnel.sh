@@ -2,7 +2,6 @@
 
 SOCKS_PORT=9050
 STATE_FILE="/tmp/.secure-tunnel-state"
-PROXY_ENV_FILE="/tmp/.secure-tunnel-proxy-env"
 
 is_tor_running() {
     systemctl is-active --quiet tor 2>/dev/null
@@ -24,14 +23,8 @@ start_tor() {
     sudo systemctl start tor
     sleep 2
     if is_tor_running; then
-        cat > "$PROXY_ENV_FILE" << EOF
-export http_proxy="socks5h://127.0.0.1:$SOCKS_PORT"
-export https_proxy="socks5h://127.0.0.1:$SOCKS_PORT"
-export all_proxy="socks5h://127.0.0.1:$SOCKS_PORT"
-export no_proxy="localhost,127.0.0.1,::1"
-EOF
         echo "1" > "$STATE_FILE"
-        notify "Secure Tunnel (TOR)" "Enabled - Traffic routed through Tor"
+        notify "Secure Tunnel (TOR)" "Enabled - Configure browser SOCKS5 proxy 127.0.0.1:9050"
     else
         notify "Secure Tunnel" "Failed to start Tor"
     fi
@@ -39,7 +32,6 @@ EOF
 
 stop_tor() {
     sudo systemctl stop tor
-    rm -f "$PROXY_ENV_FILE"
     rm -f "$STATE_FILE"
     notify "Secure Tunnel (TOR)" "Disabled - Direct connection"
 }

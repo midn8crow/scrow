@@ -49,12 +49,27 @@ notify() {
     notify-send -a "Google Lens" "$1" "$2"
 }
 
-open_url() {
-    if systemctl is-active --quiet tor 2>/dev/null; then
-        torsocks xdg-open "$1" &
-    else
-        xdg-open "$1" &
+tor_was_off=false
+
+ensure_tor() {
+    if ! systemctl is-active --quiet tor 2>/dev/null; then
+        tor_was_off=true
+        sudo systemctl start tor
+        sleep 3
+        if ! systemctl is-active --quiet tor 2>/dev/null; then
+            die "Failed to start Tor"
+        fi
     fi
+}
+
+cleanup_tor() {
+    if [ "$tor_was_off" = true ]; then
+        sudo systemctl stop tor
+    fi
+}
+
+open_url() {
+    xdg-open "$1" &
     disown
 }
 
@@ -79,22 +94,21 @@ if [[ ! "${geometry}" =~ ^[0-9]+,[0-9]+\ [0-9]+x[0-9]+$ ]]; then
     die "Invalid selection geometry received."
 fi
 
+# Start Tor only after selection (no delay for selection tool)
+ensure_tor
+
 # -----------------------------------------------------------------------------
 # UPLOAD MODE: Screenshot → uguu.se → Google Lens via URL
 # -----------------------------------------------------------------------------
 if [[ "${USE_UPLOAD_SERVICE}" == "true" ]]; then
 
     tmp_file=$(mktemp /tmp/lens-XXXXXX.png)
-    trap 'rm -f "${tmp_file}"' EXIT
+    trap 'cleanup_tor; rm -f "${tmp_file}"' EXIT
 
     grim -g "${geometry}" "${tmp_file}"
     notify "Uploading..." "Sending image to secure host"
 
-    CURL_OPTS=""
-    if systemctl is-active --quiet tor 2>/dev/null; then
-        CURL_OPTS="--socks5-hostname 127.0.0.1:9050"
-        notify "Tor Active" "Uploading through secure tunnel"
-    fi
+    CURL_OPTS="--socks5-hostname 127.0.0.1:9050"
 
     if ! response=$(curl -sSf $CURL_OPTS -F "files[]=@${tmp_file}" 'https://uguu.se/upload'); then
         die "Upload connection failed."
