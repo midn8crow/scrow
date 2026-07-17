@@ -76,6 +76,12 @@ hl.window_rule({
     center = true,
 })
 
+hl.window_rule({
+    name  = "mousepad-float",
+    match = { class = "org.xfce.mousepad" },
+    float = true,
+})
+
 hl.layer_rule({
     name        = "rofi-anim",
     match       = { namespace = "rofi" },
@@ -85,17 +91,10 @@ hl.layer_rule({
 })
 
 hl.layer_rule({
-    name         = "swaync-glass",
-    match        = { namespace = "swaync-notification-window" },
-    blur         = false,
-    ignore_alpha = 1,
-})
-
-hl.layer_rule({
-    name        = "swaync-cc-glass",
-    match       = { namespace = "swaync-control-center" },
-    blur        = true,
-    ignore_alpha = 0.05,
+    name         = "mako-notif",
+    match        = { namespace = "mako" },
+    blur         = true,
+    ignore_alpha = 0.2,
 })
 
 

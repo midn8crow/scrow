@@ -13,11 +13,14 @@
       "dnd-inhibited-none": "󰪑"
     },
     "return-type": "json",
-    "exec-if": "which swaync-client",
-    "exec": "swaync-client -swb",
-    "on-click": "swaync-client -t -sw",
-    "on-click-right": "swaync-client -d -sw",
-    "escape": true
+    "exec-if": "which makoctl",
+    "exec": "$HOME/.local/bin/mako.sh",
+    "on-click": "$HOME/.local/bin/rofi-mako.sh",
+    "on-click-middle": "$HOME/.local/bin/mako.sh --clear && pkill -RTMIN+8 waybar",
+    "on-click-right": "makoctl mode -t do-not-disturb && pkill -RTMIN+8 waybar",
+    "signal": 8,
+    "escape": true,
+    "tooltip-format": "Notifications\n\nLMB: Toggle Panel\nMMB: Clear All\nRMB: Do Not Disturb"
   },
   "tray": {
     "icon-size": 16,

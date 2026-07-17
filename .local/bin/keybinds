@@ -82,6 +82,8 @@ FRIENDLY = {
     "rofi -show emoji": "Emoji picker",
     "swaync": "Notification center",
     "swaync-client": "Notification center",
+    "makoctl dismiss": "Dismiss All Notifications",
+    "makoctl menu": "Toggle Do Not Disturb",
     "fcitx5-remote": "Toggle Bangla/English",
     "cliphist": "Clipboard history",
     "keybinds": "Keybind menu",

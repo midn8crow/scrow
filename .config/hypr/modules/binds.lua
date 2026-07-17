@@ -107,7 +107,7 @@ hl.bind("ALT + LEFT", hl.dsp.exec_cmd("$HOME/.local/bin/vol-notify.sh down"), { 
 hl.bind("ALT + UP",    hl.dsp.exec_cmd("$HOME/.local/bin/brightness.sh up"))
 hl.bind("ALT + DOWN",  hl.dsp.exec_cmd("$HOME/.local/bin/brightness.sh down"))
 hl.bind("ALT + 0", hl.dsp.exec_cmd("$HOME/.config/waybar/launch.sh"))
-hl.bind(mainMod .. " + N", hl.dsp.exec_cmd("swaync-client -t"))
+hl.bind(mainMod .. " + N", hl.dsp.exec_cmd("$HOME/.local/bin/rofi-mako.sh"))
 hl.bind(mainMod .. " + R", hl.dsp.exec_cmd("hyprctl reload"))
 hl.bind(mainMod .. " + B", hl.dsp.exec_cmd(browser))
 hl.bind("ALT + V", hl.dsp.exec_cmd("cliphist list | rofi -dmenu -p Clipboard | cliphist decode | wl-copy"))
@@ -144,6 +144,10 @@ hl.bind(mainMod .. " + G", hl.dsp.exec_cmd("$HOME/user_scripts/google_image_sear
 
 -- Music Recognition (Shazam)
 hl.bind(mainMod .. " + ALT + M", hl.dsp.exec_cmd("kitty --class music_recognition.sh --hold $HOME/user_scripts/music/music_recognition.sh"))
+
+-- Notification actions (Mako)
+hl.bind(mainMod .. " + ALT + D", hl.dsp.exec_cmd("makoctl dismiss -a"), { locked = true, description = "Dismiss All Notifications" })
+hl.bind(mainMod .. " + ALT + F", hl.dsp.exec_cmd("makoctl menu -- rofi -dmenu -p 'Action: '"), { description = "Toggle Do Not Disturb" })
 
 
 

@@ -78,7 +78,7 @@ custom_palette=true
 color_scheme_type=2
 QEOF
 
-    # Rofi colors (dusky style)
+    # Rofi colors (scrow style)
     bg_hex="${bg_color#\#}"
     rofi_accent_hex=$(python3 -c "
 import re
