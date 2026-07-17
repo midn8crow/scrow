@@ -115,8 +115,8 @@ element alternate.normal {
 
 element selected.normal,
 element selected.active {
-    background-color:   @bg2;
-    text-color:         @purple;
+    background-color:   #b2c5ff33;
+    text-color:         #ffffff;
 }
 
 element normal.active,
