@@ -79,9 +79,9 @@ hl.window_rule({
 hl.layer_rule({
     name        = "rofi-anim",
     match       = { namespace = "rofi" },
+    animation   = "popin 87%",
     blur        = true,
-    dim_around  = true,
-    ignore_alpha = 0.0,
+    ignore_alpha = 0.05,
 })
 
 hl.layer_rule({
