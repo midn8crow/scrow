@@ -129,7 +129,7 @@ element alternate.normal {
 
 element selected.normal,
 element selected.active {
-    background-color:   #b2c5ff33;
+    background-color:   @highlight;
     text-color:         #ffffff;
 }
 

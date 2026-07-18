@@ -123,11 +123,5 @@ hl.window_rule({
     opacity = "0.7 0.5",
 })
 
-hl.window_rule({
-    name  = "obsidian-glass",
-    match = { class = "obsidian" },
-    opacity = "0.55 0.50",
-})
-
 
 
