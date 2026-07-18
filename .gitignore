@@ -50,6 +50,5 @@ target/
 # Backup
 .config/hypr/backup/
 
-# Private scripts (never push)
-.local/bin/update-dots.sh
-.local/bin/kbd-backlight-keep.sh
+# Backups
+*.bak
