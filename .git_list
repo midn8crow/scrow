@@ -13,6 +13,9 @@
 .config/gtk-4.0/
 .config/qt6ct/
 .config/dconf/
+.icons/
+.local/share/icons/
+.local/share/fonts/
 .zshrc
 .starship-init.zsh
 .fzf-init.zsh
@@ -23,6 +26,7 @@ scripts/
 etc/sddm/
 etc/default/grub
 boot/grub/
+.mozilla/
 LICENSE
 README.md
 .gitignore
