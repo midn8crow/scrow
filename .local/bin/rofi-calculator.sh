@@ -1,24 +1,29 @@
 #!/bin/bash
 
 expression=""
-last_eq=""
+history=""
 
 buttons=(
-    "C"    "⌫"    "()"   "÷"
-    "7"    "8"    "9"    "×"
-    "4"    "5"    "6"    "−"
-    "1"    "2"    "3"    "+"
-    "±"    "0"    "."    "="
+    "sin"  "7"    "8"    "9"    "÷"
+    "cos"  "4"    "5"    "6"    "×"
+    "tan"  "1"    "2"    "3"    "−"
+    "π"    "C"    "0"    "."    "+"
+    "√"    "("    ")"    "±"    "="
 )
 
 calc_display() {
-    if [ -n "$last_eq" ]; then
-        echo "<span color='#a6e3a1' font='JetBrainsMono Nerd Font Bold 15'>${last_eq}</span>"
-    elif [ -n "$expression" ]; then
-        echo "<span color='#cdd6f4' font='JetBrainsMono Nerd Font Bold 18'>${expression}</span>"
-    else
-        echo "<span color='#6c7086' font='JetBrainsMono Nerd Font 14'>0</span>"
-    fi
+    local hist="$history"
+    local expr="$expression"
+    [ -z "$hist" ] && hist="<span color='#6c7086' font='JetBrainsMono Nerd Font 11'>History</span>"
+    [ -z "$expr" ] && expr="0"
+    echo "${hist}
+<span color='#cdd6f4' font='JetBrainsMono Nerd Font Bold 16'>${expr}</span>"
+}
+
+append_history() {
+    history="${history}<span color='#6c7086' font='JetBrainsMono Nerd Font 11'>${1}</span>
+"
+    history=$(echo -e "$history" | tail -2)
 }
 
 while true; do
@@ -27,6 +32,7 @@ while true; do
     choice=$(printf '%s\n' "${buttons[@]}" | rofi -dmenu \
         -config ~/.config/rofi/calculator.rasi \
         -mesg "$display_msg" \
+        -p " Calc" \
         -selected-row 0 \
         -no-custom)
 
@@ -35,31 +41,22 @@ while true; do
     case "$choice" in
         "C")
             expression=""
-            last_eq=""
+            history=""
             ;;
-        "⌫")
-            expression="${expression%?}"
-            last_eq=""
+        "π")
+            expression="${expression}pi"
             ;;
-        "()")
-            if [[ "$expression" == *"("* ]]; then
-                expression="${expression})"
-            else
-                expression="${expression}("
-            fi
-            last_eq=""
+        "sin")
+            expression="${expression}sin("
             ;;
-        "=")
-            result=$(qalc -t "$expression" 2>/dev/null)
-            if [ -n "$result" ] && [ "$result" != "Error" ]; then
-                last_eq="${expression} = ${result}"
-                echo -n "$result" | wl-copy
-                notify-send -a "Calculator" -i calculator "$last_eq" -t 2000
-                expression="$result"
-            else
-                last_eq="${expression} = Error"
-                expression=""
-            fi
+        "cos")
+            expression="${expression}cos("
+            ;;
+        "tan")
+            expression="${expression}tan("
+            ;;
+        "√")
+            expression="${expression}sqrt("
             ;;
         "±")
             if [[ "$expression" == -* ]]; then
@@ -67,27 +64,36 @@ while true; do
             else
                 expression="-${expression}"
             fi
-            last_eq=""
+            ;;
+        "("|")")
+            expression="${expression}${choice}"
+            ;;
+        "=")
+            result=$(qalc -t "$expression" 2>/dev/null)
+            if [ -n "$result" ] && [ "$result" != "Error" ]; then
+                append_history "${expression} = ${result}"
+                echo -n "$result" | wl-copy
+                notify-send -a "Calculator" -i calculator "${expression} = ${result}" -t 2000
+                expression="$result"
+            else
+                append_history "${expression} = Error"
+                expression=""
+            fi
             ;;
         "÷")
             expression="${expression}/"
-            last_eq=""
             ;;
         "×")
             expression="${expression}*"
-            last_eq=""
             ;;
         "−")
             expression="${expression}-"
-            last_eq=""
             ;;
         "+")
             expression="${expression}+"
-            last_eq=""
             ;;
-        "."|"()"|[0-9])
+        "."|[0-9])
             expression="${expression}${choice}"
-            last_eq=""
             ;;
     esac
 done

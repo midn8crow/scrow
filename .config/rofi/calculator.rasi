@@ -1,69 +1,47 @@
 @import "colors.rasi"
 
-* {
-    calc-bg:       @bg0;
-    calc-border:   @purple;
-    calc-fg:       @fg0;
-    calc-accent:   @purple;
-    calc-green:    #a6e3a1;
-    calc-btn-bg:   @bg1;
-    calc-btn-sel:  @purple;
-    calc-orange:   #fab387;
-    calc-blue:    #89b4fa;
-    calc-dim:     #6c7086;
-}
-
 window {
     location:           center;
     anchor:             center;
     width:              340px;
     border:             2px;
     border-color:       @purple;
-    border-radius:      20px;
+    border-radius:      16px;
     padding:            0;
     background-color:   @bg0;
-    transparency:       "real";
 }
 
 mainbox {
     children:           [ message, inputbar, listview ];
     spacing:            0;
     background-color:   transparent;
-    padding:            24px;
 }
 
 message {
-    padding:            0;
-    background-color:   transparent;
-    margin-bottom:      8px;
+    padding:            16px 16px 8px 16px;
+    background-color:   @bg0;
 }
 
 textbox {
     background-color:   transparent;
     text-color:         @fg0;
-    padding:            0;
-    font:               "JetBrainsMono Nerd Font Bold 14";
-    vertical-align:     0.5;
-    horizontal-align:   0;
     expand:             false;
-    min-height:         24px;
 }
 
 inputbar {
     children:           [ prompt, entry ];
     spacing:            8px;
-    padding:            16px 18px;
-    border-radius:      14px;
+    padding:            10px 14px;
     background-color:   @bg1;
     text-color:         @fg0;
-    margin-bottom:      16px;
+    border:             0;
 }
 
 prompt {
     enabled:            true;
     background-color:   transparent;
     text-color:         @purple;
-    font:               "JetBrainsMono Nerd Font Bold 13";
+    font:               "JetBrainsMono Nerd Font Bold 12";
 }
 
 entry {
@@ -76,51 +54,48 @@ entry {
 }
 
 listview {
-    columns:            4;
+    columns:            5;
     lines:              5;
     cycle:              true;
     scrollbar:          false;
-    spacing:            10px;
+    spacing:            6px;
     fixed-height:       true;
-    background-color:   transparent;
+    background-color:   @bg0;
+    padding:            10px 14px 14px 14px;
 }
 
 element {
-    padding:            0;
-    border-radius:      12px;
+    expand:             false;
+    border-radius:      8px;
     cursor:             pointer;
-    spacing:            0;
-    border:             0;
     background-color:   @bg1;
+    padding:            8px 0;
+    spacing:            0;
 }
 
 element.normal.normal,
-element alternate.normal {
+element.alternate.normal {
     background-color:   @bg1;
     text-color:         @fg0;
 }
 
-element selected.normal,
-element selected.active {
+element.selected.normal,
+element.selected.active {
     background-color:   @purple;
     text-color:         @bg0;
 }
 
-element urgent.normal {
-    background-color:   #f38ba822;
-    text-color:         #f38ba8;
-}
-
 element-text {
+    expand:             true;
     vertical-align:     0.5;
     horizontal-align:   0.5;
     background-color:   transparent;
     text-color:         inherit;
     cursor:             inherit;
-    font:               "JetBrainsMono Nerd Font Bold 13";
+    font:               "JetBrainsMono Nerd Font Bold 12";
+    padding:            0;
 }
 
 element-icon {
     size:               0;
-    background-color:   transparent;
 }

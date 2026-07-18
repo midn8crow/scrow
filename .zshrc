@@ -185,3 +185,4 @@ if [[ -f /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.
   source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 fi
 
+alias sklauncher="~/application/jdk25/bin/java -jar ~/application/sklauncher/SKlauncher-3.2.18.jar"

@@ -85,15 +85,15 @@ hl.layer_rule({
 })
 
 hl.layer_rule({
-    name         = "mako-glass",
-    match        = { namespace = "mako-notification" },
+    name         = "swaync-glass",
+    match        = { namespace = "swaync-notification-window" },
     blur         = false,
     ignore_alpha = 1,
 })
 
 hl.layer_rule({
-    name        = "mako-cc-glass",
-    match       = { namespace = "mako-control-center" },
+    name        = "swaync-cc-glass",
+    match       = { namespace = "swaync-control-center" },
     blur        = true,
     ignore_alpha = 0.05,
 })
