@@ -34,12 +34,5 @@ sleep 0.3
 BRIGHTNESS=$(get_brightness)
 
 if [[ -n "$BRIGHTNESS" ]]; then
-  if (( BRIGHTNESS > 66 )); then
-    ICON="󰃠"
-  elif (( BRIGHTNESS > 33 )); then
-    ICON="󰃞"
-  else
-    ICON="󰃜"
-  fi
-  notify-send -h "int:value:${BRIGHTNESS}" -h "string:x-canonical-private-synchronous:brightness" -i "$ICON" -t 0 -a "brightness" -u low "Brightness ${BRIGHTNESS}%"
+  notify-send -h "int:value:${BRIGHTNESS}" -h "string:x-canonical-private-synchronous:brightness" -t 1500 -a "brightness" -u low " "
 fi

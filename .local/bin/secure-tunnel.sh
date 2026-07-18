@@ -20,6 +20,7 @@ notify() {
 }
 
 start_tor() {
+    notify "Secure Tunnel" "Connecting ..."
     sudo systemctl start tor
     sleep 2
     if is_tor_running; then
@@ -31,22 +32,28 @@ start_tor() {
 }
 
 stop_tor() {
+    notify -t 500 "Secure Tunnel" "Disconnecting ..."
     sudo systemctl stop tor
     rm -f "$STATE_FILE"
     notify "Secure Tunnel (TOR)" "Disabled - Direct connection"
 }
 
 check_ip() {
+    notify "IP Check" "Checking..."
     if is_tor_running; then
-        IP=$(curl -s --socks5-hostname 127.0.0.1:$SOCKS_PORT https://api.ipify.org 2>/dev/null)
+        IP=$(curl -s --max-time 5 --socks5-hostname 127.0.0.1:$SOCKS_PORT https://api.ipify.org 2>/dev/null)
         if [ -n "$IP" ]; then
             notify "Tor IP" "Your Tor exit IP: $IP"
         else
             notify "Tor IP" "Could not fetch IP. Check connection."
         fi
     else
-        IP=$(curl -s https://api.ipify.org 2>/dev/null)
-        notify "Direct IP" "Your direct IP: $IP"
+        IP=$(curl -s --max-time 5 https://api.ipify.org 2>/dev/null)
+        if [ -n "$IP" ]; then
+            notify "Direct IP" "Your direct IP: $IP"
+        else
+            notify "Direct IP" "Could not fetch IP."
+        fi
     fi
 }
 

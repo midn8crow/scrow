@@ -94,7 +94,7 @@ hl.layer_rule({
     name         = "mako-notif",
     match        = { namespace = "mako" },
     blur         = true,
-    ignore_alpha = 0.2,
+    ignore_alpha = 0.85,
 })
 
 
@@ -121,6 +121,12 @@ hl.window_rule({
     match = { workspace = "special:magic" },
     no_blur = true,
     opacity = "0.7 0.5",
+})
+
+hl.window_rule({
+    name  = "obsidian-glass",
+    match = { class = "obsidian" },
+    opacity = "0.55 0.50",
 })
 
 

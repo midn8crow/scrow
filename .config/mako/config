@@ -1,65 +1,125 @@
-# ======================================
-# GLOBAL DAEMON PARAMETERS
-# ======================================
-font=monospace 10
-width=350
-height=150
-margin=20
-padding=15
-border-size=2
-border-radius=20
-icons=1
-max-icon-size=48
-default-timeout=5000
-ignore-timeout=0
-max-visible=5
+# ==============================================================================
+# MAKO NOTIFICATION DAEMON - DUSKY STYLE
+# ==============================================================================
+
+# --- Colors (auto-generated, do not edit) ---
+include=~/.config/mako/mako-colors.ini
+
+# --- Global Geometry & Placement (Dynamic Island) ---
 layer=overlay
 anchor=top-right
+width=360
+outer-margin=10,10,0,0
+margin=0,0,5,0
+padding=8,16
+border-size=1
+border-radius=25
+
+# --- Typography & Icons ---
+font=monospace 11
+markup=1
+format=<b>%s</b>\n%b
+icons=1
+max-icon-size=22
+icon-border-radius=8
+icon-path=/usr/share/icons/Papirus-Dark:/usr/share/icons/Papirus-Light:/usr/share/icons/Papirus:/usr/share/icons/breeze-dark:/usr/share/icons/breeze:/usr/share/icons/Adwaita:/usr/share/icons/AdwaitaLegacy:/usr/share/icons/hicolor
+
+# --- Timeouts & Behavior ---
+default-timeout=3000
+ignore-timeout=0
+max-visible=3
+max-history=99
+history=1
 sort=-time
 actions=1
-history=1
+on-button-left=invoke-default-action
+on-button-middle=exec makoctl menu -n "$MAKO_NOTIFICATION_ID" -- rofi -dmenu -p Action:
+on-button-right=dismiss
 
-# Frosted glass colors — Catppuccin Mocha
-background-color=#313244cc
-text-color=#cdd6f4
-border-color=#45475aee
-progress-color=#89b4fa
+# --- Modes ---
+[mode=do-not-disturb]
+invisible=1
+on-notify=none
 
-# ======================================
-# CRITERIA: TIMEOUTS & URGENCY
-# ======================================
+[mode=silent]
+on-notify=none
+
+# --- Urgency Levels ---
 [urgency=low]
 default-timeout=2000
 
 [urgency=normal]
-default-timeout=4000
+default-timeout=3000
 
 [urgency=critical]
-default-timeout=6000
-
-# ======================================
-# MODES
-# ======================================
-[mode=do-not-disturb]
-invisible=1
-
-[mode=do-not-disturb urgency=critical]
 invisible=0
+default-timeout=3500
+ignore-timeout=1
+background-color=#93000ae6
+text-color=#ffdad6
+border-color=#ffb4ab
 
-# ======================================
-# CRITERIA: APP BEHAVIOR
-# ======================================
+# --- App Overrides ---
 [app-name=Spotify]
 invisible=1
 
-[app-name=grimblast]
-max-icon-size=84
-format=<b>%s</b>\n%b
+[app-name="VLC media player"]
+default-timeout=1500
 
-# ======================================
-# OSD HARDWARE OVERLAY
-# ======================================
+[app-name=grimblast]
+max-icon-size=30
+default-timeout=4000
+format=<b>%s</b>\n%b
+on-button-left=exec imv "$MAKO_NOTIFICATION_BODY"
+
+# --- OSD Hardware Overlay ---
 [app-name=OSD]
-anchor=bottom-center
+anchor=top-right
+layer=overlay
+width=200
+outer-margin=10,10,0,0
+margin=50,0,0,0
+padding=0
 border-size=0
-margin=0,0,50,0
+border-radius=18
+icons=1
+text-alignment=center
+default-timeout=1000
+on-button-left=invoke-default-action
+background-color=#0a1612ff
+text-color=#d8e6dfff
+border-color=#86948e33
+
+# --- Volume Bar ---
+[app-name=volume]
+anchor=top-center
+layer=overlay
+width=300
+height=6
+outer-margin=0,0,0,0
+margin=15,0,0,0
+padding=0
+border-size=0
+border-radius=3
+icons=0
+text-alignment=center
+font=monospace 1
+format=%s
+default-timeout=1500
+
+# --- Brightness Bar ---
+[app-name=brightness]
+anchor=top-center
+layer=overlay
+width=300
+height=6
+outer-margin=0,0,0,0
+margin=15,0,0,0
+padding=0
+border-size=0
+border-radius=3
+icons=0
+text-alignment=center
+font=monospace 1
+format=%s
+default-timeout=1500

@@ -13,17 +13,7 @@ VOLUME=$(wpctl get-volume "$SINK" | awk '{print int($2 * 100)}')
 MUTED=$(wpctl get-volume "$SINK" | grep -q MUTED && echo 1 || echo 0)
 
 if [[ "$MUTED" -eq 1 ]]; then
-  ICON="󰝟"
-  SUMMARY="Volume Muted"
+  notify-send -h "int:value:0" -h "string:x-canonical-private-synchronous:volume" -t 1500 -a "volume" -u low " "
 else
-  if (( VOLUME > 66 )); then
-    ICON="󰕾"
-  elif (( VOLUME > 33 )); then
-    ICON="󰖀"
-  else
-    ICON="󰕿"
-  fi
-  SUMMARY="Volume ${VOLUME}%"
+  notify-send -h "int:value:${VOLUME}" -h "string:x-canonical-private-synchronous:volume" -t 1500 -a "volume" -u low " "
 fi
-
-notify-send -h "int:value:${VOLUME}" -h "string:x-canonical-private-synchronous:volume" -i "$ICON" -t 1500 -a "volume" -u low "$SUMMARY"
