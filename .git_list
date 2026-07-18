@@ -13,7 +13,6 @@
 .config/gtk-4.0/
 .config/qt6ct/
 .config/dconf/
-.config/hypremoji/
 .zshrc
 .starship-init.zsh
 .fzf-init.zsh
