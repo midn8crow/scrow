@@ -25,7 +25,7 @@ CONFIGS=(
     ".config/waybar"
     ".config/kitty"
     ".config/rofi"
-    ".config/swaync"
+    ".config/mako"
     ".config/starship.toml"
     ".config/fastfetch"
     ".config/mpv"

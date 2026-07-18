@@ -195,7 +195,7 @@ install_core_packages() {
         "waybar"
         "rofi"
         "wlogout"
-        "swaync"
+        "mako"
         "swww-daemon"
         "polkit-gnome"
         "nm-connection-editor"
@@ -383,7 +383,7 @@ backup_existing() {
         ".config/waybar"
         ".config/kitty"
         ".config/rofi"
-        ".config/swaync"
+        ".config/mako"
         ".config/starship.toml"
         ".zshrc"
     )
@@ -682,7 +682,7 @@ rm -rf ~/.config/hypr
 rm -rf ~/.config/waybar
 rm -rf ~/.config/kitty
 rm -rf ~/.config/rofi
-rm -rf ~/.config/swaync
+rm -rf ~/.config/mako
 rm -f ~/.config/starship.toml
 rm -f ~/.zshrc
 
@@ -702,7 +702,7 @@ create_initial_backup() {
         ".config/waybar"
         ".config/kitty"
         ".config/rofi"
-        ".config/swaync"
+        ".config/mako"
         ".config/starship.toml"
         ".config/fastfetch"
         ".config/mpv"

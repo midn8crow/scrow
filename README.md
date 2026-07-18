@@ -12,7 +12,7 @@ A complete, ready-to-use Hyprland configuration for Arch Linux. One command to i
 - **Waybar** - Status bar with multiple themes (vertical/horizontal)
 - **Kitty** - Terminal with custom colors and fonts
 - **Rofi** - App launcher and menus
-- **SwayNC** - Notification center
+- **Mako** - Notification daemon
 - **Zsh** - Shell with Starship prompt
 - **Theming** - Automatic color generation
 
@@ -109,7 +109,7 @@ All scripts are in `~/.local/bin/`:
 ### Core Packages
 
 ```
-hyprland hyprlock hypridle waybar kitty rofi swaync swww-daemon
+hyprland hyprlock hypridle waybar kitty rofi mako swww-daemon
 wlogout polkit-gnome network-manager-applet blueman pavucontrol
 ```
 
@@ -244,7 +244,7 @@ waybar &
 ### Notifications not working
 
 ```bash
-swaync &
+mako
 ```
 
 ### Wallpaper not changing
@@ -312,7 +312,7 @@ uninstall-dotfiles
 Or manually:
 
 ```bash
-rm -rf ~/.config/{hypr,waybar,kitty,rofi,swaync}
+rm -rf ~/.config/{hypr,waybar,kitty,rofi,mako}
 rm -f ~/.config/starship.toml
 rm -f ~/.zshrc
 ```

@@ -207,9 +207,9 @@ cat > "$HOME/.config/brave-theme/manifest.json" << BRAVEEOF
 }
 BRAVEEOF
 
-mkdir -p "$HOME/.cache/swaync"
+mkdir -p "$HOME/.cache/mako"
 tertiary_dark=$(echo "$json" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['colors']['tertiary']['dark']['color'])")
-cat > "$HOME/.cache/swaync/colors.css" << SWEOF
+cat > "$HOME/.cache/mako/colors.css" << SWEOF
 @define-color background ${background};
 @define-color foreground ${on_background};
 @define-color background-sec ${surface_container};
@@ -220,7 +220,7 @@ cat > "$HOME/.cache/swaync/colors.css" << SWEOF
 @define-color color5 ${primary_container};
 @define-color color6 ${secondary_container};
 SWEOF
-killall swaync 2>/dev/null; sleep 0.3; nohup swaync > /dev/null 2>&1 &
+killall mako 2>/dev/null; sleep 0.3; nohup mako > /dev/null 2>&1 &
 
 cat > "$HOME/.config/kitty/kitty-colors.conf" << KEOF
 background ${background}
