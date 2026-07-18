@@ -57,3 +57,9 @@ echo "$color" >"$loc/colors"
 echo "$prevColors" >>"$loc/colors"
 sed -i '/^$/d' "$loc/colors"
 pkill -RTMIN+1 waybar
+
+# Generate matugen themes from picked color
+check matugen && {
+  clean_color=$(echo "$color" | tr -d '\n')
+  matugen color hex "$clean_color" --quiet 2>/dev/null
+}
