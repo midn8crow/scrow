@@ -22,6 +22,7 @@ hl.env("HYPRCURSOR_SIZE", "24")
 
 hl.env("GTK_THEME", "adw-gtk3-dark")
 hl.env("ADWAITA_PREFER_DARK_THEME", "1")
+hl.env("ADWAITA_COLOR_SCHEME", "prefer-dark")
 hl.env("GNOME_KEYRING_CONTROL", "/run/user/" .. (io.popen("id -u"):read("*a"):match("%d+") or "1000") .. "/keyring")
 
 --Toolkit Backend--
