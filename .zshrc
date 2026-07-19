@@ -186,4 +186,3 @@ if [[ -f /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.
 fi
 
 alias sklauncher="~/application/jdk25/bin/java -jar ~/application/sklauncher/SKlauncher-3.2.18.jar"
-export HTTPS_PROXY=socks5h://127.0.0.1:9050

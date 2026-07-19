@@ -137,9 +137,6 @@ hl.bind(mainMod .. " + S", hl.dsp.exec_cmd("$HOME/.local/bin/screenshot-region.s
 hl.bind(mainMod .. " + PRINT", hl.dsp.exec_cmd("$HOME/.local/bin/screenshot-full.sh"))
 hl.bind(mainMod .. " + L", hl.dsp.exec_cmd("fcitx5-remote -t"))
 
--- Secure Tunnel (TOR)
-hl.bind(mainMod .. " + SHIFT + S", hl.dsp.exec_cmd("$HOME/.local/bin/secure-tunnel.sh"))
-
 -- Google Lens (Circle to Search)
 hl.bind(mainMod .. " + G", hl.dsp.exec_cmd("$HOME/user_scripts/google_image_search/google_image_search.sh"))
 
