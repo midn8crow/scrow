@@ -49,22 +49,25 @@ notify() {
     notify-send -a "Google Lens" "$1" "$2"
 }
 
-tor_was_off=false
+warp_was_off=false
 
-ensure_tor() {
-    if ! systemctl is-active --quiet tor 2>/dev/null; then
-        tor_was_off=true
-        sudo systemctl start tor
+ensure_warp() {
+    local status
+    status=$(warp-cli status 2>/dev/null | grep -oP 'Status update:\s*\K\S+')
+    if [[ "$status" != "Connected" ]]; then
+        warp_was_off=true
+        warp-cli connect 2>/dev/null
         sleep 3
-        if ! systemctl is-active --quiet tor 2>/dev/null; then
-            die "Failed to start Tor"
+        status=$(warp-cli status 2>/dev/null | grep -oP 'Status update:\s*\K\S+')
+        if [[ "$status" != "Connected" ]]; then
+            die "Failed to connect WARP"
         fi
     fi
 }
 
-cleanup_tor() {
-    if [ "$tor_was_off" = true ]; then
-        sudo systemctl stop tor
+cleanup_warp() {
+    if [ "$warp_was_off" = true ]; then
+        warp-cli disconnect 2>/dev/null
     fi
 }
 
@@ -94,8 +97,8 @@ if [[ ! "${geometry}" =~ ^[0-9]+,[0-9]+\ [0-9]+x[0-9]+$ ]]; then
     die "Invalid selection geometry received."
 fi
 
-# Start Tor only after selection (no delay for selection tool)
-ensure_tor
+# Start WARP only after selection (no delay for selection tool)
+ensure_warp
 
 # -----------------------------------------------------------------------------
 # UPLOAD MODE: Screenshot → uguu.se → Google Lens via URL
@@ -103,12 +106,12 @@ ensure_tor
 if [[ "${USE_UPLOAD_SERVICE}" == "true" ]]; then
 
     tmp_file=$(mktemp /tmp/lens-XXXXXX.png)
-    trap 'cleanup_tor; rm -f "${tmp_file}"' EXIT
+    trap 'cleanup_warp; rm -f "${tmp_file}"' EXIT
 
     grim -g "${geometry}" "${tmp_file}"
     notify "Uploading..." "Sending image to secure host"
 
-    CURL_OPTS="--socks5-hostname 127.0.0.1:9050"
+    CURL_OPTS=""
 
     if ! response=$(curl -sSf $CURL_OPTS -F "files[]=@${tmp_file}" 'https://uguu.se/upload'); then
         die "Upload connection failed."

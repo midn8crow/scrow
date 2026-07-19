@@ -1,10 +1,10 @@
-@define-color module-bg     rgba(27,33,31, 0.9);
+@define-color module-bg     rgba(30,31,37, 0.9);
 @define-color tooltip-bg    @module-bg;
-@define-color inactive      #bec9c5;
-@define-color fg            #dee4e1;
+@define-color inactive      #c5c6d0;
+@define-color fg            #e2e2e9;
 @define-color workspace-fg  @fg;
-@define-color highlight     #84d5c4;
+@define-color highlight     #b1c5ff;
 @define-color red           #ffb4ab;
-@define-color blue          #84d5c4;
-@define-color yellow        #abcae4;
-@define-color green         #b1ccc4;
+@define-color blue          #b1c5ff;
+@define-color yellow        #e1bbdd;
+@define-color green         #c0c6dd;

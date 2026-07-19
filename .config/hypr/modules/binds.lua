@@ -134,6 +134,7 @@ hl.bind(mainMod .. " + SHIFT + U", hl.dsp.exec_cmd("$HOME/.local/bin/update-dots
 hl.bind(mainMod .. " + SHIFT + P", hl.dsp.exec_cmd("$HOME/.local/bin/pick-color-region.sh"))
 hl.bind(mainMod .. " + T", hl.dsp.exec_cmd("$HOME/.local/bin/ocr-toggle.sh"))
 hl.bind(mainMod .. " + S", hl.dsp.exec_cmd("$HOME/.local/bin/screenshot-region.sh"))
+hl.bind(mainMod .. " + SHIFT + S", hl.dsp.exec_cmd("$HOME/.local/bin/secure-tunnel.sh"))
 hl.bind(mainMod .. " + PRINT", hl.dsp.exec_cmd("$HOME/.local/bin/screenshot-full.sh"))
 hl.bind(mainMod .. " + L", hl.dsp.exec_cmd("fcitx5-remote -t"))
 
