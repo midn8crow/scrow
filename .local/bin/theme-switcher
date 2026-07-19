@@ -110,6 +110,7 @@ print(f'#{(r0+r1)//3:02x}{(g0+g1)//3:02x}{(b0+b1)//3:02x}')
     blue: #${rofi_accent_hex};
     purple: #${rofi_accent_hex};
     aqua: ${rofi_bg2};
+    highlight: #${rofi_accent_hex}33;
 }
 ROFI
 

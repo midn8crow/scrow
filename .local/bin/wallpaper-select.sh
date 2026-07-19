@@ -125,6 +125,7 @@ cat > "$HOME/.config/rofi/colors.rasi" << ROFI
     blue: ${primary};
     purple: ${primary};
     aqua: ${primary_container};
+    highlight: ${primary}33;
 }
 ROFI
 

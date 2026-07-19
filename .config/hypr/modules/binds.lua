@@ -98,6 +98,7 @@ hl.bind("ALT + SHIFT + space", hl.dsp.exec_cmd("$HOME/.local/bin/powermenu.sh"))
 hl.bind("ALT + R", hl.dsp.exec_cmd("$HOME/.local/bin/gpu-recorder.sh"))
 hl.bind(mainMod .. " + P", hl.dsp.window.pseudo())
 hl.bind(mainMod .. " + J", hl.dsp.layout("togglesplit"))    -- dwindle only
+hl.bind(mainMod .. " + ALT + W", hl.dsp.exec_cmd("bash -c 'pkill waybar && sleep 0.3 || $HOME/.config/waybar/launch.sh'"))
 hl.bind(mainMod .. " + W", hl.dsp.exec_cmd("$HOME/.local/bin/wallpaper-switch.sh"))
 hl.bind(mainMod .. " + SHIFT + W", hl.dsp.exec_cmd("$HOME/.local/bin/wallpaper-switch.sh prev"))
 hl.bind("ALT + W", hl.dsp.exec_cmd("$HOME/.config/waybar/switch-waybar.sh next"))
@@ -114,21 +115,10 @@ hl.bind("ALT + V", hl.dsp.exec_cmd("cliphist list | rofi -dmenu -p Clipboard | c
 hl.bind("CTRL + SUPER + space", hl.dsp.exec_cmd("rofi -config ~/.config/rofi/emoji.rasi -show emoji -emoji-format '{emoji}'"))
 hl.bind("ALT + C", hl.dsp.exec_cmd("$HOME/.local/bin/rofi-calculator.sh"))
 hl.bind("CTRL + SHIFT + space", hl.dsp.exec_cmd("$HOME/.local/bin/keybinds"))
-local blur_toggled = {}
 hl.bind(mainMod .. " + period", function()
-    local win = hl.get_active_window()
-    if not win then return end
-    if blur_toggled[win.address] then
-        hl.dispatch(hl.dsp.window.set_prop({ prop = "no_blur", value = "unset" }))
-        hl.dispatch(hl.dsp.window.set_prop({ prop = "opacity_override", value = "unset" }))
-        blur_toggled[win.address] = nil
-    else
-        hl.dispatch(hl.dsp.window.set_prop({ prop = "no_blur", value = "1" }))
-        hl.dispatch(hl.dsp.window.set_prop({ prop = "opacity_override", value = "1" }))
-        hl.dispatch(hl.dsp.window.set_prop({ prop = "opacity", value = "1.0" }))
-        blur_toggled[win.address] = true
-    end
-end)
+    hl.dispatch(hl.dsp.window.set_prop({ prop = "opaque", value = "toggle", window = "activewindow" }))
+    hl.dispatch(hl.dsp.window.set_prop({ prop = "no_blur", value = "toggle", window = "activewindow" }))
+end, { description = "Toggle Blur & Opacity", locked = true })
 hl.bind(mainMod .. " + SHIFT + T", hl.dsp.exec_cmd("$HOME/.local/bin/theme-menu.sh"))
 hl.bind(mainMod .. " + SHIFT + U", hl.dsp.exec_cmd("$HOME/.local/bin/update-dots.sh"))
 hl.bind(mainMod .. " + SHIFT + P", hl.dsp.exec_cmd("$HOME/.local/bin/pick-color-region.sh"))

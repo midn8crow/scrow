@@ -12,4 +12,3 @@ if [[ -z "$config" || "$config" == "default" ]]; then
 else
     waybar -c "$DIR/config-${config}.jsonc" -s "$DIR/style-${config}.css" &
 fi
-fi
