@@ -115,9 +115,20 @@ hl.bind("ALT + V", hl.dsp.exec_cmd("cliphist list | rofi -dmenu -p Clipboard | c
 hl.bind("CTRL + SUPER + space", hl.dsp.exec_cmd("rofi -config ~/.config/rofi/emoji.rasi -show emoji -emoji-format '{emoji}'"))
 hl.bind("ALT + C", hl.dsp.exec_cmd("$HOME/.local/bin/rofi-calculator.sh"))
 hl.bind("CTRL + SHIFT + space", hl.dsp.exec_cmd("$HOME/.local/bin/keybinds"))
+local blur_off = {}
 hl.bind(mainMod .. " + period", function()
-    hl.dispatch(hl.dsp.window.set_prop({ prop = "opaque", value = "toggle", window = "activewindow" }))
-    hl.dispatch(hl.dsp.window.set_prop({ prop = "no_blur", value = "toggle", window = "activewindow" }))
+    local w = hl.get_active_window()
+    if not w then return end
+    local a = w.address
+    if blur_off[a] then
+        hl.dispatch(hl.dsp.window.set_prop({ prop = "opaque", value = "0", window = "activewindow" }))
+        hl.dispatch(hl.dsp.window.set_prop({ prop = "no_blur", value = "0", window = "activewindow" }))
+        blur_off[a] = nil
+    else
+        hl.dispatch(hl.dsp.window.set_prop({ prop = "opaque", value = "1", window = "activewindow" }))
+        hl.dispatch(hl.dsp.window.set_prop({ prop = "no_blur", value = "1", window = "activewindow" }))
+        blur_off[a] = true
+    end
 end, { description = "Toggle Blur & Opacity", locked = true })
 hl.bind(mainMod .. " + SHIFT + T", hl.dsp.exec_cmd("$HOME/.local/bin/theme-menu.sh"))
 hl.bind(mainMod .. " + SHIFT + U", hl.dsp.exec_cmd("$HOME/.local/bin/update-dots.sh"))

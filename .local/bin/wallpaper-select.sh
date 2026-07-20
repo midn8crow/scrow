@@ -253,4 +253,11 @@ color14 ${primary_container}
 color15 ${on_background}
 KEOF
 
-sed -i "s/^foreground = .*/foreground = '${primary}'/" "$HOME/.config/cava/config"
+# Cava colors
+sed -i "s/^foreground = .*/foreground = '${on_surface}'/" "$HOME/.config/cava/config"
+sed -i "s/^gradient_color_1 = .*/gradient_color_1 = '${surface_container}'/" "$HOME/.config/cava/config"
+sed -i "s/^gradient_color_2 = .*/gradient_color_2 = '${primary_container}'/" "$HOME/.config/cava/config"
+sed -i "s/^gradient_color_3 = .*/gradient_color_3 = '${tertiary}'/" "$HOME/.config/cava/config"
+sed -i "s/^gradient_color_4 = .*/gradient_color_4 = '${secondary}'/" "$HOME/.config/cava/config"
+sed -i "s/^gradient_color_5 = .*/gradient_color_5 = '${primary}'/" "$HOME/.config/cava/config"
+sed -i "s/^gradient_color_6 = .*/gradient_color_6 = '${on_surface}'/" "$HOME/.config/cava/config"

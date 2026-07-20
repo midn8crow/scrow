@@ -8,7 +8,7 @@ CONF="$HOME/.config/gpu-recorder.conf"
 mkdir -p "$OUT_DIR"
 mkdir -p "$(dirname "$CONF")"
 
-[ -f "$CONF" ] || printf 'QUALITY="High (hevc)"\nRES="1080p (1920x1080)"\n' > "$CONF"
+[ -f "$CONF" ] || printf 'QUALITY="High (hevc)"\nRES="1080p (1920x1080)"\nACODEC="Default"\n' > "$CONF"
 source "$CONF"
 
 if [ -f "$MARKER" ]; then
@@ -41,7 +41,7 @@ if [ -f "$MARKER" ]; then
 fi
 
 save_conf() {
-    printf 'QUALITY="%s"\nRES="%s"\n' "$QUALITY" "$RES" > "$CONF"
+    printf 'QUALITY="%s"\nRES="%s"\nACODEC="%s"\n' "$QUALITY" "$RES" "$ACODEC" > "$CONF"
 }
 
 get_q_short() { echo "${1%% (*}"; }
@@ -50,7 +50,7 @@ get_r_short() { echo "${1%% (*}"; }
 show_settings() {
     Q_SHORT=$(get_q_short "$QUALITY")
     R_SHORT=$(get_r_short "$RES")
-    SETTINGS_CHOICE=$(printf "Quality:  %s ◄\nResolution:  %s ◄" "$Q_SHORT" "$R_SHORT" | rofi -dmenu -p "Recording Settings" -theme-str 'window {width: 400px;}')
+    SETTINGS_CHOICE=$(printf "Quality:  %s ◄\nResolution:  %s ◄\nAudio:  %s ◄" "$Q_SHORT" "$R_SHORT" "$ACODEC" | rofi -dmenu -p "Recording Settings" -theme-str 'window {width: 400px;}')
 }
 
 while true; do
@@ -80,6 +80,18 @@ while true; do
             NEW_R="${NEW_R#  }"
             if [ -n "$NEW_R" ]; then
                 RES="$NEW_R"
+                save_conf
+            fi
+        elif echo "$SETTINGS_CHOICE" | grep -q "^Audio:"; then
+            A_LIST=""
+            for opt in "Default" "AAC (aac)" "Opus (opus)" "FLAC (flac)"; do
+                [ "$opt" = "$ACODEC" ] && A_LIST="${A_LIST}● ${opt}\n" || A_LIST="${A_LIST}  ${opt}\n"
+            done
+            NEW_A=$(printf "$A_LIST" | rofi -dmenu -p "Audio Codec" -theme-str 'window {width: 400px;}')
+            NEW_A="${NEW_A#● }"
+            NEW_A="${NEW_A#  }"
+            if [ -n "$NEW_A" ]; then
+                ACODEC="$NEW_A"
                 save_conf
             fi
         elif [ -z "$SETTINGS_CHOICE" ]; then
@@ -116,17 +128,24 @@ case "$RES" in
     "Native (Original)")    RES_FLAGS="" ;;
 esac
 
+ACODEC_FLAG=""
+case "$ACODEC" in
+    "AAC (aac)")     ACODEC_FLAG="-ac aac" ;;
+    "Opus (opus)")   ACODEC_FLAG="-ac opus" ;;
+    "FLAC (flac)")   ACODEC_FLAG="-ac flac" ;;
+esac
+
 FILE="$OUT_DIR/record-$(date +%Y%m%d-%H%M%S).mp4"
 
 if [ "$CHOICE" = "Record Full Screen" ]; then
     MONITOR=$(hyprctl monitors -j 2>/dev/null | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['name'])" 2>/dev/null || echo "")
-    nohup gpu-screen-recorder -w "$MONITOR" $Q_FLAGS $RES_FLAGS -f 60 $AUDIO_FLAG -o "$FILE" >/dev/null 2>&1 &
+    nohup gpu-screen-recorder -w "$MONITOR" $Q_FLAGS $RES_FLAGS -f 60 $AUDIO_FLAG $ACODEC_FLAG -o "$FILE" >/dev/null 2>&1 &
     touch "$MARKER"
     ~/.local/bin/record-indicator &
     notify-send "GPU Recorder" "Recording full screen started"
 elif [ "$CHOICE" = "Record Region" ]; then
     REGION=$(slurp 2>/dev/null) || exit 1
-    nohup gpu-screen-recorder -w "$REGION" $Q_FLAGS $RES_FLAGS -f 60 $AUDIO_FLAG -o "$FILE" >/dev/null 2>&1 &
+    nohup gpu-screen-recorder -w "$REGION" $Q_FLAGS $RES_FLAGS -f 60 $AUDIO_FLAG $ACODEC_FLAG -o "$FILE" >/dev/null 2>&1 &
     touch "$MARKER"
     ~/.local/bin/record-indicator &
     notify-send "GPU Recorder" "Recording region started"

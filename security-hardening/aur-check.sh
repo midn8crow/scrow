@@ -2,19 +2,35 @@
 # AUR Package Security Checker (paru version)
 # Checks PKGBUILD for suspicious patterns before installing
 
+set -e
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
+# Cleanup on exit
+cleanup() {
+    rm -rf "$TEMP_DIR" 2>/dev/null
+}
+trap cleanup EXIT
+
+# Validate input
 if [ -z "$1" ]; then
     echo "Usage: $0 <package-name>"
     echo "Example: $0 neofetch"
     exit 1
 fi
 
-PACKAGE="$1"
+# Sanitize package name (only allow ASCII alphanumeric, hyphens, underscores, dots)
+PACKAGE=$(echo "$1" | LC_ALL=C grep -oE '^[a-zA-Z0-9._-]+$' || true)
+if [ -z "$PACKAGE" ]; then
+    echo -e "${RED}[ERROR]${NC} Invalid package name: '$1'"
+    echo "Package names can only contain: a-z A-Z 0-9 . _ -"
+    exit 1
+fi
+
 echo "=========================================="
 echo "  AUR Security Check: $PACKAGE"
 echo "=========================================="
@@ -26,6 +42,11 @@ echo ""
 
 # Search AUR for the package
 AUR_INFO=$(curl -s "https://aur.archlinux.org/rpc/v5/info/$PACKAGE" 2>/dev/null)
+
+if [ -z "$AUR_INFO" ]; then
+    echo -e "${RED}[ERROR]${NC} Failed to fetch package info from AUR"
+    exit 1
+fi
 
 if echo "$AUR_INFO" | grep -q '"resultcount":0'; then
     echo -e "${RED}[ERROR]${NC} Package '$PACKAGE' not found in AUR"
@@ -63,14 +84,16 @@ echo ""
 TEMP_DIR=$(mktemp -d)
 cd "$TEMP_DIR" || exit 1
 
-# Clone from AUR
-git clone --depth 1 "https://aur.archlinux.org/$PACKAGE.git" 2>/dev/null
+# Clone from AUR (only PKGBUILD, not full repo)
+git clone --depth 1 --single-branch "https://aur.archlinux.org/$PACKAGE.git" 2>/dev/null || {
+    echo -e "${RED}[ERROR]${NC} Could not download PKGBUILD"
+    exit 1
+}
 
 PKGBUILD_PATH="$TEMP_DIR/$PACKAGE/PKGBUILD"
 
 if [ ! -f "$PKGBUILD_PATH" ]; then
-    echo -e "${RED}[ERROR]${NC} Could not download PKGBUILD"
-    rm -rf "$TEMP_DIR"
+    echo -e "${RED}[ERROR]${NC} PKGBUILD not found in repository"
     exit 1
 fi
 
@@ -83,27 +106,76 @@ echo ""
 
 SUSPICIOUS=0
 
-# Dangerous commands (more precise patterns)
+# Dangerous commands (comprehensive patterns)
 declare -A PATTERNS=(
-    ["rm -rf /"]="System wipe ( deletes entire system)"
+    # System destruction
+    ["rm -rf /"]="System wipe (deletes entire system)"
     ["rm -rf /\*"]="System wipe (deletes everything)"
-    ["curl.*\|.*bash"]="Remote code execution"
-    ["wget.*\|.*bash"]="Remote code execution"
-    ["curl.*\|.*sh"]="Remote code execution"
-    ["wget.*\|.*sh"]="Remote code execution"
+    
+    # Remote code execution
+    ["curl.*\|.*bash"]="Remote code execution via bash"
+    ["wget.*\|.*bash"]="Remote code execution via bash"
+    ["curl.*\|.*sh"]="Remote code execution via sh"
+    ["wget.*\|.*sh"]="Remote code execution via sh"
+    ["curl.*\|.*zsh"]="Remote code execution via zsh"
+    ["wget.*\|.*zsh"]="Remote code execution via zsh"
+    
+    # Code execution
     ["eval\("]="Dynamic code execution"
+    ["exec\("]="Process execution"
+    ["nohup .* &"]="Background process execution"
+    
+    # Encoded/hidden payloads
     ["base64 -d.*\|.*bash"]="Encoded payload execution"
+    ["base64 -d.*\|.*sh"]="Encoded payload execution"
+    ["echo.*\|.*base64.*\|.*bash"]="Encoded payload execution"
+    
+    # Permission escalation
     ["chmod 777 /"]="Dangerous permissions on root"
     ["chmod \+s"]="SUID escalation"
+    ["chmod 4755"]="SUID escalation"
+    ["chown root"]="Permission escalation"
+    
+    # Data theft
     ["/etc/shadow"]="Password hash access"
     ["/etc/passwd"]="User data access"
     ["\.ssh/id"]="SSH key theft"
+    ["\.ssh/authorized"]="SSH key theft"
+    ["\.ssh/config"]="SSH config access"
+    ["\.gnupg"]="PGP key theft"
+    
+    # Surveillance
     ["keylog"]="Keylogging"
+    ["keylogger"]="Keylogging"
+    ["screen.*-d.*-r"]="Screen capture"
+    
+    # Network backdoors
     ["nc -l -p"]="Netcat listener"
+    ["nc -e"]="Netcat with execute"
     ["ncat -l"]="Backdoor listener"
+    ["ncat.*-e"]="Backdoor with execute"
     ["/dev/tcp"]="Network connection"
+    ["python.*socket"]="Python network socket"
+    
+    # Disk destruction
     ["mkfs\."]="Filesystem formatting"
     ["dd if=.*of=/dev/"]="Disk overwrite"
+    ["dd if=.*of=/dev/sd"]="Disk overwrite"
+    
+    # Scheduled tasks
+    ["crontab -e"]="Scheduled task creation"
+    ["crontab -r"]="Cron job deletion"
+    
+    # Python/Perl execution
+    ["python -c.*import os"]="Python system call"
+    ["python -c.*subprocess"]="Python subprocess execution"
+    ["perl -e.*system"]="Perl system call"
+    ["perl -e.*exec"]="Perl exec call"
+    
+    # Process manipulation
+    ["killall"]="Mass process termination"
+    ["pkill -9"]="Force kill all"
+    ["kill -9.*\$PPID"]="Kill parent process"
 )
 
 for pattern in "${!PATTERNS[@]}"; do
@@ -124,8 +196,13 @@ if grep -qiE "systemctl|\.service" "$PKGBUILD_PATH" 2>/dev/null; then
 fi
 
 # Check for cron jobs
-if grep -qiE "crontab|cron\.d" "$PKGBUILD_PATH" 2>/dev/null; then
+if grep -qiE "crontab|cron\.d|/etc/cron" "$PKGBUILD_PATH" 2>/dev/null; then
     echo -e "  ${YELLOW}[INFO]${NC} Package installs cron jobs"
+fi
+
+# Check for kernel modules
+if grep -qiE "insmod|modprobe|\.ko" "$PKGBUILD_PATH" 2>/dev/null; then
+    echo -e "  ${YELLOW}[INFO]${NC} Package loads kernel modules"
 fi
 
 echo ""
@@ -148,6 +225,3 @@ else
     echo "  But always review PKGBUILDs before installing."
 fi
 echo "=========================================="
-
-# Cleanup
-rm -rf "$TEMP_DIR"
