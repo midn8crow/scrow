@@ -16,6 +16,9 @@ A complete, ready-to-use Hyprland configuration for Arch Linux. One command to i
 ![Arch Linux](https://img.shields.io/badge/Arch%20Linux-1793D1?style=for-the-badge&logo=archlinux&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)
 
+> [!TIP]
+> **Per-Workspace Layout Switching** - Each workspace can have its own tiling layout. Switch between **Hyprland** (dynamic tiling) and **Niri** (scrollable tiling) style layouts instantly with a single keybind. No restart needed.
+
 ## What's Included
 
 - **Hyprland** - Wayland compositor with smooth animations
@@ -58,6 +61,19 @@ git --git-dir=$HOME/dotfiles/ --work-tree=$HOME checkout -f
 7. **Sets up theming** (GTK, Qt, Fonts)
 
 ## Features
+
+### Per-Workspace Layout Switching
+
+**Each workspace gets its own tiling layout.** Switch between different tiling styles on the fly:
+
+| Key | Layout |
+|-----|--------|
+| `SUPER + 1` | Workspace 1 layout |
+| `SUPER + 2` | Workspace 2 layout |
+
+- **Hyprland style** - Classic dynamic tiling
+- **Niri style** - Scrollable column-based tiling
+- Change layout per workspace without affecting others
 
 ### Multiple Waybar Themes
 
