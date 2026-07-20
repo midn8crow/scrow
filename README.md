@@ -1,3 +1,13 @@
+
+
+https://github.com/user-attachments/assets/07ae8b84-6219-4619-8baf-55518e3b20c8
+
+
+
+
+
+
+
 # Hyprland Dotfiles
 
 A complete, ready-to-use Hyprland configuration for Arch Linux. One command to install everything.
