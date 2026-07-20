@@ -10,14 +10,17 @@ https://github.com/user-attachments/assets/07ae8b84-6219-4619-8baf-55518e3b20c8
 
 # Hyprland Dotfiles
 
+<h1 align="center">
+  <b>🔀 Per-Workspace Layout Switching 🔀</b><br>
+  <sub>Switch between Hyprland & Niri tiling styles with one keybind</sub><br>
+  <code>SUPER + SHIFT + L</code>
+</h1>
+
 A complete, ready-to-use Hyprland configuration for Arch Linux. One command to install everything.
 
 ![Hyprland](https://img.shields.io/badge/Hyprland-Wayland-5e81ac?style=for-the-badge&logo=hyprland&logoColor=white)
 ![Arch Linux](https://img.shields.io/badge/Arch%20Linux-1793D1?style=for-the-badge&logo=archlinux&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)
-
-> [!TIP]
-> **Per-Workspace Layout Switching** - Each workspace can have its own tiling layout. Switch between **Hyprland** (dynamic tiling) and **Niri** (scrollable tiling) style layouts instantly with a single keybind. No restart needed.
 
 ## What's Included
 
@@ -66,10 +69,9 @@ git --git-dir=$HOME/dotfiles/ --work-tree=$HOME checkout -f
 
 **Each workspace gets its own tiling layout.** Switch between different tiling styles on the fly:
 
-| Key | Layout |
+| Key | Action |
 |-----|--------|
-| `SUPER + 1` | Workspace 1 layout |
-| `SUPER + 2` | Workspace 2 layout |
+| `SUPER + SHIFT + L` | Toggle between Hyprland & Niri layout |
 
 - **Hyprland style** - Classic dynamic tiling
 - **Niri style** - Scrollable column-based tiling
@@ -112,6 +114,7 @@ Available themes:
 | `ALT + ↑/↓` | Brightness |
 | `ALT + ←/→` | Volume |
 | `CTRL + SHIFT + ?` | Keybinds Help |
+| `SUPER + SHIFT + L` | Toggle Layout (Hyprland/Niri) |
 
 ### Scripts
 
