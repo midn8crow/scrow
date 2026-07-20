@@ -6,8 +6,6 @@ A complete, ready-to-use Hyprland configuration for Arch Linux. One command to i
 ![Arch Linux](https://img.shields.io/badge/Arch%20Linux-1793D1?style=for-the-badge&logo=archlinux&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)
 
-record-20260720-163649.mp4
-
 ## What's Included
 
 - **Hyprland** - Wayland compositor with smooth animations
