@@ -4,7 +4,7 @@ WAYBAR_DIR="${HOME}/.config/waybar"
 STATE_FILE="$WAYBAR_DIR/.current"
 
 while true; do
-    CHOICE=$(printf " \uf233 Waybar\n \uf1fc Themes\n \uf245 Cursors\n \uf0e4  Refresh Rate\n \uf26c  Resolution\n \uf0ac  Default Browser\n \uf07b  Default File Manager\n \uf0e7  Animation Speed\n \uf013  System Reset" | rofi -dmenu -p "Settings" -theme-str 'configuration { show-icons: false; } listview { columns: 3; }')
+    CHOICE=$(printf " \uf233 Waybar\n \uf1fc Themes\n \uf245 Cursors\n \uf0e4  Refresh Rate\n \uf26c  Resolution\n \uf0ac  Default Browser\n \uf07b  Default File Manager\n \uf0e7  Animation Speed\n \uf023  Security\n \uf013  System Reset" | rofi -dmenu -p "Settings" -theme-str 'configuration { show-icons: false; } listview { columns: 3; }')
 
     [ -z "$CHOICE" ] && exit 0
 
@@ -222,11 +222,9 @@ while true; do
                 local cfg="$HOME/.config/hypr/modules/decorations.lua"
                 local duky="$HOME/.config/hypr/modules/decorations.lua.bak"
                 sed -i '/animations = {/!b;n;s/enabled = false/enabled = true/' "$cfg"
-                # Restore scrow curves and animation structure from backup
                 local start=$(grep -n '^-- scrow curves\|^-- Default curves' "$cfg" | head -1 | cut -d: -f1)
                 local end=$(grep -n 'leaf = "specialWorkspace"\|leaf = "zoomFactor"' "$cfg" | tail -1 | cut -d: -f1)
                 if [[ -z "$start" ]]; then
-                    # No animation section found, insert after animations block
                     start=$(grep -n 'animations = {' "$cfg" | head -1 | cut -d: -f1)
                     end=$(awk "NR>=$start && /^\\)/{print NR; exit}" "$cfg")
                     if [[ -n "$end" ]]; then
@@ -253,7 +251,6 @@ hl.animation({ leaf = \"specialWorkspace\", enabled = true, speed = $5, bezier =
                     fi
                     return
                 fi
-                # If already has scrow structure, just update speeds
                 sed -i "s/leaf = \"windowsIn\",.*speed = [0-9.]*/leaf = \"windowsIn\",     enabled = true,  speed = $1,  bezier = \"overshot\",   style = \"popin 80%\"/" "$cfg"
                 sed -i "s/leaf = \"windowsOut\",.*speed = [0-9.]*/leaf = \"windowsOut\",    enabled = true,  speed = $2,  bezier = \"snap\",       style = \"popin 80%\"/" "$cfg"
                 sed -i "s/leaf = \"windowsMove\",.*speed = [0-9.]*/leaf = \"windowsMove\",   enabled = true,  speed = $1,  bezier = \"overshot\",   style = \"slide\"/" "$cfg"
@@ -281,6 +278,102 @@ hl.animation({ leaf = \"specialWorkspace\", enabled = true, speed = $5, bezier =
                     ;;
             esac
             hyprctl reload
+            ;;
+        *Security)
+            SECURITY_CHOICE=$(printf " \uf1e2  Security Audit\n \uf0e4  System Monitor\n \uf10c  Check AUR Package\n \uf0ac  Apply Security Hardening\n \uf121  Show Commands\n \uf013  Back to Settings" | rofi -dmenu -p "Security Checks" -theme-str 'configuration { show-icons: false; } listview { columns: 2; }')
+
+            [ -z "$SECURITY_CHOICE" ] && continue
+
+            case "$SECURITY_CHOICE" in
+                *Security\ Audit)
+                    kitty --class security-terminal -e bash -c '$HOME/security-hardening/audit.sh; echo ""; echo "Press any key to close..."; read -n 1'
+                    ;;
+                *System\ Monitor)
+                    kitty --class security-terminal -e bash -c '$HOME/security-hardening/monitor.sh'
+                    ;;
+                *Check\ AUR\ Package)
+                    PKG_NAME=$(echo "" | rofi -dmenu -p "Enter package name:" -theme-str 'configuration { show-icons: false; }')
+                    [ -z "$PKG_NAME" ] && continue
+                    kitty --class security-terminal -e bash -c "$HOME/security-hardening/aur-check.sh $PKG_NAME; echo ''; echo 'Press any key to close...'; read -n 1"
+                    ;;
+                *Apply\ Security\ Hardening)
+                    kitty --class security-terminal -e bash -c 'echo "This requires sudo access."; echo "Run: sudo ~/security-hardening/apply-security.sh"; echo ""; echo "Press any key to close..."; read -n 1'
+                    ;;
+                *Show\ Commands)
+                    kitty --class security-terminal -e bash -c 'cat << "EOF"
+==========================================
+       SECURITY COMMANDS REFERENCE
+==========================================
+
+AUDIT & MONITORING:
+  ~/security-hardening/audit.sh
+    - Scans system for security issues
+    - Checks file permissions, firewall, SSH config
+    - No sudo needed
+
+  ~/security-hardening/monitor.sh
+    - Real-time security monitoring
+    - Shows failed logins, active sessions, CPU usage
+    - Refreshes every 10 seconds
+    - Press Ctrl+C to stop
+
+AUR PACKAGE SCANNING:
+  ~/security-hardening/aur-check.sh <package-name>
+    - Scans AUR package for malware before install
+    - Checks for suspicious patterns (curl|bash, rm -rf, etc.)
+    - Shows package votes and maintainer
+    - Example: ~/security-hardening/aur-check.sh vscodium
+
+SYSTEM HARDENING (requires sudo):
+  sudo ~/security-hardening/apply-security.sh
+    - Installs and configures all security tools
+    - Sets up firewall, SSH hardening, Fail2Ban
+    - Enables ClamAV antivirus
+    - Run once after fresh install
+
+  sudo ~/security-hardening/fix-permissions.sh
+    - Fixes file permissions (already ran)
+    - Locks down .ssh, .bash_history, etc.
+
+QUICK ALIASES (in .zshrc):
+  secscan
+    - Shortcut for: ~/security-hardening/audit.sh
+
+  secmonitor
+    - Shortcut for: ~/security-hardening/monitor.sh
+
+  aurcheck <package>
+    - Shortcut for: ~/security-hardening/aur-check.sh <package>
+
+  fuck -S <package>
+    - Normal paru install (no scan)
+    - Use aurcheck first to scan manually
+
+FILES CREATED:
+  ~/security-hardening/
+    ├── apply-security.sh      # Master security script
+    ├── audit.sh               # Security audit
+    ├── monitor.sh             # Real-time monitoring
+    ├── aur-check.sh           # AUR package scanner
+    ├── fix-permissions.sh     # File permission fixes
+    ├── sshd_hardened.conf     # SSH server config
+    ├── nftables_hardened.conf # Firewall rules
+    ├── sysctl_security.conf   # Kernel hardening
+    ├── fail2ban_jail.local    # Brute force protection
+    ├── usb-scan.sh            # USB malware scanning
+    ├── usb-scan.rules         # USB auto-scan trigger
+    ├── clamav-monitor.sh      # Real-time virus monitor
+    └── clamav-monitor.service # Systemd service for monitor
+
+==========================================
+Press any key to close...
+EOF
+read -n 1'
+                    ;;
+                *Back\ to\ Settings)
+                    continue
+                    ;;
+            esac
             ;;
     esac
 done

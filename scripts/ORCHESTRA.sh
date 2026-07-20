@@ -287,6 +287,14 @@ install_core_packages() {
         "xclip"
     )
     
+    # Security
+    local security_pkgs=(
+        "nftables"
+        "fail2ban"
+        "clamav"
+        "rkhunter"
+    )
+    
     # NVIDIA (if detected)
     local nvidia_pkgs=()
     if [[ "$GPU" == "nvidia" ]]; then
@@ -335,6 +343,7 @@ install_core_packages() {
         "${theme_pkgs[@]}" \
         "${tools_pkgs[@]}" \
         "${clipboard_pkgs[@]}" \
+        "${security_pkgs[@]}" \
         "${nvidia_pkgs[@]}" \
         "${amd_pkgs[@]}" \
         "${intel_pkgs[@]}"
@@ -615,6 +624,72 @@ configure_services() {
     print_ok "Services configured"
 }
 
+configure_security() {
+    print_step "Configuring security..."
+    
+    ask_sudo
+    
+    local security_dir="$DOTFILES_DIR/security-hardening"
+    
+    # Install security packages
+    print_info "Installing security packages..."
+    sudo pacman -S --needed --noconfirm nftables fail2ban clamav rkhunter 2>/dev/null || true
+    
+    # Copy security configs
+    print_info "Deploying security configurations..."
+    sudo cp "$security_dir/sshd_hardened.conf" /etc/ssh/sshd_config.d/99-hardened.conf 2>/dev/null || true
+    sudo cp "$security_dir/nftables_hardened.conf" /etc/nftables.conf 2>/dev/null || true
+    sudo cp "$security_dir/sysctl_security.conf" /etc/sysctl.d/99-security.conf 2>/dev/null || true
+    sudo cp "$security_dir/fail2ban_jail.local" /etc/fail2ban/jail.local 2>/dev/null || true
+    sudo cp "$security_dir/usb-scan.sh" /usr/local/bin/usb-scan.sh 2>/dev/null || true
+    sudo cp "$security_dir/usb-scan.rules" /etc/udev/rules.d/99-usb-scan.rules 2>/dev/null || true
+    sudo cp "$security_dir/clamav-monitor.sh" /usr/local/bin/clamav-monitor.sh 2>/dev/null || true
+    sudo cp "$security_dir/clamav-monitor.service" /etc/systemd/system/clamav-monitor.service 2>/dev/null || true
+    
+    # Make scripts executable
+    sudo chmod +x /usr/local/bin/usb-scan.sh 2>/dev/null || true
+    sudo chmod +x /usr/local/bin/clamav-monitor.sh 2>/dev/null || true
+    
+    # Apply kernel hardening
+    print_info "Applying kernel hardening..."
+    sudo sysctl --system > /dev/null 2>&1 || true
+    
+    # Enable services
+    print_info "Enabling security services..."
+    sudo systemctl enable nftables 2>/dev/null || true
+    sudo systemctl start nftables 2>/dev/null || true
+    sudo systemctl enable fail2ban 2>/dev/null || true
+    sudo systemctl start fail2ban 2>/dev/null || true
+    sudo systemctl enable sshd 2>/dev/null || true
+    sudo systemctl start sshd 2>/dev/null || true
+    sudo systemctl daemon-reload 2>/dev/null || true
+    sudo systemctl enable clamav-monitor 2>/dev/null || true
+    sudo systemctl start clamav-monitor 2>/dev/null || true
+    
+    # Disable LLMNR
+    print_info "Disabling LLMNR..."
+    if [ -f /etc/systemd/resolved.conf ]; then
+        sudo sed -i 's/^#LLMNR=.*/LLMNR=no/' /etc/systemd/resolved.conf 2>/dev/null || true
+        grep -q "^LLMNR=" /etc/systemd/resolved.conf 2>/dev/null || echo "LLMNR=no" | sudo tee -a /etc/systemd/resolved.conf > /dev/null
+        sudo systemctl restart systemd-resolved 2>/dev/null || true
+    fi
+    
+    # Fix user file permissions
+    print_info "Fixing file permissions..."
+    chmod 700 ~/.ssh 2>/dev/null || true
+    chmod 600 ~/.ssh/id_* 2>/dev/null || true
+    chmod 600 ~/.ssh/*_key 2>/dev/null || true
+    chmod 644 ~/.ssh/*.pub 2>/dev/null || true
+    chmod 600 ~/.bash_history 2>/dev/null || true
+    chmod 600 ~/.zsh_history 2>/dev/null || true
+    
+    # Update ClamAV definitions
+    print_info "Updating ClamAV definitions..."
+    sudo freshclam 2>/dev/null || true
+    
+    print_ok "Security configured"
+}
+
 configure_grub() {
     print_step "Configuring GRUB theme..."
     
@@ -815,6 +890,7 @@ main() {
     configure_gtk
     configure_fonts
     configure_services
+    configure_security
     configure_grub
     set_permissions
     

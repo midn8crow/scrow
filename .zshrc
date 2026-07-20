@@ -186,3 +186,10 @@ if [[ -f /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.
 fi
 
 alias sklauncher="~/application/jdk25/bin/java -jar ~/application/sklauncher/SKlauncher-3.2.18.jar"
+
+# -----------------------------------------------------------------------------
+# SECURITY ALIASES
+# -----------------------------------------------------------------------------
+alias aurcheck='~/security-hardening/aur-check.sh'
+alias secscan='~/security-hardening/audit.sh'
+alias secmonitor='~/security-hardening/monitor.sh'

@@ -1,0 +1,4 @@
+# Auto-scan USB drives for malware on connect
+# Place in /etc/udev/rules.d/99-usb-scan.rules
+
+ACTION=="add", SUBSYSTEM=="block", RUN+="/usr/local/bin/usb-scan.sh %k"

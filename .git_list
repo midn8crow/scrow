@@ -23,6 +23,7 @@
 user_scripts/
 .local/bin/
 scripts/
+security-hardening/
 etc/sddm/
 etc/default/grub
 boot/grub/

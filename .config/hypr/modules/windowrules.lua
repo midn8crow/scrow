@@ -124,5 +124,13 @@ hl.window_rule({
     opacity = "0.7 0.5",
 })
 
+hl.window_rule({
+    name  = "security-terminal-float",
+    match = { class = "security-terminal" },
+    float  = true,
+    size   = "1000 700",
+    center = true,
+})
+
 
 

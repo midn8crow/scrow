@@ -1,0 +1,8 @@
+# Block USB storage devices
+# Place in /etc/udev/rules.d/99-usb-block.rules
+
+# Block USB mass storage (pendrives, external hard drives)
+ACTION=="add", SUBSYSTEM=="usb", ATTR{bDeviceClass}=="08", RUN+="/bin/sh -c 'echo 0 > /sys$devpath/authorized'"
+
+# To allow specific devices, add their vendor/product ID:
+# ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="XXXX", ATTR{idProduct}=="YYYY", RUN+="/bin/sh -c 'echo 1 > /sys$devpath/authorized'"

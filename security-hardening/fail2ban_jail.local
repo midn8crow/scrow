@@ -1,0 +1,24 @@
+# Fail2Ban SSH Configuration
+# Place in /etc/fail2ban/jail.local
+
+[DEFAULT]
+bantime = 3600
+findtime = 600
+maxretry = 3
+banaction = nftables-multiport
+backend = systemd
+
+[sshd]
+enabled = true
+port = ssh
+filter = sshd
+maxretry = 3
+bantime = 3600
+findtime = 600
+
+[sshd-ddos]
+enabled = true
+port = ssh
+filter = sshd-ddos
+maxretry = 5
+bantime = 1800

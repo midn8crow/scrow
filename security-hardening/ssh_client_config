@@ -1,0 +1,41 @@
+# Hardened SSH Client Configuration
+# Place in ~/.ssh/config
+
+Host *
+    # Use strong key exchange
+    KexAlgorithms curve25519-sha256,curve25519-sha256@libssh.org
+    
+    # Use strong ciphers
+    Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com
+    
+    # Use strong MACs
+    MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com
+    
+    # Use Ed25519 keys
+    IdentityFile ~/.ssh/id_ed25519
+    
+    # Disable agent forwarding by default
+    ForwardAgent no
+    
+    # Disable X11 forwarding
+    ForwardX11 no
+    
+    # Connection keepalive
+    ServerAliveInterval 60
+    ServerAliveCountMax 3
+    
+    # Strict host key checking
+    StrictHostKeyChecking ask
+    
+    # Visual host key
+    VisualHostKey yes
+    
+    # Disable compression for security
+    Compression no
+
+# Specific host examples (uncomment and customize)
+#Host myserver
+#    HostName 192.168.1.100
+#    User myuser
+#    Port 22
+#    IdentityFile ~/.ssh/id_ed25519
