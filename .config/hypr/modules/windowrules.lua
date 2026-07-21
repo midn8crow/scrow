@@ -98,6 +98,13 @@ hl.layer_rule({
     ignore_alpha = 0.85,
 })
 
+hl.layer_rule({
+    name         = "waybar-bar",
+    match        = { namespace = "waybar" },
+    blur         = true,
+    ignore_alpha = 0.75,
+})
+
 
 
 

@@ -1,6 +1,7 @@
 {
   "reload_style_on_change": true,
   "position": "top",
+  "layer": "top",
   "height": 24, 
   "margin-right": 5,
   "margin-left": 5,

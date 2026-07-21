@@ -1,6 +1,7 @@
 {
   "reload_style_on_change": true,
   "position": "top",
+  "layer": "top",
   "mod": "dock",
   "margin-top": 2,
   "height": 27,

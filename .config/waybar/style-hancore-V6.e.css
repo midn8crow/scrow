@@ -242,3 +242,25 @@ animation: repeat;
   animation-iteration-count: infinite;
   animation-direction: alternate;
 }
+
+
+
+
+
+
+#cava {
+  margin: 6px 12px;
+  min-height: 30px;
+  min-width: 150px;
+  font-size: 0.7rem;
+  letter-spacing: 1px;
+  background-color: @module-bg;
+}
+
+#mpris {
+  /* max-width: 200px; */
+}
+
+#mpris {
+  /* max-width: 200px; */
+}

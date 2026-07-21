@@ -26,10 +26,16 @@ hl.bind(mainMod .. " + M", hl.dsp.exec_cmd("command -v hyprshutdown >/dev/null 2
 hl.bind(mainMod .. " + E", hl.dsp.exec_cmd(fileManager))
 hl.bind(mainMod .. " + D", hl.dsp.window.float({ action = "toggle" }))
 hl.bind(mainMod .. " + F", hl.dsp.window.fullscreen())
-hl.bind(mainMod .. " + ALT + A", hl.dsp.window.fullscreen({ mode = "maximized", action = "toggle" }))
--- Custom maximize toggle that saves/restores tiling state (scrolling layout workaround)
+-- Custom maximize toggle that saves/restores tiling state
 -- See: https://github.com/hyprwm/Hyprland/discussions/14380
 local fs_saved = {}
+local dwindle_fs_saved = {}
+local ws_layouts = {}
+
+local function is_dwindle()
+    local ws = hl.get_active_workspace()
+    return ws_layouts[tostring(ws.id)] == "dwindle"
+end
 
 local function get_window_dims(w)
     local mon = w.monitor
@@ -60,37 +66,51 @@ hl.bind(mainMod .. " + SHIFT + A", function()
     if w == nil then return end
     local addr = w.address
 
-    if addr and fs_saved[addr] then
-        local s = fs_saved[addr]
-        fs_saved[addr] = nil
-        hl.dispatch(hl.dsp.layout("colresize " .. tostring(s.width)))
-        if s.anchor > 0.02 then
-            local last = -1
-            for _ = 1, 12 do
-                local cw = hl.get_active_window()
-                local d = cw and get_window_dims(cw)
-                local cur = d and d.anchor
-                if not cur or cur >= s.anchor - 0.02 then break end
-                if math.abs(cur - last) < 0.004 then break end
-                last = cur
-                hl.dispatch(hl.dsp.layout("move -col"))
-            end
+    if is_dwindle() then
+        if addr and dwindle_fs_saved[addr] then
+            dwindle_fs_saved[addr] = nil
+            hl.dispatch(hl.dsp.window.fullscreen({ mode = "maximized", action = "toggle" }))
+            hl.dispatch(hl.dsp.focus({ window = "address:" .. addr }))
+        else
+            dwindle_fs_saved[addr] = true
+            hl.dispatch(hl.dsp.window.fullscreen({ mode = "maximized", action = "toggle" }))
         end
-        os.execute("hyprctl dispatch focuswindow address:" .. addr .. " &")
     else
-        local d = get_window_dims(w)
-        if addr then
-            fs_saved[addr] = {
-                width = d and snap_width(d.width) or 0.5,
-                anchor = d and d.anchor or 0,
-            }
+        if addr and fs_saved[addr] then
+            local s = fs_saved[addr]
+            fs_saved[addr] = nil
+            hl.dispatch(hl.dsp.layout("colresize " .. tostring(s.width)))
+            if s.anchor > 0.02 then
+                local last = -1
+                for _ = 1, 12 do
+                    local cw = hl.get_active_window()
+                    local d = cw and get_window_dims(cw)
+                    local cur = d and d.anchor
+                    if not cur or cur >= s.anchor - 0.02 then break end
+                    if math.abs(cur - last) < 0.004 then break end
+                    last = cur
+                    hl.dispatch(hl.dsp.layout("move -col"))
+                end
+            end
+            hl.dispatch(hl.dsp.focus({ window = "address:" .. addr }))
+        else
+            local d = get_window_dims(w)
+            if addr then
+                fs_saved[addr] = {
+                    width = d and snap_width(d.width) or 0.5,
+                    anchor = d and d.anchor or 0,
+                }
+            end
+            hl.dispatch(hl.dsp.layout("colresize 1.0"))
         end
-        hl.dispatch(hl.dsp.layout("colresize 1.0"))
     end
 end, { description = "Maximize" })
 
 hl.on("window.close", function(w)
-    if w and w.address then fs_saved[w.address] = nil end
+    if w and w.address then
+        fs_saved[w.address] = nil
+        dwindle_fs_saved[w.address] = nil
+    end
 end)
 hl.bind("ALT + space", hl.dsp.exec_cmd(menu))
 hl.bind("CTRL + space", hl.dsp.exec_cmd("$HOME/.local/bin/wallpaper-menu.sh"))
@@ -153,7 +173,6 @@ hl.bind(mainMod .. " + ALT + F", hl.dsp.exec_cmd("makoctl menu -- rofi -dmenu -p
 
 
 -- Layout toggle: scrolling <-> dwindle (current workspace only)
-local ws_layouts = {}
 hl.bind(mainMod .. " + SHIFT + L", function()
     local ws = hl.get_active_workspace()
     local id = tostring(ws.id)

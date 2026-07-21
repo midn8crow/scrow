@@ -28,7 +28,7 @@ def script_desc(cmd):
 OVERRIDES = [
     (lambda c, k: c.strip().startswith("function(") and "Period" in k, "Toggle blur"),
     (lambda c, k: c.strip().startswith("function(") and "SHIFT" in k and "L" in k, "Change layout"),
-    (lambda c, k: c.strip().startswith("function(") and "SHIFT" in k and "A" in k, "Maximize (for scrolling layout)"),
+    (lambda c, k: c.strip().startswith("function(") and "SHIFT" in k and "A" in k, "Maximize"),
     (lambda _, k: "XF86" in k or "key" in k, None),  # skip
     (lambda c, _: "window.close" in c, "Close window"),
     (lambda c, _: "window.float" in c, "Toggle float"),

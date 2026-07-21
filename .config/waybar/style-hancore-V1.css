@@ -158,14 +158,6 @@ window#waybar.empty #window {
  background-color: @ia1;
 }
 
-#cava {
-  padding: 0 5px;
-  background-color: @background;
-  border-radius: 2px;
-  box-shadow: 1px 1px 3px 0px @ia1;
-  margin: 1px 8px 2px 0px;
-  color: #ff9b71;
-}
 
 tooltip {
   padding: 2px;
@@ -254,4 +246,26 @@ tooltip label {
     to {
         color: @background;
     }
+}
+
+
+
+
+
+
+#cava {
+  margin: 6px 12px;
+  min-height: 30px;
+  min-width: 150px;
+  font-size: 0.7rem;
+  letter-spacing: 1px;
+  background-color: @module-bg;
+}
+
+#mpris {
+  /* max-width: 200px; */
+}
+
+#mpris {
+  /* max-width: 200px; */
 }

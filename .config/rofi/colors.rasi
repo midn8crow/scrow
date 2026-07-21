@@ -1,15 +1,15 @@
 * {
-    bg0: #16121766;
-    bg1: #231e2366;
-    bg2: #1e1a1f66;
-    fg0: #eae0e7;
-    fg1: #cfc3cd;
+    bg0: #11141866;
+    bg1: #1d202466;
+    bg2: #191c2066;
+    fg0: #e1e2e8;
+    fg1: #c3c6cf;
 
     red: #ffb4ab;
-    green: #d5c0d7;
-    yellow: #f5b7b3;
-    blue: #e5b6f2;
-    purple: #e5b6f2;
-    aqua: #5d386a;
-    highlight: #e5b6f233;
+    green: #bbc7db;
+    yellow: #d7bee4;
+    blue: #a1cafd;
+    purple: #a1cafd;
+    aqua: #1b4975;
+    highlight: #a1cafd33;
 }
