@@ -1,0 +1,237 @@
+@import "../omarchy/current/theme/waybar.css";
+
+
+* {
+  /* background-color: @background; */
+  /* color: @foreground; */
+  
+  border-radius: 0;
+  border: none;
+  text-shadow: none;
+  padding: 0;
+	min-height: 0;
+  font-family: 'CaskaydiaCove Nerd Font Propo';
+}
+
+#waybar  {
+  background-color: @transparent;
+}
+
+#waybar > box {
+  color: @foreground;
+  background-color: @background;
+  margin: 2px 6px 2px 6px;
+  padding: 0px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 1);
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 12px;
+  transition-property: background-color;
+  transition-duration: .5s;
+  min-height: 30px;
+}
+
+.modules-left {
+  margin-left: 4px;
+}
+
+.modules-right {
+  margin-right: 4px;
+}
+
+#right2 {
+  margin-right: 4px;
+  padding-top: 8px;
+}
+
+#workspaces {
+  padding: 0 0px;
+  margin-top: 2px;
+}
+
+#workspaces button {
+  all: initial;
+  padding: 0 1px;
+  margin: 0 3px;
+  opacity: 0.55;
+  color: @foreground;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+#workspaces button.active {
+    color: @foreground;
+    opacity: 1.0;
+    font-size: 12px;
+}
+
+#workspaces button.empty {
+  opacity: 0.2;
+  font-size: 12px;
+  color: @foreground;
+}
+
+#workspaces button.empty.active {
+ font-size: 12px;
+ color: @foreground;
+ opacity: 1.0;
+}
+
+
+#custom-expand-icon,
+#tray,
+#cpu,
+#memory,
+#battery,
+#backlight,
+#network,
+#bluetooth,
+#pulseaudio,
+#power-profiles-daemon,
+#idle_inhibitor,
+#custom-windowpill,
+#group-tray-expander,
+#custom-update,
+#custom-voxtype,
+#custom-voxtype.recording,
+#custom-voxtype.transcribing,
+#custom-expand-icon,
+#custom-scrow,
+#custom-updatespacman,
+#custom-screenrecording-indicator {
+  min-width: 12px;
+  padding-left: 6px;
+  padding-right: 6px;
+  margin: 1px 1px 1px 1px;
+  padding-top: 0px;
+  padding-bottom: 0px;
+}
+
+#clock{
+  padding-top: 4px;
+}
+
+
+
+tooltip {
+  padding: 2px;
+}
+
+#custom-scrow {
+  padding-top: 2px;
+  padding-left: 3px;
+}
+
+#custom-update {
+  font-size: 10px;
+}
+
+#custom-expand-icon {
+  margin-right: 0px;
+  opacity: 0.5;
+}
+
+#tray {
+    background-color: @background;
+}
+
+#tray > .passive {
+    -gtk-icon-effect: dim;
+}
+
+#tray > .needs-attention {
+    -gtk-icon-effect: highlight;
+    background-color: @background;
+}
+
+.hidden {
+  opacity: 0;
+}
+
+#power-profiles-daemon,
+#power-profiles-daemon.performance,
+#power-profiles-daemon.balanced,
+#power-profiles-daemon.power-saver {
+    margin: 0;
+    padding-left: 2px;
+}
+
+#custom-updatespacman {
+  opacity: 0.55;
+}
+
+#custom-separator {
+  opacity: 0.25;
+  padding-left: 2px;
+  padding-right: 4px;
+}
+
+#custom-separator3 {
+  opacity: 0.25;
+  padding-left: 2px;
+  padding-right: 6px;
+}
+
+tooltip {
+ padding: 4px;
+ background: @background;
+ font-size: 12px;
+ border-radius: 8px;
+ border: 1.5px solid rgba(255, 255, 255, 0.25);
+}
+tooltip label {
+    color: @foreground;
+}
+
+
+/* Specific animation Module */
+
+#custom-screenrecording-indicator {
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+  color: transparent;
+}
+
+#custom-screenrecording-indicator.active {
+  color: #eb7087;
+  animation-name: blink-recording;
+  animation-duration: 0.5s;
+}
+
+@keyframes blink-recording {
+    to {
+        color: @background;
+    }
+}
+
+#custom-voxtype {
+  min-width: 12px;
+  margin: 0px 0 0 0px;
+}
+
+#custom-voxtype.recording {
+  color: #a55555;
+}
+
+#battery.warning {
+  color: #c95d0f;
+  background-color: @background;
+}
+
+@keyframes blink2 {
+  to {
+    background-color: @background;
+    color: #f53c3c;
+  }
+}
+
+#battery.critical:not(.charging) {
+  background-color: transparent;
+  color: #e6d8ba;
+  animation-name: blink2;
+  animation-duration: 0.5s;
+  animation-timing-function: steps(12);
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+}

@@ -1,0 +1,229 @@
+@import "./rose-pine.css";
+
+/* --- Global-Settings ---*/
+
+* {
+  font-family: 'JetBrainsMono Nerd Font';
+  font-size: 12px;
+  font-weight: 800;
+  min-height: 0px;
+  border-radius:3px;
+  }
+
+  /* --- Waybar ---*/
+  window#waybar {
+  background-color: transparent;
+  transition-property: background-color;
+  transition-duration: .5s;
+}
+
+#waybar > box {
+  margin: 4px 10px;
+  padding: 1px;
+  background-color: @base; 
+  border: 1px solid alpha(@highlightMed, 0.3); 
+  box-shadow: 
+     inset 3px 0 0 0px @iris,
+   inset -3px 0 0 0 @gold,
+  0px 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+/* --- Single Module Config's ---*/
+#left1, #left2, #left3, #left4, 
+#right1, #right2, 
+.modules-center {
+  margin: 0px 2px;
+  padding: 0 10px;
+  transition: all 0.2s ease-in-out;
+}
+
+#left1 {
+  background-color: @overlay; 
+  border-radius: 2px;
+}
+
+#left2 {
+background-color: @overlay; 
+  box-shadow: inset 0 -3px 0 0 @love;
+  padding: 0px;
+}
+
+#left3 {
+background-color: @surface; 
+  box-shadow: inset 0 -3px 0 0 @pine;
+}
+
+.modules-center {
+  background-color: @surface;
+  box-shadow: inset 0 -3px 0 0 @foam;
+  padding: 0px;
+}
+
+#right1 {
+  background-color: @surface; 
+  box-shadow: inset 0 -3px 0 0 @subtle;
+}
+
+#right2 {
+  background-color: @overlay; 
+}
+
+
+window#waybar.empty #window {
+  background: transparent;
+  background-color: transparent;
+  border: none;
+  border-radius: 0;
+  color: transparent;
+  padding: 0;
+  margin: 0;
+}
+#waybar.empty .modules-center {
+  opacity: 0;
+}
+
+#mpris {
+  background-color: @surface; 
+  box-shadow: inset 0 -3px 0 0 @rose;
+  color: @rose;
+}
+
+#workspaces {
+  background-color: transparent;
+  padding: 0px;
+  margin: 0px;
+}
+
+#workspaces button {
+  color: @subtle;
+  padding: 0 8px;
+  margin: 2px 2px;
+  transition: all 0.2s ease;
+  opacity: 0.75;
+}
+
+#workspaces button.active {
+  color: @love;
+}
+
+#workspaces button.empty {
+  color: @muted;
+  opacity: 0.2;
+}
+
+#workspaces button.empty.active {
+  color: @rose;
+  opacity: 1;
+}
+
+#workspaces button:hover {
+  background-color: alpha(@highlightMed, 0.5);
+  color: @text;
+}
+
+#workspaces button.urgent {
+  color: @base;
+  background-color: @love;
+}
+
+
+
+/* --- General Modules --- */
+
+#tray,
+#window,
+#cpu,
+#clock,
+#battery,
+#network,
+#memory,
+#backlight,
+#bluetooth,
+#pulseaudio,
+#custom-weather,
+#custom-update,
+#idle_inhibitor,
+#custom-idle-indicator,
+#custom-notification-silencing-indicator,
+#custom-scrow,
+#custom-screenrecording-indicator,
+#custom-updatespacman {
+  min-width: 16px;
+  margin: 0 2px;      
+  padding: 0 4px;
+}
+
+#custom-update {
+  padding-left: 3px;
+}
+
+/* --- Module-Group-Colors --- */
+
+#custom-scrow { color: @gold; } 
+#clock { color: @text; } 
+#cpu { color: @rose; } 
+#memory { color: @iris; } 
+#pulseaudio { color: @love; }
+#network { color: @foam; } 
+#battery { color: @pine; }
+#backlight { color: @gold; }
+#idle_inhibitor.activated { color: @gold; }
+#idle_inhibitor.deactivated { color: @muted; }
+#tray { color: @muted; }
+
+#custom-voxtype {
+  min-width: 12px;
+  margin: 0 0 0 7.5px;
+}
+
+#custom-voxtype.recording,
+#custom-idle-indicator.active,
+#custom-notification-silencing-indicator.active {
+  color: @love;
+}
+
+#custom-idle-indicator,
+#custom-notification-silencing-indicator {
+  min-width: 12px;
+  margin-left: 0;
+  margin-right: 0;
+  font-size: 12px;
+  padding-bottom: 1px;
+}
+
+
+/* Specific Module */
+
+#tray > .needs-attention {
+    -gtk-icon-effect: highlight;
+    background-color: @transparent;
+}
+
+.hidden {
+  opacity: 0;
+}
+
+tooltip {
+  background-color: @base;
+  border: 1px solid @highlightHigh;
+  border-radius: 3px;
+}
+
+tooltip label {
+  color: @text;
+  padding: 4px;
+}
+
+
+/* Specific animation Module */
+
+#custom-screenrecording-indicator.active {
+  color: @rose;
+  animation: blink-recording 0.5s infinite alternate linear;
+}
+
+@keyframes blink-recording {
+  to { color: transparent; }
+}
+
+

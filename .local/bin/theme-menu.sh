@@ -4,7 +4,7 @@ WAYBAR_DIR="${HOME}/.config/waybar"
 STATE_FILE="$WAYBAR_DIR/.current"
 
 while true; do
-    CHOICE=$(printf " \uf233 Waybar\n \uf1fc Themes\n \uf245 Cursors\n \uf0e4  Refresh Rate\n \uf26c  Resolution\n \uf0ac  Default Browser\n \uf07b  Default File Manager\n \uf0e7  Animation Speed\n \uf023  Security\n \uf013  System Reset" | rofi -dmenu -p "Settings" -theme-str 'configuration { show-icons: false; } listview { columns: 3; }')
+    CHOICE=$(printf " \uf233 Waybar\n \uf1fc Themes\n \uf245 Cursors\n \uf0e4  Refresh Rate\n \uf26c  Resolution\n \uf0ac  Default Browser\n \uf07b  Default File Manager\n \uf0e7  Animation Speed\n \uf023  Security\n \uf11c  Keybinds\n \uf013  System Reset" | rofi -dmenu -p "Scrow Menu" -theme-str 'configuration { show-icons: false; } listview { columns: 3; }')
 
     [ -z "$CHOICE" ] && exit 0
 
@@ -181,6 +181,9 @@ while true; do
             ;;
         *System\ Reset)
             "$HOME/.local/bin/system-reset.sh"
+            ;;
+        *Keybinds)
+            "$HOME/.local/bin/keybinds"
             ;;
         *Animation\ Speed)
             CONFIG="$HOME/.config/hypr/modules/decorations.lua"

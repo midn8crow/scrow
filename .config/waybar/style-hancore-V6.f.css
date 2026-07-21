@@ -1,0 +1,254 @@
+@import "../omarchy/current/theme/waybar.css";
+
+/* @import "colors.css"; */
+
+* {
+  border: none;
+  border-radius: 0px;
+  min-height: 20px;
+  font-family: 'JetBrainsMono Nerd Font';
+  font-weight: 500;
+  font-size: 12px;
+}
+
+window#waybar {
+    background-color: transparent;
+}
+
+window#waybar > box {
+  border-radius: 14px;
+  border: 1px solid alpha(@foreground, 0.1);
+  margin: 4px 8px;
+  background-color: alpha(@background, 0.7);
+}
+
+#left1, #left2, #left3, #right1, #right2 {
+  background-color: alpha(@foreground, 0.1);
+  margin: 4px 2px;
+  padding: 0px 8px; 
+}
+
+#left1 {
+margin-left: 4px;
+  padding-left: 6px;
+  border-radius: 10px 4px 4px 10px;
+}
+
+#left2, #left3, #right2 {
+ border-radius: 4px;
+  padding: 0px 10px; 
+}
+
+#right1 {
+margin-right: 4px;
+  padding-right: 6px;
+  border-radius: 4px 10px 10px 4px;
+}
+
+/* --- Workspaces --- */
+
+button {
+  box-shadow: inset 0 -3px transparent;
+  border: none;
+  border-radius: 0;
+  transition: 0.3s ease-in-out;
+}
+
+button:hover {
+  background: inherit;
+}
+
+
+#workspaces {
+  border-radius: 10px;
+  background-color: transparent;
+  margin: 4px 0px;
+  padding: 0px;
+}
+
+#workspaces button {
+  padding: 0px 6px;
+  margin: 0px 2px;
+  border-radius: 6px;
+  color: alpha(@foreground, 0.5);
+  background-color: transparent;
+}
+
+#workspaces button.active {
+background-color: alpha(@foreground, 0.1);
+  color: @foreground;
+}
+
+#workspaces button.empty {
+  color: alpha(@foreground, 0.2);
+  background-color: transparent;
+  box-shadow: none;
+}
+
+#workspaces button.empty.active {
+  background-color: alpha(@foreground, 0.15);
+  color: alpha(@foreground, 0.8);
+  border-radius: 6px;
+  box-shadow: none;
+  margin: 0px 2px;
+  padding: 0px 6px;
+  opacity: 1;
+}
+
+#workspaces button:hover.empty,
+#workspaces button:hover {
+    background-color: @foreground;
+    color: @background;
+    opacity: 1;
+}
+
+
+#mpris,
+#idle_inhibitor,
+#custom-updatespacman,
+#custom-scrow,
+#custom-update,
+#custom-screenrecording-indicator,
+#clock,
+#custom-idle-indicator,
+#custom-notification-silencing-indicator,
+#custom-scrow-theme,
+#custom-scrow-theme-set,
+#custom-voxtype,
+#custom-voxtype.recording,
+#custom-voxtype.transcribing,
+#tray,
+#cpu,
+#memory,
+#battery,
+#backlight,
+#network,
+#power-profiles-daemon,
+#bluetooth,
+#pulseaudio {
+  min-width: 10px;
+  margin: 0px;
+  padding: 0px 6px;
+  background-color: transparent;
+}
+
+tooltip {
+  padding: 2px;
+}
+
+#custom-scrow, #clock, #mpris {
+  background-color: transparent;
+  margin: 0px;
+  padding: 0px 4px;
+}
+
+#power-profiles-daemon,
+#power-profiles-daemon.performance,
+#power-profiles-daemon.balanced,
+#power-profiles-daemon.power-saver {
+padding-right: 8px;
+}
+
+#custom-idle-indicator,
+#custom-notification-silencing-indicator {
+  min-width: 12px;
+  margin-left: 0;
+  margin-right: 0;
+  font-size: 12px;
+  padding-bottom: 0px;
+}
+
+#custom-idle-indicator.active,
+#custom-notification-silencing-indicator.active {
+  color: #a55555;
+}
+
+#custom-theme-switcher {
+  font-size: 13px;
+}
+
+#tray > .passive {
+    -gtk-icon-effect: dim;
+}
+
+#tray > .needs-attention {
+    -gtk-icon-effect: highlight;
+    background-color: transparent;
+}
+#custom-voxtype {
+  min-width: 12px;
+  margin: 0 0 0 2.5px;
+}
+
+#custom-voxtype.recording {
+  color: #a55555;
+}
+.hidden {
+  opacity: 0;
+}
+
+tooltip {
+ padding: 4px;
+ background: @background;
+ border: 1px solid alpha(@foreground, 0.8);
+ border-radius: 8px;
+}
+tooltip label {
+    color: @foreground;
+    font-weight: normal;
+    font-size: 10px;
+}
+
+/* Specific animation Module */
+
+#custom-screenrecording-indicator {
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+  color: transparent;
+}
+
+#custom-screenrecording-indicator.active {
+  color: #eb7087;
+  animation-name: blink-recording;
+  animation-duration: 0.5s;
+}
+
+@keyframes blink-recording {
+    to {
+        color: @background;
+    }
+}
+
+
+#mpris {
+color: @foreground;
+  box-shadow: none;
+  animation: blink 3s linear infinite alternate;
+}
+
+@keyframes blink {
+    to { color: alpha(@foreground, 0.3); }
+}
+
+#battery.warning {
+  color: #c95d0f;
+  background-color: transparent;
+}
+
+@keyframes blink2 {
+  to {
+    background-color: transparent;
+    color: #f53c3c;
+  }
+}
+
+#battery.critical:not(.charging) {
+  background-color: transparent;
+  color: #e6d8ba;
+  animation-name: blink2;
+  animation-duration: 0.5s;
+  animation-timing-function: steps(12);
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+}

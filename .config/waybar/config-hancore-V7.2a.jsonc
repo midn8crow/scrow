@@ -1,0 +1,306 @@
+{
+  "exclusive": true,
+  "layer": "top",
+  "reload_style_on_change": true,
+  "position": "top",
+  "mod": "dock",
+  "passthrough": false,
+  "gtk-layer-shell": true,
+  "margin-top": 0,
+  "margin-left": 50,
+  "margin-right": 50,
+  "margin-bottom": 0,
+  "modules-left": [
+    "custom/weather",
+    "custom/separator3",
+    "clock",
+    "custom/separator",
+    "hyprland/workspaces",
+    "custom/separator",
+    "idle_inhibitor",
+    "power-profiles-daemon",
+    "bluetooth",
+    "custom/separator",
+    "custom/updatespacman",
+    "custom/update",
+    "custom/idle-indicator",
+    "custom/voxtype",
+    "custom/notification-silencing-indicator",
+    "custom/screenrecording-indicator",  
+    "backlight",
+    "battery"
+  ],
+  "modules-center": [
+ "mpris"
+  ],
+  "modules-right": [
+    "group/tray-expander",
+    "custom/gpu-usage",  
+    "network",
+    "cpu",
+    "memory",
+    "pulseaudio#input",
+    "pulseaudio#output",
+    "custom/separator",
+    "custom/scrow"
+  ],
+
+  "hyprland/workspaces": {
+    "disable-scroll": true,
+    "all-outputs": true,
+    "cursor": true,
+    "format": "{icon}",
+    "format-icons": {
+    "1": "一",
+    "2": "二",
+    "3": "三",
+    "4": "四",
+    "5": "五",
+    "6": "六",
+    "7": "七",
+    "8": "八",
+    "9": "九",
+    "10": "十"
+  },
+      "persistent-workspaces": {
+      "*": 10
+    }
+  },
+
+"custom/separator": {
+    "format": "|", 
+    "tooltip": false
+},
+"custom/separator2": {
+"exec": "sh -c 'count=$(busctl --user get-property org.kde.StatusNotifierWatcher /StatusNotifierWatcher org.kde.StatusNotifierWatcher RegisteredStatusNotifierItems | sed -n \"s/^as \\([0-9]\\+\\).*/\\1/p\"); if [ \"${count:-0}\" -gt 0 ]; then echo \"{\\\"text\\\":\\\"|\\\",\\\"class\\\":\\\"show\\\"}\"; else echo \" {\\\"text\\\":\\\"\\\",\\\"class\\\":\\\"hide\\\"}\"; fi'",
+    "return-type": "json",
+    "interval": 2
+},
+"custom/separator3": {
+    "format": "•", 
+    "tooltip": false
+},
+  "custom/weather": {
+    "format": "{}°",
+    "tooltip": true,
+    "interval": 60,
+    "exec": "wttrbar --nerd",
+    "return-type": "json"
+  },
+    "custom/scrow": {
+    "format": "",
+    "on-click": "omarchy-menu system",
+    "on-click-right": "xdg-terminal-exec",
+    "tooltip-format": "Scrow System menu\n\nSuper + Alt + Space"
+  },
+  "custom/update": {
+    "format": "",
+    "exec": "omarchy-update-available",
+    "on-click": "omarchy-launch-floating-terminal-with-presentation omarchy-update",
+    "tooltip-format": "Scrow update available",
+    "signal": 7,
+    "interval": 21600
+  },
+ "custom/voxtype": {
+    "exec": "omarchy-voxtype-status",
+    "return-type": "json",
+    "format": "{icon}",
+    "format-icons": {
+      "idle": "",
+      "recording": "󰍬",
+      "transcribing": "󰔟"
+    },
+    "tooltip": true,
+    "on-click-right": "omarchy-voxtype-config",
+    "on-click": "omarchy-voxtype-model"
+  },
+      "custom/idle-indicator": {
+    "on-click": "omarchy-toggle-idle",
+    "exec": "$OMARCHY_PATH/default/waybar/indicators/idle.sh",
+    "signal": 9,
+    "return-type": "json"
+  },
+  "custom/notification-silencing-indicator": {
+    "on-click": "omarchy-toggle-notification-silencing",
+    "exec": "$OMARCHY_PATH/default/waybar/indicators/notification-silencing.sh",
+    "signal": 10,
+    "return-type": "json"
+  },
+"power-profiles-daemon": {
+    "format": "{icon}",
+    "tooltip-format": "Power profile: {profile}\nDriver: {driver}",
+    "tooltip": true,
+    "format-icons": {
+      "performance": "",
+      "balanced": " ",
+      "power-saver": ""
+    }
+  },
+"cpu": {
+    "interval": 5,
+    "format": "<span color='#df6124'>cpu</span> {usage:02}%",
+    "on-click": "omarchy-launch-or-focus-tui btop",
+    "states": {
+        "warning": 50,
+        "critical": 80
+    }
+},
+"memory": {
+    "interval": 5,
+    "format": "<span color='#df6124'>mem</span> {percentage:02}%",
+    "tooltip-format": "Used {percentage}%\n{used:0.1f}GB/{total:0.1f}GB",
+    "on-click": "omarchy-launch-or-focus-tui btop",
+    "states": {
+        "warning": 50,
+        "critical": 80
+    }
+},
+ "custom/gpu-usage": {
+    "exec": "gpu-usage-waybar --text-format '<span color=\"#df6124\">gpu</span> {gpu_utilization}% <span color=\"#df6124\">vram</span> {mem_utilization}%'",
+    "return-type": "json",
+    "format": "{}",
+    "on-click": "ghostty -e nvtop"
+},
+ "backlight": {
+    "device": "intel_backlight",
+    "format": "{icon}",
+    "tooltip": true,
+    "tooltip-format": "Brightness:  {percent}%",
+    "format-alt": "{percent}% {icon}",
+    "format-alt-click": "click-right",
+    "format-icons": ["󰃜", "󰃝", "󰃞", "󰃟", "󰃠"],
+    "on-scroll-down": "brightnessctl s 5%-",
+    "on-scroll-up": "brightnessctl s +5%"
+  },
+   "clock": {
+    "format": "<span color='#df6124'>{0:%I:%M %p}</span> <span size='small' color='#616367'><i>{0:%a, %b %d}</i></span>",
+    "format-alt": "{:L%d %B W%V %Y}",
+    "tooltip-format": "<span>{calendar}</span>",
+    "calendar": {
+      "mode": "month",
+      "mode-mon-col": 3,
+      "on-click-right": "mode",
+      "format": {
+        "month": "<span color='#ffead3'><b>{}</b></span>",
+        "weekdays": "<span color='#ffcc66'><b>{}</b></span>",
+        "today": "<span color='#ff6699'><b>{}</b></span>"
+      }
+    },
+    "on-click-right": "omarchy-launch-floating-terminal-with-presentation omarchy-tz-select"
+},
+  "network": {
+    "format": "<span color='#df6124'>net</span> on",
+    "format-wifi": "<span color='#df6124'>wifi</span> {essid}",
+    "format-ethernet": "<span color='#df6124'>eth</span> on",
+    "format-disconnected": "<span color='#df6124'>net</span> off",
+    "tooltip-format-wifi": "{essid} ({frequency} GHz)\n⇣{bandwidthDownBytes}  ⇡{bandwidthUpBytes}",
+    "tooltip-format-ethernet": "⇣{bandwidthDownBytes}  ⇡{bandwidthUpBytes}",
+    "tooltip-format-disconnected": "Disconnected",
+    "interval": 3,
+    "spacing": 1,
+    "on-click": "omarchy-launch-wifi"
+  },
+"battery": {
+    "format": "{icon} {capacity}%",
+    "format-discharging": "{icon} {capacity}%",
+    "format-charging": "{icon} {capacity}%",
+    "format-plugged": "",
+    "format-icons": {
+      "charging": ["󰢜", "󰂆", "󰂇", "󰂈", "󰢝", "󰂉", "󰢞", "󰂊", "󰂋", "󰂅"],
+      "default": ["󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"]
+    },
+    "format-full": "󰂅",
+    "tooltip-format-discharging": "{power:>1.0f}W↓ {capacity}%",
+    "tooltip-format-charging": "{power:>1.0f}W↑ {capacity}%",
+    "interval": 5,
+    "on-click": "omarchy-menu power",
+    "on-click-right": "notify-send -u low \"$(omarchy-battery-status)\"",
+    "states": {
+      "warning": 20,
+      "critical": 10
+    }
+  },
+ "bluetooth": {
+    "format": "{num_connections}",
+    "format-disabled": "󰂲 {status}",
+    "format-connected": "󰂱 {num_connections}",
+    "tooltip-format": "Devices connected: {num_connections}",
+    "on-click": "omarchy-launch-bluetooth"
+  },
+"pulseaudio#input": {
+    "format": "<span color='#df6124'>mic</span> {source_volume}%",
+    "format-muted": "<span color='#df6124'>mic</span> muted",
+    "tooltip-format": "mic {source_volume}%",
+    "scroll-step": 1,
+    "smooth-scrolling-threshold": 1,
+    "max-volume": 100,
+    "on-click": "omarchy-launch-audio",
+    "on-click-right": "pamixer -t",
+    "on-scroll-up": "pactl set-source-volume @DEFAULT_SOURCE@ +1%",
+    "on-scroll-down": "pactl set-source-volume @DEFAULT_SOURCE@ -1%"
+},
+"pulseaudio#output": {
+    "format": "<span color='#df6124'>vol</span> {volume}%",
+    "format-muted": "<span color='#df6124'>vol</span> muted",
+    "tooltip-format": "vol {volume}%",
+    "max-volume": 100,
+    "scroll-step": 2,
+    "smooth-scrolling-threshold": 1,
+    "on-click": "omarchy-launch-audio",
+    "on-click-right": "pamixer -t"
+},
+ "mpris": {
+    "format": "{dynamic}",
+    "format-paused": "<span color='#df6124'>paused</span> {dynamic}",
+    "interval": 5, 
+    "dynamic-order": ["artist", "position", "length"], 
+    "dynamic-importance-order": ["position", "length", "artist"],
+    "tooltip-format": "{player} ({status}):\n{artist} - {title}",  
+    "ignored-players": ["firefox", "brave"]
+  },
+  "idle_inhibitor": {
+    "format": "{icon}",
+    "tooltip-format-activated": "Stay Awake: ON",
+    "tooltip-format-deactivated": "Stay Awake: OFF",
+    "format-icons": {
+      "activated": "󰛨",
+      "deactivated": "󰛩"
+    }
+  },
+ "custom/updatespacman": {
+    "format": "{}{icon}",
+    "return-type": "json",
+    "format-icons": {
+      "has-updates": "󰏖",
+      "updated": ""
+    },
+    "exec-if": "which waybar-module-pacman-updates",
+    "exec": "waybar-module-pacman-updates --no-zero-output"
+  },
+    "group/tray-expander": {
+    "orientation": "inherit",
+    "drawer": {
+      "transition-duration": 600,
+      "children-class": "tray-group-item"
+    },
+    "modules": [
+      "custom/expand-icon",
+      "tray"
+    ]
+  },
+  "custom/expand-icon": {
+    "format": "",
+    "tooltip": false
+  },
+  "tray": {
+    "icon-size": 13,
+    "spacing": 2
+  },
+  "custom/screenrecording-indicator": {
+    "on-click": "omarchy-capture-screenrecording",
+    "exec": "$OMARCHY_PATH/default/waybar/indicators/screen-recording.sh",
+    "signal": 8,
+    "return-type": "json"
+  },
+  
+}

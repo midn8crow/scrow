@@ -1,0 +1,293 @@
+@import "../omarchy/current/theme/waybar.css";
+
+@define-color bg @background;
+@define-color fg @foreground;
+@define-color red #df6124;
+@define-color grey #4f4f4f;
+@define-color grey2 #3f3f3f;
+
+/* Global Reset */
+
+* {
+    margin: 0px;
+    padding: 1px 1px;
+    border: none;
+    font-family: "JetBrainsMono Nerd Font";
+    font-size: 12px;
+    font-weight: 900;
+}
+
+window#waybar {
+    background-color: transparent;
+}
+
+#waybar > box {
+    margin: 0px 0px;
+    padding: 0px;
+    background-color: transparent;
+    border: none;                  
+    box-shadow: none;              
+}
+
+window#waybar.empty .modules-center {
+    margin: 0;
+    padding: 0;
+    border: none;
+    background-color: transparent;
+}
+
+
+.modules-left,
+.modules-right {
+    background-color: @bg;              
+    border: 1px solid alpha(@fg, 0.2);  
+    border-radius: 15px;              
+    padding: 1px 2px; 
+    margin: 2px 5px 2px 5px; 
+    box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+#workspaces {
+    background-color: transparent;
+    border: none;
+    padding: 1px 2px;
+    margin: 2px 0px;
+    border-radius: 50px;
+}
+
+#workspaces button {
+    padding: 0px 5px;
+    margin: 1px 2px;
+    color: @bg;
+    border-radius: 100px;
+    background-color: @red;
+    transition:
+        background 0.25s cubic-bezier(0.4, 0.0, 0.2, 1),
+        color      0.25s cubic-bezier(0.4, 0.0, 0.2, 1),
+        padding    0.2s  cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+#workspaces button.active {
+    padding: 0px 18px;
+    margin: 1px 2px;
+    background: @red;
+    color: @bg;
+    border-radius: 100px;
+}
+
+#workspaces button.empty {
+    color: @bg;
+    background-color: @grey2; 
+}
+
+#workspaces button.empty.active {
+    color: @bg;
+    background-color: alpha(@fg, 0.5); 
+}
+
+#workspaces button:hover {
+    box-shadow: inset 0 -2px @red;
+    background-color: @bg;
+    color: @fg;
+}
+
+#tray,
+#idle_inhibitor,
+#memory,
+#mpris,
+#cpu,
+#battery,
+#battery.discharging,
+#battery.full,
+#battery.plugged,
+#battery.charging,
+#backlight,
+#network,
+#network.disconnected,
+#network.wifi,
+#network.ethernet,
+#bluetooth,
+#pulseaudio,
+#pulseaudio.input,
+#pulseaudio.output,
+#power-profiles-daemon,
+#power-profiles-daemon.performance,
+#power-profiles-daemon.balanced,
+#power-profiles-daemon.power-saver,
+#custom-voxtype,
+#custom-voxtype.recording,
+#custom-weather,
+#custom-clock,
+#custom-updatespacman,
+#custom-idle-indicator.active,
+#custom-idle-indicator,
+#custom-notification-silencing-indicator.active,
+#custom-notification-silencing-indicator
+#custom-screenrecording-indicator,
+#custom-update,
+#custom-scrow {
+    min-width: 14px;
+    color: @fg;
+    padding: 0px 8px;
+    margin: 4px 3px;
+    border-radius: 10px;
+    background-color: alpha(@fg, 0.1);
+    transition: all 0.25s ease;
+}
+
+/* Hover-Glow effect */
+#battery:hover,
+#backlight:hover,
+#tray:hover,
+#bluetooth:hover,
+#power-profiles-daemon:hover,
+#custom-updatespacman:hover,
+#idle_inhibitor:hover,
+#custom-weather:hover,
+#tray:hover,
+#battery:hover,
+#pulseaudio:hover,
+#network:hover,
+#custom-clock:hover,
+#cpu:hover,
+#memory:hover {
+    box-shadow: inset 0 -2px @red;
+    background-color: @bg;
+}
+
+
+
+/*  Custom module adjustments */
+
+#tray {
+padding-top: 1px;
+}
+
+#backlight,
+#network,
+#network.wifi,
+#cpu,
+#memory,
+#custom-updatespacman,
+#power-profiles-daemon.power-saver,
+#power-profiles-daemon.balanced,
+#idle_inhibitor.deactivated,
+#idle_inhibitor.activated,
+#pulseaudio.output {
+  padding-right: 12px;
+}
+
+#custom-scrow {
+    color: @red;
+    font-size: 16px;
+    background: @bg;
+    padding: 0 4px;
+}
+
+#custom-clock {
+    color: @red;
+    font-weight: bold;
+}
+
+#mpris {
+    background-color: @bg;
+    border: 1px solid alpha(@fg, 0.2);
+    border-radius: 15px;
+    padding: 2px 15px;
+    margin: 2px 5px 2px 5px;
+    color: @grey;
+    box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+#mpris.playing {
+    animation: hover-mirror 3s ease-in-out infinite alternate;
+    color: @fg;
+}
+
+#idle_inhibitor.activated {
+    color: @red;
+    font-size: 14px;
+}
+
+#idle_inhibitor.deactivated {
+    color: @grey;
+    font-size: 14px;
+}
+
+#battery.charging, #battery.plugged {
+    color: #b7b083;
+}
+
+#battery.warning:not(.charging) {
+    color: #c95d0f;
+}
+
+#custom-voxtype.recording {
+  color: #c95d0f;
+}
+
+#custom-idle-indicator.active,
+#custom-notification-silencing-indicator.active {
+  color: #c95d0f;
+  opacity: 1;
+}
+
+#power-profiles-daemon.performance { color: @red; }
+#power-profiles-daemon.power-saver { color: #25e712; }
+
+/* Tooltips & Separators */
+
+tooltip {
+    background: alpha(@bg, 0.95);
+    border: 1px solid @grey;
+    border-radius: 8px;
+}
+
+tooltip label {
+    color: @fg;
+    padding: 4px;
+}
+
+#custom-separator, #custom-separator2, #custom-separator3 {
+    color: @grey;
+    opacity: 0.4;
+    font-size: 10px;
+    margin: 0 2px;
+}
+
+/* Animations */
+
+@keyframes hover-mirror {
+    from {
+        box-shadow: inset 0 0px @red;
+        background-color: @bg;
+    }
+    to {
+        box-shadow: inset 0 -2px @red;
+        background-color: @bg;
+    }
+}
+
+@keyframes blink-recording {
+    to { color: @bg; }
+}
+
+#custom-screenrecording-indicator.active {
+    color: #eb7087;
+    animation: blink-recording 0.5s linear infinite alternate;
+}
+
+#battery.critical:not(.charging) {
+    color: #f53c3c;
+    animation: blink-recording 0.5s steps(12) infinite alternate;
+}
+
+#memory.warning,
+#cpu.warning {
+    color: #e3c1b1; 
+}
+
+#memory.critical,
+#cpu.critical {
+    color: #df6124; 
+}

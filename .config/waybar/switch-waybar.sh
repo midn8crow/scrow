@@ -3,7 +3,7 @@
 DIR="${0%/*}"
 STATE_FILE="$DIR/.current"
 
-# Auto-detect waybar configs
+# auto-detect waybar configs
 CONFIGS=()
 for f in "$DIR"/config-*.jsonc; do
     [ -f "$f" ] || continue
@@ -11,7 +11,19 @@ for f in "$DIR"/config-*.jsonc; do
     CONFIGS+=("$name")
 done
 
-current=$(cat "$STATE_FILE" 2>/dev/null || echo "${CONFIGS[0]}")
+if [[ ${#CONFIGS[@]} -eq 0 ]]; then
+    echo "No configs found"
+    exit 1
+fi
+
+current=$(cat "$STATE_FILE" 2>/dev/null)
+
+# if current doesn't exist in list, start from first
+found=0
+for c in "${CONFIGS[@]}"; do
+    [[ "$c" == "$current" ]] && found=1 && break
+done
+[[ $found -eq 0 ]] && current="${CONFIGS[0]}"
 
 case "$1" in
     prev)
@@ -34,4 +46,5 @@ case "$1" in
         ;;
 esac
 
+echo "Switching to: $(cat "$STATE_FILE")"
 exec "$DIR/launch.sh"
