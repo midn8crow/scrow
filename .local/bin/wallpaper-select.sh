@@ -35,6 +35,13 @@ for w in "${walls[@]}"; do
 done
 [ -z "$WALL" ] && exit 0
 
+# Save selected wallpaper index for restore on reboot
+HISTORY_FILE="$HOME/.cache/wallpaper-history"
+for i in "${!walls[@]}"; do
+    [[ "${walls[$i]}" == "$WALL" ]] && echo "$i" > "$HISTORY_FILE" && break
+done
+echo "static" > "$HOME/.cache/wallpaper-type"
+
 pgrep -x awww-daemon >/dev/null || awww-daemon &
 sleep 0.2
 awww img "$WALL" --transition-fps 60 --transition-type grow --transition-duration 1
