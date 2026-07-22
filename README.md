@@ -37,14 +37,14 @@ A complete, ready-to-use Hyprland configuration for Arch Linux. One command to i
 ### One-Line Install
 
 ```bash
-git clone --bare --depth 1 https://github.com/midnight-crow-69/scrow.git $HOME/dotfiles && git --git-dir=$HOME/dotfiles/ --work-tree=$HOME checkout -f && ~/scripts/ORCHESTRA.sh
+git clone --bare --depth 1 https://github.com/midn8crow/scrow.git $HOME/dotfiles && git --git-dir=$HOME/dotfiles/ --work-tree=$HOME checkout -f && ~/scripts/ORCHESTRA.sh
 ```
 
 ### Step-by-Step
 
 ```bash
 # 1. Clone the repository (bare repo method)
-git clone --bare --depth 1 https://github.com/midnight-crow-69/scrow.git $HOME/dotfiles
+git clone --bare --depth 1 https://github.com/midn8crow/scrow.git $HOME/dotfiles
 
 # 2. Deploy all files
 git --git-dir=$HOME/dotfiles/ --work-tree=$HOME checkout -f
