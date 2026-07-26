@@ -9,7 +9,7 @@ while true; do
     else
         RCLONE_OPT=" \uf019 Rclone Mount"
     fi
-    CHOICE=$(printf " \uf233 Waybar\n \uf1fc Themes\n \uf245 Cursors\n \uf0e4  Refresh Rate\n \uf26c  Resolution\n \uf0ac  Default Browser\n \uf07b  Default File Manager\n \uf0e7  Animation Speed\n \uf023  Security\n \uf11c  Keybinds\n \uf013  System Reset\n $RCLONE_OPT" | rofi -dmenu -p "Scrow Menu" -theme-str 'configuration { show-icons: false; } listview { columns: 3; }')
+    CHOICE=$(printf " \uf233 Waybar\n \uf1fc Themes\n \uf245 Cursors\n \uf0e4  Refresh Rate\n \uf26c  Resolution\n \uf0ac  Default Browser\n \uf07b  Default File Manager\n \uf0e7  Animation Speed\n \uf023  Security\n \uf11c  Keybinds\n \uf185  Power Profile\n \uf304  Update Mirrors\n \uf2ed  System Cleanup\n \uf013  System Reset\n $RCLONE_OPT" | rofi -dmenu -p "Scrow Menu" -theme-str 'configuration { show-icons: false; } listview { columns: 3; }')
 
     [ -z "$CHOICE" ] && exit 0
 
@@ -382,6 +382,31 @@ read -n 1'
                     continue
                     ;;
             esac
+            ;;
+        *Power\ Profile)
+            current_profile=$(powerprofilesctl get 2>/dev/null)
+
+            OPTIONS=()
+            for p in performance balanced power-saver; do
+                if [[ "$p" == "$current_profile" ]]; then
+                    OPTIONS+=("${p} [active]")
+                else
+                    OPTIONS+=("$p")
+                fi
+            done
+
+            SEL=$(printf "%s\n" "${OPTIONS[@]}" | rofi -dmenu -p "Power Profile" -theme-str 'configuration { show-icons: false; }')
+            [ -z "$SEL" ] && continue
+            SEL=$(echo "$SEL" | sed 's/ \[active\]$//')
+
+            powerprofilesctl set "$SEL"
+            notify-send -u low "Power Profile" "Switched to $SEL"
+            ;;
+        *Update\ Mirrors)
+            kitty --class security-terminal -e bash -c 'echo "Updating mirrors..."; sudo reflector --latest 20 --sort rate --save /etc/pacman.d/mirrorlist; echo ""; echo "Done! Press any key to close..."; read -n 1'
+            ;;
+        *System\ Cleanup)
+            kitty --class security-terminal -e bash -c 'echo "Cleaning package cache..."; sudo paccache -r; echo ""; echo "Removing orphan packages..."; sudo pacman -Rns $(pacman -Qdtq) 2>/dev/null; echo ""; echo "Done! Press any key to close..."; read -n 1'
             ;;
         *Rclone\ Mount*)
             "$HOME/.local/bin/rclone-toggle.sh"

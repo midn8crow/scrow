@@ -154,5 +154,13 @@ hl.window_rule({
     center = true,
 })
 
+hl.window_rule({
+    name  = "satty-float",
+    match = { class = "com.gabm.satty" },
+    float  = true,
+    size   = "800 500",
+    center = true,
+})
+
 
 
