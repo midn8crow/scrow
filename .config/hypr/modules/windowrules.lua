@@ -146,5 +146,13 @@ hl.window_rule({
     center = true,
 })
 
+hl.window_rule({
+    name  = "ytdlp-gui-float",
+    match = { title = "Youtube Downloader" },
+    float  = true,
+    size   = "758 425",
+    center = true,
+})
+
 
 

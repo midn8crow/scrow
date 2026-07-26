@@ -35,6 +35,7 @@ hl.env("CLUTTER_BACKEND", "wayland")
 hl.env("XDG_CURRENT_DESKTOP", "Hyprland")
 hl.env("XDG_SESSION_TYPE", "wayland")
 hl.env("XDG_SESSION_DESKTOP", "Hyprland")
+hl.env("XDG_RUNTIME_DIR", "/run/user/" .. (io.popen("id -u"):read("*a"):match("%d+") or "1000"))
 
 --Qt--
 hl.env("QT_AUTO_SCREEN_SCALE_FACTOR", "1")
@@ -43,6 +44,7 @@ hl.env("QT_WAYLAND_DISABLE_WINDOWDECORATION", "1")
 hl.env("QT_QPA_PLATFORMTHEME", "qt6ct")
 
 --Fcitx5--
+hl.env("QT_IM_MODULE", "fcitx")
 hl.env("XMODIFIERS", "@im=fcitx")
 
 --AMD Performance--

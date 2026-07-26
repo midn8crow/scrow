@@ -7,4 +7,5 @@ require("modules.borders")
 require("modules.layout")
 require("modules.windowrules")
 require("modules.input")
+require("modules.workspace_overview")
 

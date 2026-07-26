@@ -4,7 +4,12 @@ WAYBAR_DIR="${HOME}/.config/waybar"
 STATE_FILE="$WAYBAR_DIR/.current"
 
 while true; do
-    CHOICE=$(printf " \uf233 Waybar\n \uf1fc Themes\n \uf245 Cursors\n \uf0e4  Refresh Rate\n \uf26c  Resolution\n \uf0ac  Default Browser\n \uf07b  Default File Manager\n \uf0e7  Animation Speed\n \uf023  Security\n \uf11c  Keybinds\n \uf013  System Reset" | rofi -dmenu -p "Scrow Menu" -theme-str 'configuration { show-icons: false; } listview { columns: 3; }')
+    if mountpoint -q "$HOME/gdrive" 2>/dev/null; then
+        RCLONE_OPT=" \uf019 Rclone Mount [active]"
+    else
+        RCLONE_OPT=" \uf019 Rclone Mount"
+    fi
+    CHOICE=$(printf " \uf233 Waybar\n \uf1fc Themes\n \uf245 Cursors\n \uf0e4  Refresh Rate\n \uf26c  Resolution\n \uf0ac  Default Browser\n \uf07b  Default File Manager\n \uf0e7  Animation Speed\n \uf023  Security\n \uf11c  Keybinds\n \uf013  System Reset\n $RCLONE_OPT" | rofi -dmenu -p "Scrow Menu" -theme-str 'configuration { show-icons: false; } listview { columns: 3; }')
 
     [ -z "$CHOICE" ] && exit 0
 
@@ -377,6 +382,9 @@ read -n 1'
                     continue
                     ;;
             esac
+            ;;
+        *Rclone\ Mount*)
+            "$HOME/.local/bin/rclone-toggle.sh"
             ;;
     esac
 done
