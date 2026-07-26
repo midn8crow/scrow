@@ -150,7 +150,7 @@ hl.bind(mainMod .. " + period", function()
         blur_off[a] = true
     end
 end, { description = "Toggle Blur & Opacity", locked = true })
-hl.bind(mainMod .. " + SHIFT + T", hl.dsp.exec_cmd("$HOME/.local/bin/theme-menu.sh"))
+hl.bind(mainMod .. " + SHIFT + T", hl.dsp.exec_cmd("$HOME/.local/bin/scrow-menu.sh"))
 hl.bind(mainMod .. " + SHIFT + U", hl.dsp.exec_cmd("$HOME/.local/bin/update-dots.sh"))
 hl.bind(mainMod .. " + SHIFT + P", hl.dsp.exec_cmd("$HOME/.local/bin/pick-color-region.sh"))
 hl.bind(mainMod .. " + T", hl.dsp.exec_cmd("$HOME/.local/bin/ocr-toggle.sh"))

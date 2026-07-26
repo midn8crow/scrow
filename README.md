@@ -128,7 +128,7 @@ All scripts are in `~/.local/bin/`:
 | `screenshot-region.sh` | Region screenshot |
 | `screenshot-full.sh` | Full screenshot |
 | `gpu-recorder.sh` | GPU screen recording |
-| `theme-menu.sh` | Theme switcher menu |
+| `scrow-menu.sh` | Scrow menu |
 | `powermenu.sh` | Power/logout menu |
 | `force-kill.sh` | Force kill window |
 | `keybinds` | Show keybinds |
