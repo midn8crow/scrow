@@ -162,5 +162,22 @@ hl.window_rule({
     center = true,
 })
 
+hl.window_rule({
+    name  = "keypunch-float",
+    match = { class = ".*[Kk]eypunch.*" },
+    float    = true,
+    size     = "700 400",
+    center   = true,
+    opacity  = "0.8 0.8",
+})
+
+hl.window_rule({
+    name  = "gaming-terminal-float",
+    match = { class = "gaming-terminal" },
+    float  = true,
+    size   = "800 600",
+    center = true,
+})
+
 
 
