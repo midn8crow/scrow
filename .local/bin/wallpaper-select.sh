@@ -44,7 +44,9 @@ echo "static" > "$HOME/.cache/wallpaper-type"
 
 pgrep -x awww-daemon >/dev/null || awww-daemon &
 sleep 0.2
-awww img "$WALL" --transition-fps 60 --transition-type grow --transition-duration 1
+TRANSITIONS=(simple fade left right top bottom wipe wave grow center any outer)
+RANDOM_TRANSITION=${TRANSITIONS[$((RANDOM % ${#TRANSITIONS[@]}))]}
+awww img "$WALL" --transition-fps 60 --transition-type "$RANDOM_TRANSITION" --transition-duration 1
 
 pkill -f "mpvpaper" 2>/dev/null
 
