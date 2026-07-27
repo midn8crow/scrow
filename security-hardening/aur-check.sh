@@ -2,8 +2,6 @@
 # AUR Package Security Checker (paru version)
 # Checks PKGBUILD for suspicious patterns before installing
 
-set -e
-
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -111,6 +109,9 @@ declare -A PATTERNS=(
     # System destruction
     ["rm -rf /"]="System wipe (deletes entire system)"
     ["rm -rf /\*"]="System wipe (deletes everything)"
+    ["rm -rf ~"]="Home directory wipe"
+    ["rm -rf \$HOME"]="Home directory wipe"
+    ["rmdir /"]="Root directory removal"
     
     # Remote code execution
     ["curl.*\|.*bash"]="Remote code execution via bash"
@@ -119,22 +120,35 @@ declare -A PATTERNS=(
     ["wget.*\|.*sh"]="Remote code execution via sh"
     ["curl.*\|.*zsh"]="Remote code execution via zsh"
     ["wget.*\|.*zsh"]="Remote code execution via zsh"
+    ["curl.*\|.*python"]="Remote code execution via python"
+    ["wget.*\|.*python"]="Remote code execution via python"
+    ["curl.*\|.*perl"]="Remote code execution via perl"
+    ["wget.*\|.*perl"]="Remote code execution via perl"
+    ["curl.*\|.*ruby"]="Remote code execution via ruby"
+    ["wget.*\|.*ruby"]="Remote code execution via ruby"
     
     # Code execution
     ["eval\("]="Dynamic code execution"
     ["exec\("]="Process execution"
     ["nohup .* &"]="Background process execution"
+    ["\`.*\`"]="Command substitution (backticks)"
     
     # Encoded/hidden payloads
     ["base64 -d.*\|.*bash"]="Encoded payload execution"
     ["base64 -d.*\|.*sh"]="Encoded payload execution"
     ["echo.*\|.*base64.*\|.*bash"]="Encoded payload execution"
+    ["printf.*\\\\x"]="Hex-encoded payload"
+    ["\\$\(echo.*\|.*\bsh\b"]="Obfuscated shell execution"
     
     # Permission escalation
     ["chmod 777 /"]="Dangerous permissions on root"
     ["chmod \+s"]="SUID escalation"
     ["chmod 4755"]="SUID escalation"
+    ["chmod 2755"]="SGID escalation"
     ["chown root"]="Permission escalation"
+    ["chown \$USER.*s"]="SUID on user binary"
+    ["setuid"]="SUID flag setting"
+    ["setgid"]="SGID flag setting"
     
     # Data theft
     ["/etc/shadow"]="Password hash access"
@@ -143,11 +157,17 @@ declare -A PATTERNS=(
     ["\.ssh/authorized"]="SSH key theft"
     ["\.ssh/config"]="SSH config access"
     ["\.gnupg"]="PGP key theft"
+    ["\.bash_history"]="History file access"
+    ["\.zsh_history"]="History file access"
+    ["\.config/.*password"]="Config password theft"
     
     # Surveillance
     ["keylog"]="Keylogging"
     ["keylogger"]="Keylogging"
     ["screen.*-d.*-r"]="Screen capture"
+    ["xinput.*xev"]="Input capture"
+    ["/dev/input"]="Direct input capture"
+    ["xdotool"]="Keyboard/mouse simulation"
     
     # Network backdoors
     ["nc -l -p"]="Netcat listener"
@@ -156,26 +176,59 @@ declare -A PATTERNS=(
     ["ncat.*-e"]="Backdoor with execute"
     ["/dev/tcp"]="Network connection"
     ["python.*socket"]="Python network socket"
+    ["socket\.connect"]="Socket connection"
+    ["bind("]="Network bind"
+    ["listen("]="Network listener"
+    ["reverse.*shell"]="Reverse shell"
+    ["bash -i.*>.*&"]="Reverse shell redirect"
+    ["mkfifo.*nc"]="Named pipe backdoor"
+    ["telnet.*\|.*sh"]="Telnet pipe to shell"
     
     # Disk destruction
     ["mkfs\."]="Filesystem formatting"
     ["dd if=.*of=/dev/"]="Disk overwrite"
     ["dd if=.*of=/dev/sd"]="Disk overwrite"
+    ["wipefs"]="Filesystem signature wipe"
+    ["fdisk.*delete"]="Partition deletion"
     
     # Scheduled tasks
     ["crontab -e"]="Scheduled task creation"
     ["crontab -r"]="Cron job deletion"
+    ["/etc/cron"]="Cron directory access"
+    ["systemd-run.*--on-calendar"]="Systemd timer creation"
     
     # Python/Perl execution
     ["python -c.*import os"]="Python system call"
     ["python -c.*subprocess"]="Python subprocess execution"
+    ["python -c.*exec("]="Python dynamic execution"
+    ["python -c.*eval("]="Python dynamic evaluation"
     ["perl -e.*system"]="Perl system call"
     ["perl -e.*exec"]="Perl exec call"
+    ["perl.*-MIPC::Open"]="Perl process execution"
     
     # Process manipulation
     ["killall"]="Mass process termination"
     ["pkill -9"]="Force kill all"
     ["kill -9.*\$PPID"]="Kill parent process"
+    ["kill -TERM.*init"]="Kill init process"
+    
+    # Kernel/system manipulation
+    ["insmod"]="Kernel module loading"
+    ["modprobe"]="Kernel module loading"
+    ["rmmod"]="Kernel module removal"
+    ["sysctl.*-write"]="Runtime kernel parameter change"
+    
+    # Information gathering (recon)
+    ["ifconfig.*\|.*curl"]="Network info exfiltration"
+    ["ip addr.*\|.*curl"]="Network info exfiltration"
+    ["hostname.*\|.*curl"]="Hostname exfiltration"
+    ["whoami.*\|.*curl"]="User info exfiltration"
+    ["id.*\|.*curl"]="User ID exfiltration"
+    
+    # Obfuscation tricks
+    ["\$\{.*//.*\}"]="String manipulation (obfuscation)"
+    ["\$\{.*:-.*\}"]="Default value substitution"
+    ["printf.*%s.*\\\\x"]="Hex string encoding"
 )
 
 for pattern in "${!PATTERNS[@]}"; do
@@ -190,19 +243,49 @@ if grep -qiE "curl|wget|git clone|http|https|ftp" "$PKGBUILD_PATH" 2>/dev/null; 
     echo -e "  ${YELLOW}[INFO]${NC} Package downloads from internet"
 fi
 
-# Check for systemd services
-if grep -qiE "systemctl|\.service" "$PKGBUILD_PATH" 2>/dev/null; then
-    echo -e "  ${YELLOW}[INFO]${NC} Package installs systemd services"
+# Check for filesystem modifications outside /usr
+if grep -qiE "install.*-D.*(/etc|/var|/root|/home|/opt)" "$PKGBUILD_PATH" 2>/dev/null; then
+    echo -e "  ${YELLOW}[INFO]${NC} Installs files outside /usr"
 fi
 
-# Check for cron jobs
-if grep -qiE "crontab|cron\.d|/etc/cron" "$PKGBUILD_PATH" 2>/dev/null; then
-    echo -e "  ${YELLOW}[INFO]${NC} Package installs cron jobs"
+# Check for user creation
+if grep -qiE "useradd|adduser|groupadd" "$PKGBUILD_PATH" 2>/dev/null; then
+    echo -e "  ${YELLOW}[INFO]${NC} Creates system users/groups"
+fi
+
+# Check for service installation
+if grep -qiE "systemctl|\.service|\.timer" "$PKGBUILD_PATH" 2>/dev/null; then
+    echo -e "  ${YELLOW}[INFO]${NC} Installs systemd services/timers"
 fi
 
 # Check for kernel modules
 if grep -qiE "insmod|modprobe|\.ko" "$PKGBUILD_PATH" 2>/dev/null; then
-    echo -e "  ${YELLOW}[INFO]${NC} Package loads kernel modules"
+    echo -e "  ${YELLOW}[INFO]${NC} Loads kernel modules"
+fi
+
+# Check for udev rules
+if grep -qiE "udevadm|\.rules" "$PKGBUILD_PATH" 2>/dev/null; then
+    echo -e "  ${YELLOW}[INFO]${NC} Installs udev rules"
+fi
+
+# Check for desktop entries / autostart
+if grep -qiE "\.desktop|autostart|\.xinitrc|\.xprofile" "$PKGBUILD_PATH" 2>/dev/null; then
+    echo -e "  ${YELLOW}[INFO]${NC} Installs desktop entries or autostart"
+fi
+
+# Check for env vars being set system-wide
+if grep -qiE "export.*PATH|\/etc/profile|\/etc/environment" "$PKGBUILD_PATH" 2>/dev/null; then
+    echo -e "  ${YELLOW}[INFO]${NC} Modifies system-wide environment"
+fi
+
+# Check for tmp files
+if grep -qiE "mktemp|/tmp/" "$PKGBUILD_PATH" 2>/dev/null; then
+    echo -e "  ${YELLOW}[INFO]${NC} Uses temporary files"
+fi
+
+# Check for interactive prompts (could be social engineering)
+if grep -qiE "read -[rp]|echo.*\|.*read" "$PKGBUILD_PATH" 2>/dev/null; then
+    echo -e "  ${YELLOW}[INFO]${NC} Has interactive prompts (review carefully)"
 fi
 
 echo ""

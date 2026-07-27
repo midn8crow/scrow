@@ -634,7 +634,26 @@ configure_security() {
     
     # Install security packages
     print_info "Installing security packages..."
-    sudo pacman -S --needed --noconfirm nftables fail2ban clamav rkhunter 2>/dev/null || true
+    sudo pacman -S --needed --noconfirm nftables fail2ban clamav rkhunter pacman-contrib 2>/dev/null || true
+    
+    # Deploy security scripts to ~/security-hardening/
+    print_info "Deploying security scripts..."
+    mkdir -p "$HOME/security-hardening"
+    if [[ -d "$security_dir" ]]; then
+        sudo cp "$security_dir"/* "$HOME/security-hardening/" 2>/dev/null || true
+        sudo chmod +x "$HOME/security-hardening/"*.sh 2>/dev/null || true
+        print_ok "Security scripts deployed to ~/security-hardening/"
+    fi
+    
+    # Deploy scrow menu scripts to ~/.local/bin/
+    print_info "Deploying scrow menu scripts..."
+    local scrow_dir="$DOTFILES_DIR/user_scripts/scrow"
+    if [[ -d "$scrow_dir" ]]; then
+        mkdir -p "$HOME/.local/bin"
+        cp "$scrow_dir"/* "$HOME/.local/bin/" 2>/dev/null || true
+        chmod +x "$HOME/.local/bin/"* 2>/dev/null || true
+        print_ok "Scrow scripts deployed to ~/.local/bin/"
+    fi
     
     # Copy security configs
     print_info "Deploying security configurations..."
@@ -651,14 +670,17 @@ configure_security() {
     sudo chmod +x /usr/local/bin/usb-scan.sh 2>/dev/null || true
     sudo chmod +x /usr/local/bin/clamav-monitor.sh 2>/dev/null || true
     
+    # Load firewall rules directly (systemctl start can fail in terminals)
+    print_info "Loading firewall rules..."
+    sudo nft -f /etc/nftables.conf 2>/dev/null || true
+    sudo systemctl enable nftables 2>/dev/null || true
+    
     # Apply kernel hardening
     print_info "Applying kernel hardening..."
     sudo sysctl --system > /dev/null 2>&1 || true
     
     # Enable services
     print_info "Enabling security services..."
-    sudo systemctl enable nftables 2>/dev/null || true
-    sudo systemctl start nftables 2>/dev/null || true
     sudo systemctl enable fail2ban 2>/dev/null || true
     sudo systemctl start fail2ban 2>/dev/null || true
     sudo systemctl enable sshd 2>/dev/null || true
@@ -667,6 +689,19 @@ configure_security() {
     sudo systemctl enable clamav-monitor 2>/dev/null || true
     sudo systemctl start clamav-monitor 2>/dev/null || true
     
+    # Install VPN/WARP firewall re-apply hook
+    print_info "Installing VPN firewall hook..."
+    sudo tee /etc/NetworkManager/dispatcher.d/99-reapply-firewall > /dev/null << 'HOOK'
+#!/bin/bash
+INTERFACE=$1
+ACTION=$2
+if [ "$ACTION" = "up" ]; then
+    /usr/bin/nft -f /etc/nftables.conf 2>/dev/null
+fi
+HOOK
+    sudo chmod 755 /etc/NetworkManager/dispatcher.d/99-reapply-firewall
+    sudo systemctl restart NetworkManager 2>/dev/null || true
+    
     # Disable LLMNR
     print_info "Disabling LLMNR..."
     if [ -f /etc/systemd/resolved.conf ]; then
@@ -674,6 +709,12 @@ configure_security() {
         grep -q "^LLMNR=" /etc/systemd/resolved.conf 2>/dev/null || echo "LLMNR=no" | sudo tee -a /etc/systemd/resolved.conf > /dev/null
         sudo systemctl restart systemd-resolved 2>/dev/null || true
     fi
+    
+    # Disable unused services
+    print_info "Disabling unused services..."
+    for svc in avahi-daemon cups; do
+        sudo systemctl disable --now "$svc" 2>/dev/null || true
+    done
     
     # Fix user file permissions
     print_info "Fixing file permissions..."
