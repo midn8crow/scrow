@@ -1,6 +1,9 @@
 #!/bin/bash
 # Security Monitor - Real-time threat detection
 
+# Clear screen AND scrollback buffer
+printf '\033[2J\033[H\033[3J'
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -8,7 +11,7 @@ CYAN='\033[0;36m'
 NC='\033[0m'
 
 show_monitor() {
-    clear
+    printf '\033[2J\033[H\033[3J'
     echo -e "${YELLOW}=========================================="
     echo "    SECURITY MONITOR - $(date)"
     echo -e "==========================================${NC}"

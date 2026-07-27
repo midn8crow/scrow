@@ -322,7 +322,7 @@ pick_power_profile() {
 
 pick_security() {
     while true; do
-        SECURITY_CHOICE=$(printf " \uf1e2  Security Audit\n \uf0e4  System Monitor\n \uf10c  Check AUR Package\n \uf0ac  Apply Security Hardening\n \uf121  Show Commands\n \uf013  Back" | fzf --cycle --prompt="Security > " --reverse --border --ansi)
+        SECURITY_CHOICE=$(printf " \uf10c  Check AUR Package\n \uf1e2  Security Audit\n \uf0e4  System Monitor\n \uf0ac  Apply Security Hardening\n \uf121  Show Commands\n \uf013  Back" | fzf --cycle --prompt="Security > " --reverse --border --ansi)
 
         [ -z "$SECURITY_CHOICE" ] && return
         [[ "$SECURITY_CHOICE" == *"Back"* ]] && return

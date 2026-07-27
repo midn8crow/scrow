@@ -1,7 +1,7 @@
 #!/bin/bash
 
 region=$(slurp 2>/dev/null) || exit 1
-text=$(grim -g "$region" -t png - 2>/dev/null | tesseract stdin stdout -l eng+ben --psm 6 2>/dev/null)
+text=$(grim -g "$region" -t png - 2>/dev/null | tesseract stdin stdout -l eng --psm 6 2>/dev/null)
 
 if [[ -z "$text" ]]; then
     notify-send "OCR" "No text detected"

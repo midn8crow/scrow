@@ -1,6 +1,9 @@
 #!/bin/bash
 # Security Audit Script - Detects malicious activity and misconfigurations
 
+# Clear screen AND scrollback buffer
+printf '\033[2J\033[H\033[3J'
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -85,7 +88,7 @@ while IFS= read -r f; do
     for known in "${KNOWN_SUID[@]}"; do
         if [ "$f" = "$known" ] 2>/dev/null; then FOUND=true; break; fi
         # Handle glob-like patterns for electron versions
-        KNOWN_BASE=$(echo "$known" | sed 's/\*/[^/]*//')
+        KNOWN_BASE=$(echo "$known" | sed 's/\\*/[^/]*//g')
         echo "$f" | grep -qE "^${KNOWN_BASE}$" 2>/dev/null && { FOUND=true; break; }
     done
     [ "$FOUND" = false ] && UNUSUAL_SUID="$UNUSUAL_SUID $f"

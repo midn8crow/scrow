@@ -2,6 +2,9 @@
 # AUR Package Security Checker (paru version)
 # Checks PKGBUILD for suspicious patterns before installing
 
+# Clear screen AND scrollback buffer
+printf '\033[2J\033[H\033[3J'
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -113,19 +116,19 @@ declare -A PATTERNS=(
     ["rm -rf \$HOME"]="Home directory wipe"
     ["rmdir /"]="Root directory removal"
     
-    # Remote code execution
-    ["curl.*\|.*bash"]="Remote code execution via bash"
-    ["wget.*\|.*bash"]="Remote code execution via bash"
-    ["curl.*\|.*sh"]="Remote code execution via sh"
-    ["wget.*\|.*sh"]="Remote code execution via sh"
-    ["curl.*\|.*zsh"]="Remote code execution via zsh"
-    ["wget.*\|.*zsh"]="Remote code execution via zsh"
-    ["curl.*\|.*python"]="Remote code execution via python"
-    ["wget.*\|.*python"]="Remote code execution via python"
-    ["curl.*\|.*perl"]="Remote code execution via perl"
-    ["wget.*\|.*perl"]="Remote code execution via perl"
-    ["curl.*\|.*ruby"]="Remote code execution via ruby"
-    ["wget.*\|.*ruby"]="Remote code execution via ruby"
+    # Remote code execution (must have actual pipe to shell)
+    ["curl.*\| *bash"]="Remote code execution via bash"
+    ["wget.*\| *bash"]="Remote code execution via bash"
+    ["curl.*\| *sh"]="Remote code execution via sh"
+    ["wget.*\| *sh"]="Remote code execution via sh"
+    ["curl.*\| *zsh"]="Remote code execution via zsh"
+    ["wget.*\| *zsh"]="Remote code execution via zsh"
+    ["curl.*\| *python"]="Remote code execution via python"
+    ["wget.*\| *python"]="Remote code execution via python"
+    ["curl.*\| *perl"]="Remote code execution via perl"
+    ["wget.*\| *perl"]="Remote code execution via perl"
+    ["curl.*\| *ruby"]="Remote code execution via ruby"
+    ["wget.*\| *ruby"]="Remote code execution via ruby"
     
     # Code execution
     ["eval\("]="Dynamic code execution"
