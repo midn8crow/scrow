@@ -356,6 +356,7 @@ install_aur_packages() {
     
     local aur_pkgs=(
         "hyprlauncher"
+        "hyprplugins"
         "wlr-randr"
         "gpu-screen-recorder"
         "zen-browser-bin"

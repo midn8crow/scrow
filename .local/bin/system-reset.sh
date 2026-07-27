@@ -17,7 +17,7 @@ NC='\033[0m'
 # Paths
 DOTFILES_DIR="$HOME/dotfiles"
 BACKUP_DIR="$HOME/.config/backup/initial"
-GITHUB_REPO="https://github.com/midnight-crow-69/scrow-setup.git"
+GITHUB_REPO="https://github.com/midn8crow/scrow.git"
 
 # Configs to restore
 CONFIGS=(
@@ -191,7 +191,7 @@ fetch_fresh() {
 # =============================================================================
 
 main() {
-    CHOICE=$(printf "Back\nUpdate from Backup\nFetch from GitHub" | rofi -dmenu -p "System Reset" -theme-str 'configuration { show-icons: false; }')
+    CHOICE=$(printf "Update from Backup\nFetch from GitHub\nBack" | fzf --prompt="System Reset > " --reverse --border --ansi)
     
     [ -z "$CHOICE" ] && exit 0
     [ "$CHOICE" = "Back" ] && exit 0

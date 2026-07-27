@@ -150,7 +150,7 @@ hl.bind(mainMod .. " + period", function()
         blur_off[a] = true
     end
 end, { description = "Toggle Blur & Opacity", locked = true })
-hl.bind(mainMod .. " + SHIFT + S", hl.dsp.exec_cmd("$HOME/.local/bin/scrow-menu.sh"))
+hl.bind(mainMod .. " + SHIFT + S", hl.dsp.exec_cmd("kitty --class scrow-tui -e $HOME/.local/bin/scrow-menu-tui.sh"))
 hl.bind(mainMod .. " + SHIFT + U", hl.dsp.exec_cmd("$HOME/.local/bin/update-dots.sh"))
 hl.bind(mainMod .. " + SHIFT + P", hl.dsp.exec_cmd("$HOME/.local/bin/pick-color-region.sh"))
 hl.bind(mainMod .. " + T", hl.dsp.exec_cmd("$HOME/.local/bin/ocr-toggle.sh"))
@@ -161,6 +161,9 @@ hl.bind(mainMod .. " + L", hl.dsp.exec_cmd("fcitx5-remote -t"))
 
 -- Google Lens (Circle to Search)
 hl.bind(mainMod .. " + G", hl.dsp.exec_cmd("$HOME/user_scripts/google_image_search/google_image_search.sh"))
+
+-- Control Center (WiFi & Bluetooth)
+hl.bind(mainMod .. " + V", hl.dsp.exec_cmd("$HOME/.local/bin/control-center.sh"))
 
 -- Music Recognition (Shazam)
 hl.bind(mainMod .. " + ALT + M", hl.dsp.exec_cmd("kitty --class music_recognition.sh --hold $HOME/user_scripts/music/music_recognition.sh"))

@@ -1,53 +1,63 @@
 #!/bin/bash
+# Refresh Rate Menu - auto-detects all modes from wlr-randr, saves selection to monitors.lua
 
 OUTPUT=$(wlr-randr 2>/dev/null | head -1 | awk '{print $1}')
 [ -z "$OUTPUT" ] && exit 1
 
 DATA=$(wlr-randr 2>/dev/null)
 
-CURRENT_HZ=$(echo "$DATA" | awk -v out="$OUTPUT" '
+CURRENT_MODE=$(echo "$DATA" | awk -v out="$OUTPUT" '
     $1 == out { found=1; next }
     found && /^[A-Z]/ { exit }
-    found && /current/ { print $3; exit }
+    found && /current/ {
+        print $1 "@" $3 "Hz"
+        exit
+    }
 ')
 
-CURRENT_RES=$(echo "$DATA" | awk -v out="$OUTPUT" '
-    $1 == out { found=1; next }
-    found && /^[A-Z]/ { exit }
-    found && /current/ { print $1; exit }
-')
+[ -z "$CURRENT_MODE" ] && exit 1
 
-[ -z "$CURRENT_HZ" ] && exit 1
+CURRENT_RES=$(echo "$CURRENT_MODE" | cut -d'@' -f1)
+CURRENT_HZ=$(echo "$CURRENT_MODE" | sed 's/.*@//; s/Hz//')
 
-RATES=$(echo "$DATA" | awk -v out="$OUTPUT" -v res="$CURRENT_RES" '
+TMPFILE=$(mktemp)
+
+echo "$DATA" | awk -v out="$OUTPUT" -v res="$CURRENT_RES" '
     $1 == out { found=1; next }
     found && /^[A-Z]/ { exit }
     found && $1 == res && /px,/ {
         hz = $3
+        mode = $1 "@" $3 "Hz"
         marker = ""
         if ($0 ~ /current/) marker = " [active]"
         else if ($0 ~ /preferred/) marker = " [preferred]"
         if (!seen[hz]++) {
-            printf "%s Hz%s\n", hz, marker
+            printf "%s Hz%s\t%s\n", hz, marker, mode
         }
     }
-')
+' > "$TMPFILE"
 
-[ -z "$RATES" ] && exit 1
+[ ! -s "$TMPFILE" ] && { rm -f "$TMPFILE"; exit 1; }
 
-SEL=$(printf "Back\n$RATES" | rofi -dmenu -p "Refresh Rate ($CURRENT_RES)" -theme-str 'configuration { show-icons: false; }')
+DISPLAY_LIST=$(awk -F'\t' '{print $1}' "$TMPFILE")
+SEL=$(printf "%s\nBack" "$DISPLAY_LIST" | fzf --prompt="Refresh Rate ($CURRENT_RES) > " --reverse --border --ansi)
 
-[ -z "$SEL" ] && exit 0
-[ "$SEL" = "Back" ] && exit 0
+[ -z "$SEL" ] && { rm -f "$TMPFILE"; exit 0; }
+[ "$SEL" = "Back" ] && { rm -f "$TMPFILE"; exit 0; }
 
-NEW_HZ=$(echo "$SEL" | sed 's/ Hz\[active\]//; s/ Hz\[preferred\]//; s/ Hz//')
+MODE=$(grep -F "$SEL" "$TMPFILE" | head -1 | cut -f2)
+rm -f "$TMPFILE"
+
+[ -z "$MODE" ] && exit 1
+
+NEW_HZ=$(echo "$MODE" | sed 's/.*@//; s/Hz//')
 
 if [ "$NEW_HZ" != "$CURRENT_HZ" ]; then
-    wlr-randr --output "$OUTPUT" --mode "${CURRENT_RES}@${NEW_HZ}Hz"
+    wlr-randr --output "$OUTPUT" --mode "$MODE"
 
     MONITOR_CFG="$HOME/.config/hypr/modules/monitors.lua"
     if [ -f "$MONITOR_CFG" ]; then
-        sed -i "s/mode     = .*/mode     = \"${CURRENT_RES}@${NEW_HZ}\",/" "$MONITOR_CFG"
+        sed -i "s/mode     = .*/mode     = \"${MODE}\",/" "$MONITOR_CFG"
     fi
 
     notify-send -t 3000 "Refresh Rate" "Set to $NEW_HZ Hz"

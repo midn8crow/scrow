@@ -177,4 +177,4 @@ max_key_len = max(len(k) for k, _ in raw_entries)
 entries = [f"  {k:<{max_key_len}}    {d}" for k, d in raw_entries]
 rofi_input = "\n".join(entries)
 
-subprocess.run(["rofi", "-dmenu", "-p", "Keybinds", "-i"], input=rofi_input, text=True)
+subprocess.run(["fzf", "--prompt=Keybinds > ", "--reverse", "--border", "--ansi"], input=rofi_input, text=True)

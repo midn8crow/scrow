@@ -403,7 +403,7 @@ read -n 1'
             notify-send -u low "Power Profile" "Switched to $SEL"
             ;;
         *Update\ Mirrors)
-            kitty --class security-terminal -e bash -c 'echo "Updating mirrors..."; sudo reflector --latest 20 --sort rate --save /etc/pacman.d/mirrorlist; echo ""; echo "Done! Press any key to close..."; read -n 1'
+            kitty --class security-terminal -e bash -c 'echo "Updating mirrors..."; sudo reflector --latest 10 --protocol https --sort rate --save /etc/pacman.d/mirrorlist; echo ""; echo "Done! Press any key to close..."; read -n 1'
             ;;
         *System\ Cleanup)
             kitty --class security-terminal -e bash -c 'echo "Cleaning package cache..."; sudo paccache -r; echo ""; echo "Removing orphan packages..."; sudo pacman -Rns $(pacman -Qdtq) 2>/dev/null; echo ""; echo "Done! Press any key to close..."; read -n 1'

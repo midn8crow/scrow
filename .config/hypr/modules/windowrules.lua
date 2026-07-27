@@ -179,5 +179,13 @@ hl.window_rule({
     center = true,
 })
 
+hl.window_rule({
+    name  = "scrow-tui-float",
+    match = { class = "scrow-tui" },
+    float  = true,
+    size   = "700 500",
+    center = true,
+})
+
 
 

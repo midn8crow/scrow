@@ -216,12 +216,19 @@ echo -e "${CYAN}----------------------------------------${NC}"
 echo ""
 
 # Summary
-echo "=========================================="
+echo ""
 if [ $SUSPICIOUS -gt 0 ]; then
-    echo -e "${RED}  WARNING: $SUSPICIOUS suspicious patterns found!${NC}"
+    echo -e "${RED}=========================================="
+    echo "  ⚠  THREAT DETECTED  ⚠"
+    echo "  $SUSPICIOUS suspicious patterns found!"
     echo "  Do NOT install without reviewing PKGBUILD."
+    echo "==========================================${NC}"
 else
-    echo -e "${GREEN}  No obvious threats detected.${NC}"
+    echo -e "${GREEN}=========================================="
+    echo "  No obvious threats detected."
     echo "  But always review PKGBUILDs before installing."
+    echo "==========================================${NC}"
 fi
-echo "=========================================="
+echo ""
+echo "Press any key to continue..."
+read -n 1

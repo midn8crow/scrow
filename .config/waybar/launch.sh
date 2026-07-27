@@ -18,7 +18,7 @@ if [[ -z "$config" || ! -f "$DIR/config-${config}.jsonc" ]]; then
 fi
 
 if [[ -z "$config" || ! -f "$DIR/config-${config}.jsonc" ]]; then
-    waybar &
+    setsid waybar >/dev/null 2>&1 &
 else
-    waybar -c "$DIR/config-${config}.jsonc" -s "$DIR/style-${config}.css" &
+    setsid waybar -c "$DIR/config-${config}.jsonc" -s "$DIR/style-${config}.css" >/dev/null 2>&1 &
 fi
