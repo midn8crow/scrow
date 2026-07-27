@@ -134,7 +134,7 @@ hl.bind(mainMod .. " + B", hl.dsp.exec_cmd(browser))
 hl.bind("ALT + V", hl.dsp.exec_cmd("cliphist list | rofi -dmenu -p Clipboard | cliphist decode | wl-copy"))
 hl.bind("CTRL + SUPER + space", hl.dsp.exec_cmd("rofi -config ~/.config/rofi/emoji.rasi -show emoji -emoji-format '{emoji}'"))
 hl.bind("ALT + C", hl.dsp.exec_cmd("$HOME/.local/bin/rofi-calculator.sh"))
-hl.bind("CTRL + SHIFT + space", hl.dsp.exec_cmd("$HOME/.local/bin/keybinds"))
+hl.bind("CTRL + SHIFT + space", hl.dsp.exec_cmd("kitty --class scrow-tui -e $HOME/.local/bin/keybinds"))
 local blur_off = {}
 hl.bind(mainMod .. " + period", function()
     local w = hl.get_active_window()
