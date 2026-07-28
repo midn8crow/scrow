@@ -57,7 +57,7 @@ hl.config({
     },
 })
 
--- dusky no-overshoot curves
+-- scrow no-overshoot curves
 hl.curve("overshot",         { type = "bezier", points = { {0.2, 0.9}, {0.1, 1.0} } })
 hl.curve("wsOvershot",       { type = "bezier", points = { {0.05, 0.9}, {0.1, 1.1} } })
 hl.curve("fluid",            { type = "bezier", points = { {0.25, 1}, {0, 1} } })
