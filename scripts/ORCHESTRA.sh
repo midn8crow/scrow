@@ -766,6 +766,19 @@ configure_grub() {
     print_ok "GRUB configured"
 }
 
+configure_hyprpm() {
+    print_step "Setting up hyprpm auto-update hook..."
+
+    ask_sudo
+
+    sudo mkdir -p /etc/pacman.d/hooks
+    sudo cp "$DOTFILES_DIR/etc/pacman.d/hooks/hyprpm-update.hook" /etc/pacman.d/hooks/
+    sudo cp "$DOTFILES_DIR/.local/bin/hyprpm-post-update.sh" /usr/local/bin/
+    sudo chmod +x /usr/local/bin/hyprpm-post-update.sh
+
+    print_ok "Hyprpm auto-update hook installed"
+}
+
 set_permissions() {
     print_step "Setting permissions..."
     
@@ -934,6 +947,7 @@ main() {
     configure_services
     configure_security
     configure_grub
+    configure_hyprpm
     set_permissions
     
     # Final

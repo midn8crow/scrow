@@ -1,0 +1,9 @@
+[Trigger]
+Operation = Upgrade
+Type = Package
+Target = hyprland
+
+[Action]
+Description = Rebuilding hyprpm plugins for updated Hyprland...
+When = PostTransaction
+Exec = /usr/local/bin/hyprpm-post-update.sh
