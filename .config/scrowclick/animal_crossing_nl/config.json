@@ -66,8 +66,8 @@
     "57419": "left.wav",
     "57421": "right.wav",
     "57424": "down.wav",
-    "272": "a.wav",
-    "273": "a.wav",
-    "274": "a.wav"
+    "272": "mouse_click.wav",
+    "273": "mouse_click.wav",
+    "274": "mouse_click.wav"
   }
 }

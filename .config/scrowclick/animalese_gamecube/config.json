@@ -117,8 +117,8 @@
     "61009": "animalese-cancel.wav",
     "61010": "animalese-shift.wav",
     "61011": "animalese-back.wav",
-    "272": "animalese-ALL-KEYS.wav",
-    "273": "animalese-ALL-KEYS.wav",
-    "274": "animalese-ALL-KEYS.wav"
+    "272": "mouse_click.wav",
+    "273": "mouse_click.wav",
+    "274": "mouse_click.wav"
   }
 }

@@ -88,8 +88,8 @@
     "61005": "shortbeep.ogg",
     "61008": "shortbeep.ogg",
     "61010": "cancel.ogg",
-    "272": "dialogue.ogg",
-    "273": "dialogue.ogg",
-    "274": "dialogue.ogg"
+    "272": "mouse_click.wav",
+    "273": "mouse_click.wav",
+    "274": "mouse_click.wav"
   }
 }

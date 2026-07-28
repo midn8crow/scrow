@@ -45,6 +45,11 @@ case "$CHOICE" in
             [ ! -e "$HOME/$rel" ] && rm -f "$f" && echo "Removed: $rel"
         done
         
+        for f in $(find "$DOTFILES_DIR/.config/scrowclick" -type f 2>/dev/null); do
+            rel="${f#$DOTFILES_DIR/}"
+            [ ! -e "$HOME/$rel" ] && rm -f "$f" && echo "Removed: $rel"
+        done
+        
         for f in $(find "$DOTFILES_DIR/user_scripts" -type f 2>/dev/null); do
             rel="${f#$DOTFILES_DIR/}"
             [ ! -e "$HOME/$rel" ] && rm -f "$f" && echo "Removed: $rel"
@@ -66,6 +71,7 @@ case "$CHOICE" in
         cp -r "$HOME/.config/kitty" "$DOTFILES_DIR/.config/" 2>/dev/null
         cp -r "$HOME/.config/rofi" "$DOTFILES_DIR/.config/" 2>/dev/null
         cp -r "$HOME/.config/mako" "$DOTFILES_DIR/.config/" 2>/dev/null
+        cp -r "$HOME/.config/scrowclick" "$DOTFILES_DIR/.config/" 2>/dev/null
         cp "$HOME/.config/starship.toml" "$DOTFILES_DIR/.config/" 2>/dev/null
         cp -r "$HOME/.local/bin/"* "$DOTFILES_DIR/.local/bin/" 2>/dev/null
         cp -r "$HOME/user_scripts/"* "$DOTFILES_DIR/user_scripts/" 2>/dev/null
@@ -91,6 +97,7 @@ case "$CHOICE" in
         cp -r "$HOME/.config/kitty" "$DOTFILES_DIR/.config/" 2>/dev/null
         cp -r "$HOME/.config/rofi" "$DOTFILES_DIR/.config/" 2>/dev/null
         cp -r "$HOME/.config/mako" "$DOTFILES_DIR/.config/" 2>/dev/null
+        cp -r "$HOME/.config/scrowclick" "$DOTFILES_DIR/.config/" 2>/dev/null
         cp "$HOME/.config/starship.toml" "$DOTFILES_DIR/.config/" 2>/dev/null
         
         CHANGES=$(git status --short | wc -l)
@@ -127,7 +134,7 @@ case "$CHOICE" in
         
         TOTAL=0
         
-        for dir in hypr waybar kitty rofi mako; do
+        for dir in hypr waybar kitty rofi mako scrowclick; do
             DIFF=$(diff -rq "$HOME/.config/$dir" "$DOTFILES_DIR/.config/$dir" 2>/dev/null | wc -l)
             TOTAL=$((TOTAL + DIFF))
         done

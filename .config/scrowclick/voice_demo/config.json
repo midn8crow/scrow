@@ -114,8 +114,8 @@
     "61009": "pgdn.wav",
     "61010": "ins.wav",
     "61011": "div.wav",
-    "272": "chara.wav",
-    "273": "chara.wav",
-    "274": "chara.wav"
+    "272": "mouse_click.wav",
+    "273": "mouse_click.wav",
+    "274": "mouse_click.wav"
   }
 }
