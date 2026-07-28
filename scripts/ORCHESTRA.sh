@@ -773,8 +773,8 @@ configure_hyprpm() {
 
     sudo mkdir -p /etc/pacman.d/hooks
     sudo cp "$DOTFILES_DIR/etc/pacman.d/hooks/hyprpm-update.hook" /etc/pacman.d/hooks/
-    sudo cp "$DOTFILES_DIR/.local/bin/hyprpm-post-update.sh" /usr/local/bin/
-    sudo chmod +x /usr/local/bin/hyprpm-post-update.sh
+    sudo cp "$DOTFILES_DIR/etc/pacman.d/hooks/hyprpm-post-update.sh" /etc/pacman.d/hooks/
+    sudo chmod +x /etc/pacman.d/hooks/hyprpm-post-update.sh
 
     print_ok "Hyprpm auto-update hook installed"
 }

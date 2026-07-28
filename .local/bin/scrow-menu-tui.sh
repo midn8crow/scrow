@@ -10,7 +10,7 @@ main_menu() {
         RCLONE_SUFFIX=""
     fi
 
-    printf " \uf023  Security\n \uf185  Power Profile\n \uf2ed  System Cleanup\n \uf233  Waybar\n \uf1fc  Themes\n \uf245  Cursors\n \uf0e4  Refresh Rate\n \uf26c  Resolution\n \uf0ac  Default Browser\n \uf07b  Default File Manager\n \uf0e7  Animation Speed\n \uf11c  Keybinds\n \uf304  Update Mirrors\n \uf11b  Games\n \uf013  System Reset\n \uf019  Rclone Mount${RCLONE_SUFFIX}\n \uf0f3  ScrowClick" | fzf --cycle --prompt="Scrow Menu > " --reverse --border --ansi
+    printf " \uf023  Security\n \uf185  Power Profile\n \uf2ed  System Cleanup\n \uf233  Waybar\n \uf1fc  Themes\n \uf245  Cursors\n \uf0e4  Refresh Rate\n \uf26c  Resolution\n \uf0ac  Default Browser\n \uf07b  Default File Manager\n \uf0e7  Animation Speed\n \uf11c  Keybinds\n \uf304  Update Mirrors\n \uf11b  Games\n \uf013  System Reset\n \uf019  Rclone Mount${RCLONE_SUFFIX}" | fzf --cycle --prompt="Scrow Menu > " --reverse --border --ansi
 }
 
 pick_cursor() {
@@ -399,57 +399,6 @@ pick_games() {
     done
 }
 
-pick_scrowclick() {
-    SCROWCLICK_SCRIPT="$HOME/user_scripts/scrowclick/scrowclick.sh"
-    VOLUME_FILE="$HOME/.config/scrowclick/volume"
-    STATE_FILE="$HOME/.config/dusky/settings/scrowclick"
-
-    while true; do
-        # Check current state
-        if [[ -f "$STATE_FILE" ]] && [[ "$(cat "$STATE_FILE" 2>/dev/null)" == "True" ]]; then
-            STATUS="ON"
-        else
-            STATUS="OFF"
-        fi
-
-        # Read current volume
-        if [[ -f "$VOLUME_FILE" ]]; then
-            VOL_RAW=$(cat "$VOLUME_FILE" 2>/dev/null)
-            VOL_PCT=$(awk "BEGIN {printf \"%.0f\", $VOL_RAW * 100}")
-        else
-            VOL_RAW="1.0"
-            VOL_PCT="100"
-        fi
-
-        CHOICE=$(printf " \uf04c  Toggle ScrowClick [%s]\n \uf028  Volume: %s%%\n \uf013  Back" "$STATUS" "$VOL_PCT" | fzf --cycle --prompt="ScrowClick > " --reverse --border --ansi)
-        [ -z "$CHOICE" ] && return
-        [[ "$CHOICE" == *"Back"* ]] && return
-
-        case "$CHOICE" in
-            *Toggle*)
-                "$SCROWCLICK_SCRIPT"
-                ;;
-            *Volume*)
-                while true; do
-                    VOL_CHOICE=$(printf "  100%%\n   90%%\n   80%%\n   70%%\n   60%%\n   50%%\n   40%%\n   30%%\n   20%%\n   10%%\n    5%%\n    0%% (Mute)\n \uf013  Back" | fzf --cycle --prompt="Volume ($VOL_PCT%) > " --reverse --border --ansi)
-                    [ -z "$VOL_CHOICE" ] && break
-                    [[ "$VOL_CHOICE" == *"Back"* ]] && break
-
-                    # Extract number from choice
-                    NUM=$(echo "$VOL_CHOICE" | grep -oP '\d+')
-                    [[ -z "$NUM" ]] && continue
-
-                    # Convert to 0.0-1.0 and write
-                    awk "BEGIN {printf \"%.2f\n\", $NUM / 100}" > "$VOLUME_FILE"
-
-                    notify-send -t 1500 --app-name="ScrowClick" "ScrowClick" "Volume: ${NUM}%"
-                    break
-                done
-                ;;
-        esac
-    done
-}
-
 # Main loop
 while true; do
     CHOICE=$(main_menu)
@@ -473,6 +422,5 @@ while true; do
         *Games)                pick_games ;;
         *System\ Reset)        "$HOME/.local/bin/system-reset.sh" ;;
         *Rclone\ Mount*)       "$HOME/.local/bin/rclone-toggle.sh" ;;
-        *ScrowClick)           pick_scrowclick ;;
     esac
 done

@@ -6,4 +6,4 @@ Target = hyprland
 [Action]
 Description = Rebuilding hyprpm plugins for updated Hyprland...
 When = PostTransaction
-Exec = /usr/local/bin/hyprpm-post-update.sh
+Exec = /etc/pacman.d/hooks/hyprpm-post-update.sh

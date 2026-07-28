@@ -57,6 +57,9 @@ ffmpeg -i "$img_src" -vf "crop=${rw}:${rh}:${rx}:${ry},scale=400:400:force_origi
 
 json=$(matugen image -j hex --mode dark --prefer lightness "$crop" 2>/dev/null)
 echo "$json" > "$CACHE_DIR/last-colors.json"
+# Save wallpaper index so restore knows which wallpaper this pick belongs to
+[[ -f "$HISTORY_FILE" ]] && cp "$HISTORY_FILE" "$CACHE_DIR/last-wallpaper-index" 2>/dev/null
+echo "$LIVE_ACTIVE" > "$CACHE_DIR/last-live-active"
 [[ -z "$json" ]] && notify-send "Color Pick" "matugen failed" && exit 1
 
 primary=$(echo "$json" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['colors']['primary']['dark']['color'])")

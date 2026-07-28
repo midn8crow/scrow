@@ -1,8 +1,20 @@
 #!/bin/bash
 CACHE_DIR="$HOME/.cache/color-picker"
 JSON_FILE="$CACHE_DIR/last-colors.json"
+HISTORY_FILE="$HOME/.cache/wallpaper-history"
 
 [[ ! -f "$JSON_FILE" ]] && exit 0
+
+# Only restore if the wallpaper hasn't changed since the last manual pick
+SAVED_IDX=$(cat "$CACHE_DIR/last-wallpaper-index" 2>/dev/null)
+CURR_IDX=$(cat "$HISTORY_FILE" 2>/dev/null)
+SAVED_LIVE=$(cat "$CACHE_DIR/last-live-active" 2>/dev/null)
+CURRENT_LIVE=false
+pgrep -f "mpvpaper" >/dev/null 2>&1 && CURRENT_LIVE=true
+
+if [[ "$SAVED_LIVE" != "$CURRENT_LIVE" ]] || [[ "$SAVED_IDX" != "$CURR_IDX" ]]; then
+    exit 0
+fi
 
 json=$(cat "$JSON_FILE")
 
