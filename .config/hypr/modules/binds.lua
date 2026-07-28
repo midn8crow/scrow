@@ -168,6 +168,9 @@ hl.bind(mainMod .. " + V", hl.dsp.exec_cmd("$HOME/.local/bin/control-center.sh")
 -- Music Recognition (Shazam)
 hl.bind(mainMod .. " + ALT + M", hl.dsp.exec_cmd("kitty --class music_recognition.sh --hold $HOME/user_scripts/music/music_recognition.sh"))
 
+-- ScrowClick (mechanical keyboard sounds toggle)
+hl.bind("CTRL + W", hl.dsp.exec_cmd("$HOME/user_scripts/scrowclick/scrowclick.sh"))
+
 -- Notification actions (Mako)
 hl.bind(mainMod .. " + ALT + D", hl.dsp.exec_cmd("makoctl dismiss -a"), { locked = true, description = "Dismiss All Notifications" })
 hl.bind(mainMod .. " + ALT + F", hl.dsp.exec_cmd("makoctl menu -- rofi -dmenu -p 'Action: '"), { description = "Toggle Do Not Disturb" })
