@@ -20,10 +20,13 @@
     "network",
     "bluetooth",
     "battery",
+    "cpu",
+    "memory",
     "custom/power"
   ],
   "custom/launcher": {
     "format": "󰪥",
+    "on-click": "kitty --class scrow-tui -e /home/shadhin/.local/bin/scrow-menu-tui.sh",
     "tooltip": false
   },
   "custom/notifications": {
@@ -31,6 +34,7 @@
     "return-type": "json",
     "interval": 5,
     "signal": 1,
+    "on-click": "$HOME/.local/bin/rofi-mako.sh",
     "tooltip": false
   },
   "custom/date": {
@@ -75,6 +79,26 @@
     "format-plugged": "",
     "format-charging": "󰂄",
     "format-icons": ["󰂎", "󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"],
+    "tooltip": false
+  },
+  "memory": {
+    "interval": 10,
+    "format": "󰍛 {percentage}%",
+    "format-alt": "󰍛 {used}/{total} GB",
+    "states": {
+      "warning": 75,
+      "critical": 90
+    },
+    "tooltip": false
+  },
+  "cpu": {
+    "interval": 10,
+    "format": "󰻠 {usage}%",
+    "format-alt": "󰻠 {avg_frequency} GHz",
+    "states": {
+      "warning": 75,
+      "critical": 90
+    },
     "tooltip": false
   },
   "custom/power": {
