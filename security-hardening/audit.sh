@@ -1,6 +1,11 @@
 #!/bin/bash
 # Security Audit Script - Detects malicious activity and misconfigurations
 
+# Re-exec with sudo if not root
+if [ "$EUID" -ne 0 ]; then
+    exec sudo "$0" "$@"
+fi
+
 # Clear screen AND scrollback buffer
 printf '\033[2J\033[H\033[3J'
 
@@ -77,7 +82,7 @@ KNOWN_SUID=(
     /usr/lib/openssh/ssh-keysign /usr/lib/ssh/ssh-keysign
     /usr/lib/polkit-1/polkit-agent-helper-1
     /usr/lib/Xorg.wrap /usr/lib/dbus-daemon-launch-helper
-    /usr/lib/electron*/chrome-sandbox /usr/lib/libgtop/libgtop_server2
+    /usr/lib/electron*/chrome-sandbox /usr/lib/chromium/chrome-sandbox /usr/lib/libgtop/libgtop_server2
     /usr/lib/polkit-1/polkit-agent-helper-1
 )
 SUID_FOUND=$(find /usr/bin /usr/sbin /usr/lib /usr/local/bin -maxdepth 2 -type f \( -perm -4000 -o -perm -2000 \) 2>/dev/null)
@@ -88,7 +93,7 @@ while IFS= read -r f; do
     for known in "${KNOWN_SUID[@]}"; do
         if [ "$f" = "$known" ] 2>/dev/null; then FOUND=true; break; fi
         # Handle glob-like patterns for electron versions
-        KNOWN_BASE=$(echo "$known" | sed 's/\\*/[^/]*//g')
+        KNOWN_BASE=$(echo "$known" | sed 's|\*|[^/]*|g')
         echo "$f" | grep -qE "^${KNOWN_BASE}$" 2>/dev/null && { FOUND=true; break; }
     done
     [ "$FOUND" = false ] && UNUSUAL_SUID="$UNUSUAL_SUID $f"
@@ -180,25 +185,44 @@ echo ""
 # 10. Firewall status
 echo -e "${YELLOW}[10] Checking firewall...${NC}"
 FW_OK=false
+NFT_CMD="nft"
+command -v sudo &>/dev/null && sudo -n true 2>/dev/null && NFT_CMD="sudo -n nft"
 if command -v nft &>/dev/null; then
-    NFT_RULES=$(nft list ruleset 2>/dev/null | wc -l)
-    if [ "$NFT_RULES" -gt 5 ]; then
-        ok "nftables active ($NFT_RULES rules)"
+    NFT_TABLES=$($NFT_CMD list tables 2>/dev/null | wc -l)
+    NFT_RULES=$($NFT_CMD list ruleset 2>/dev/null | wc -l)
+    if [ "${NFT_TABLES:-0}" -gt 0 ]; then
+        ok "nftables active ($NFT_RULES rules, $NFT_TABLES tables)"
         FW_OK=true
     fi
 fi
-if [ "$FW_OK" = false ] && systemctl is-active --quiet nftables 2>/dev/null; then
-    ok "nftables service running"
-    FW_OK=true
-fi
+IPT_CMD="iptables"
+command -v sudo &>/dev/null && sudo -n true 2>/dev/null && IPT_CMD="sudo -n iptables"
 if [ "$FW_OK" = false ] && command -v iptables &>/dev/null; then
-    IPT_RULES=$(iptables -L -n 2>/dev/null | wc -l)
-    if [ "$IPT_RULES" -gt 8 ]; then
+    IPT_RULES=$($IPT_CMD -L -n 2>/dev/null | wc -l)
+    if [ "${IPT_RULES:-0}" -gt 8 ]; then
         ok "iptables active ($IPT_RULES rules)"
         FW_OK=true
     fi
 fi
-[ "$FW_OK" = false ] && warn "No active firewall detected"
+if [ "$FW_OK" = false ]; then
+    if systemctl is-active --quiet nftables 2>/dev/null; then
+        ok "nftables service running"
+        FW_OK=true
+    elif systemctl is-active --quiet firewalld 2>/dev/null; then
+        ok "firewalld active"
+        FW_OK=true
+    elif command -v ufw &>/dev/null && ufw status 2>/dev/null | grep -qi active; then
+        ok "ufw active"
+        FW_OK=true
+    fi
+fi
+if [ "$FW_OK" = false ]; then
+    if [ -f /etc/nftables.conf ]; then
+        warn "No active firewall detected (config exists at /etc/nftables.conf — enable with: sudo systemctl enable --now nftables)"
+    else
+        warn "No active firewall detected"
+    fi
+fi
 echo ""
 
 # 11. Package integrity
