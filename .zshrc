@@ -194,3 +194,5 @@ alias aurcheck='~/security-hardening/aur-check.sh'
 alias secscan='~/security-hardening/audit.sh'
 alias secmonitor='~/security-hardening/monitor.sh'
 alias chess='chess-tui -e /usr/bin/stockfish'
+
+fastfetch
