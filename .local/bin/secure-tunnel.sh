@@ -8,7 +8,7 @@ else
     TOGGLE_LABEL="Secure Tunnel: OFF (tap to connect)"
 fi
 
-CHOICE=$(printf "$TOGGLE_LABEL\nCheck IP" | rofi -dmenu -p "Secure Tunnel" -theme-str 'configuration { show-icons: false; }')
+CHOICE=$(printf "$TOGGLE_LABEL\nCheck IP" | rofi -dmenu -p "Secure Tunnel" -theme-str 'window { width: 300; } configuration { show-icons: false; }')
 
 [ -z "$CHOICE" ] && exit 0
 
