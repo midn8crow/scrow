@@ -1,0 +1,9 @@
+[Unit]
+Description=Keep keyboard backlight on
+
+[Service]
+ExecStart=%h/.local/bin/kbd-backlight-keep.sh
+Restart=always
+
+[Install]
+WantedBy=default.target

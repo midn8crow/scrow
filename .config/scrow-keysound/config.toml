@@ -1,0 +1,10 @@
+volume = 0.5
+enabled = true
+sound_dir = "~/.config/scrow-keysound/sounds"
+
+[special_keys]
+space = true
+enter = true
+backspace = true
+shift = true
+modifiers = false

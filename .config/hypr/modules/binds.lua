@@ -167,7 +167,7 @@ hl.bind(mainMod .. " + G", hl.dsp.exec_cmd("$HOME/user_scripts/google_image_sear
 hl.bind(mainMod .. " + V", hl.dsp.exec_cmd("$HOME/.local/bin/control-center.sh"))
 
 -- Music Recognition (Shazam)
-hl.bind(mainMod .. " + ALT + M", hl.dsp.exec_cmd("kitty --class music_recognition.sh --hold $HOME/user_scripts/music/music_recognition.sh"))
+hl.bind(mainMod .. " + ALT + M", hl.dsp.exec_cmd("kitty --class music_recognition.sh $HOME/user_scripts/music/music_recognition.sh"))
 
 -- Notification actions (Mako)
 hl.bind(mainMod .. " + ALT + D", hl.dsp.exec_cmd("makoctl dismiss -a"), { locked = true, description = "Dismiss All Notifications" })

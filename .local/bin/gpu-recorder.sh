@@ -8,8 +8,9 @@ CONF="$HOME/.config/gpu-recorder.conf"
 mkdir -p "$OUT_DIR"
 mkdir -p "$(dirname "$CONF")"
 
-[ -f "$CONF" ] || printf 'QUALITY="High (hevc)"\nRES="1080p (1920x1080)"\nACODEC="Default"\n' > "$CONF"
+[ -f "$CONF" ] || printf 'QUALITY="High (hevc)"\nRES="1080p (1920x1080)"\nACODEC="Default"\nFPS="60"\n' > "$CONF"
 source "$CONF"
+: "${FPS:=60}"
 
 if [ -f "$MARKER" ]; then
     if [ -f "$PAUSED" ]; then
@@ -41,7 +42,7 @@ if [ -f "$MARKER" ]; then
 fi
 
 save_conf() {
-    printf 'QUALITY="%s"\nRES="%s"\nACODEC="%s"\n' "$QUALITY" "$RES" "$ACODEC" > "$CONF"
+    printf 'QUALITY="%s"\nRES="%s"\nACODEC="%s"\nFPS="%s"\n' "$QUALITY" "$RES" "$ACODEC" "$FPS" > "$CONF"
 }
 
 get_q_short() { echo "${1%% (*}"; }
@@ -50,7 +51,7 @@ get_r_short() { echo "${1%% (*}"; }
 show_settings() {
     Q_SHORT=$(get_q_short "$QUALITY")
     R_SHORT=$(get_r_short "$RES")
-    SETTINGS_CHOICE=$(printf "Quality:  %s ◄\nResolution:  %s ◄\nAudio:  %s ◄" "$Q_SHORT" "$R_SHORT" "$ACODEC" | rofi -dmenu -p "Recording Settings" -theme-str 'window {width: 400px;}')
+    SETTINGS_CHOICE=$(printf "Quality:  %s ◄\nResolution:  %s ◄\nAudio:  %s ◄\nFPS:  %s ◄" "$Q_SHORT" "$R_SHORT" "$ACODEC" "$FPS" | rofi -dmenu -p "Recording Settings" -theme-str 'window {width: 400px;}')
 }
 
 while true; do
@@ -92,6 +93,18 @@ while true; do
             NEW_A="${NEW_A#  }"
             if [ -n "$NEW_A" ]; then
                 ACODEC="$NEW_A"
+                save_conf
+            fi
+        elif echo "$SETTINGS_CHOICE" | grep -q "^FPS:"; then
+            F_LIST=""
+            for opt in "24" "30" "60" "100" "120" "144"; do
+                [ "$opt" = "$FPS" ] && F_LIST="${F_LIST}● ${opt}\n" || F_LIST="${F_LIST}  ${opt}\n"
+            done
+            NEW_F=$(printf "$F_LIST" | rofi -dmenu -p "FPS" -theme-str 'window {width: 400px;}')
+            NEW_F="${NEW_F#● }"
+            NEW_F="${NEW_F#  }"
+            if [ -n "$NEW_F" ]; then
+                FPS="$NEW_F"
                 save_conf
             fi
         elif [ -z "$SETTINGS_CHOICE" ]; then
@@ -139,13 +152,13 @@ FILE="$OUT_DIR/record-$(date +%Y%m%d-%H%M%S).mp4"
 
 if [ "$CHOICE" = "Record Full Screen" ]; then
     MONITOR=$(hyprctl monitors -j 2>/dev/null | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['name'])" 2>/dev/null || echo "")
-    nohup gpu-screen-recorder -w "$MONITOR" $Q_FLAGS $RES_FLAGS -f 60 $AUDIO_FLAG $ACODEC_FLAG -o "$FILE" >/dev/null 2>&1 &
+    nohup gpu-screen-recorder -w "$MONITOR" $Q_FLAGS $RES_FLAGS -f "$FPS" $AUDIO_FLAG $ACODEC_FLAG -o "$FILE" >/dev/null 2>&1 &
     touch "$MARKER"
     ~/.local/bin/record-indicator &
     notify-send "GPU Recorder" "Recording full screen started"
 elif [ "$CHOICE" = "Record Region" ]; then
     REGION=$(slurp 2>/dev/null) || exit 1
-    nohup gpu-screen-recorder -w "$REGION" $Q_FLAGS $RES_FLAGS -f 60 $AUDIO_FLAG $ACODEC_FLAG -o "$FILE" >/dev/null 2>&1 &
+    nohup gpu-screen-recorder -w "$REGION" $Q_FLAGS $RES_FLAGS -f "$FPS" $AUDIO_FLAG $ACODEC_FLAG -o "$FILE" >/dev/null 2>&1 &
     touch "$MARKER"
     ~/.local/bin/record-indicator &
     notify-send "GPU Recorder" "Recording region started"

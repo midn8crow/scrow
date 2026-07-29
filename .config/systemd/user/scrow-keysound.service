@@ -1,0 +1,13 @@
+[Unit]
+Description=Mechanical keyboard sound daemon
+After=graphical-session.target pipewire.service
+PartOf=graphical-session.target
+
+[Service]
+Type=exec
+ExecStart=%h/.cargo/bin/scrow-keysound
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=default.target

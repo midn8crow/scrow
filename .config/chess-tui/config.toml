@@ -1,0 +1,8 @@
+engine_path = "/usr/bin/stockfish"
+display_mode = "CUSTOM"
+log_level = "OFF"
+bot_depth = 10
+bot_difficulty = 0
+selected_skin_name = "Sunset"
+sound_enabled = true
+animations_enabled = false

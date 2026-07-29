@@ -1,0 +1,15 @@
+/* Oxocarbon Dark theme for Waybar */
+@define-color background rgba(22, 22, 22, 0.85);
+@define-color foreground #f2f4f8;
+@define-color red #ff6d6d;
+@define-color green #42be65;
+@define-color yellow #ee5396;
+@define-color blue #33b1ff;
+@define-color magenta #be95ff;
+@define-color cyan #08bdba;
+@define-color peach #ff7eb6;
+@define-color surface0 #262626;
+@define-color surface1 #333333;
+@define-color surface2 #414141;
+@define-color overlay0 #525252;
+@define-color overlay1 #6f6f6f;

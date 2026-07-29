@@ -1,0 +1,5 @@
+[config]
+
+[templates.firefox]
+input_path  = '~/.config/matugen/templates/firefox-colors.css'
+output_path = '~/.config/firefox/colors.css'

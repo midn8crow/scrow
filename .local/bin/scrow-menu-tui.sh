@@ -15,46 +15,36 @@ main_menu() {
 
 pick_cursor() {
     CURSOR_STATE="$HOME/.config/hypr/.cursor-theme"
-    current_cursor=$(cat "$CURSOR_STATE" 2>/dev/null)
 
-    declare -A cursor_map=(
-        ["Bibata-Modern-Classic"]="SCROW (Recommended)"
-        ["Bibata-Modern-Ice"]="Bibata Modern Ice"
-        ["Bibata-Original-Classic"]="Bibata Original Classic"
-        ["phinger-cursors-dark"]="Phinger Dark"
-        ["phinger-cursors-light"]="Phinger Light"
-        ["Minecraft-Animated"]="Minecraft Animated"
-        ["Windows11Dark"]="Windows 11 Dark"
+    declare -A name_to_theme=(
+        ["SCROW (Recommended)"]="Bibata-Modern-Classic"
+        ["Bibata Modern Ice"]="Bibata-Modern-Ice"
+        ["Bibata Original Classic"]="Bibata-Original-Classic"
+        ["Phinger Dark"]="phinger-cursors-dark"
+        ["Phinger Light"]="phinger-cursors-light"
+        ["Minecraft Animated"]="Minecraft-Animated"
+        ["Windows 11 Dark"]="Windows11Dark"
     )
 
-    OPTIONS=("SCROW (Recommended)" "Bibata Modern Ice" "Bibata Original Classic" "Phinger Dark" "Phinger Light" "Minecraft Animated" "Windows 11 Dark")
+    NAMES=("SCROW (Recommended)" "Bibata Modern Ice" "Bibata Original Classic" "Phinger Dark" "Phinger Light" "Minecraft Animated" "Windows 11 Dark")
 
     while true; do
         current_cursor=$(cat "$CURSOR_STATE" 2>/dev/null)
 
-        TMPFILE=$(mktemp)
-        for opt in "${OPTIONS[@]}"; do
-            theme_name=""
-            for key in "${!cursor_map[@]}"; do
-                if [[ "${cursor_map[$key]}" == "$opt" ]]; then
-                    theme_name="$key"
-                    break
-                fi
-            done
-            if [[ "$theme_name" == "$current_cursor" ]]; then
-                echo "${opt} [active]" >> "$TMPFILE"
+        ITEMS=()
+        for name in "${NAMES[@]}"; do
+            if [[ "${name_to_theme[$name]}" == "$current_cursor" ]]; then
+                ITEMS+=("${name} [active]")
             else
-                echo "$opt" >> "$TMPFILE"
+                ITEMS+=("$name")
             fi
         done
-        echo "Back" >> "$TMPFILE"
+        ITEMS+=("Back")
 
-        CUR=$(cat "$TMPFILE" | fzf --cycle --prompt="Cursor Theme > " --reverse --border --ansi)
-        rm -f "$TMPFILE"
+        CUR=$(printf "%s\n" "${ITEMS[@]}" | fzf --cycle --prompt="Cursor Theme > " --reverse --border --ansi)
 
-        [ -z "$CUR" ] && return
-        [[ "$CUR" == "Back" ]] && return
-        CUR=$(echo "$CUR" | sed 's/ \[active\]$//')
+        [ -z "$CUR" ] || [[ "$CUR" == "Back" ]] && return
+        CUR="${CUR% \[active\]}"
         "$HOME/.local/bin/cursor-switcher.sh" "$CUR"
     done
 }

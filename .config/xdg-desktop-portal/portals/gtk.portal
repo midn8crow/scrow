@@ -1,0 +1,4 @@
+[portal]
+DBusName=org.freedesktop.impl.portal.Desktop
+InterfacePrefix=org.freedesktop.impl.portal
+Uses=gnome;Hyprland;

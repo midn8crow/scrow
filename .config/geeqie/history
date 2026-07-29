@@ -1,0 +1,18 @@
+#History lists
+
+[path_list]
+"/home/shadhin/Pictures/Wallpapers"
+"/home/shadhin/Pictures/Screenshots"
+"/home/shadhin/Downloads"
+
+[shortcuts]
+"Home[path]/home/shadhin"
+"Desktop[path]/home/shadhin/Desktop"
+"Collections[path]/home/shadhin/.local/share/geeqie/collections"
+
+[image_list]
+"/home/shadhin/Pictures/Wallpapers/3.-Mountain-Sunset.png.webp"
+"/home/shadhin/Pictures/Screenshots/screenshot-20260711-175548.png"
+"/home/shadhin/Downloads/matthew-hicks-k9oaPaG8EQw-unsplash.jpg"
+
+#end

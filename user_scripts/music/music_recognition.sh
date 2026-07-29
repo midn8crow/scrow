@@ -208,6 +208,8 @@ main() {
     printf 'Listening...\n'
 
     recognition_loop "$monitor_source"
+
+    read -rn1 -sp "Press any key to close..."
 }
 
 main "$@"
