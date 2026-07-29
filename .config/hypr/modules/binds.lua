@@ -7,6 +7,7 @@ local terminal    = "kitty"
 local fileManager = "bash -c 'desktop=$(xdg-mime query default inode/directory 2>/dev/null); f=$(find /usr/share/applications ~/.local/share/applications -name \"$desktop\" 2>/dev/null | head -1); exec=\"$(grep ^Exec= \"$f\" 2>/dev/null | head -1 | cut -d= -f2-)\"; term=$(grep ^Terminal= \"$f\" 2>/dev/null | cut -d= -f2-); cmd=\"${exec%% %*}\"; [ \"$term\" = \"true\" ] && cmd=\"kitty $cmd\"; eval \"$cmd\"'"
 local browser     = "bash -c 'desktop=$(xdg-settings get default-web-browser 2>/dev/null); f=$(find /usr/share/applications ~/.local/share/applications -name \"$desktop\" 2>/dev/null | head -1); exec=\"$(grep ^Exec= \"$f\" 2>/dev/null | head -1 | cut -d= -f2-)\"; exec ${exec%% %*}'"
 local menu        = "rofi -show drun -drun-prompt Software"
+local wayclick    = "$HOME/.local/bin/wayclick.sh"
 
 
 
@@ -210,9 +211,25 @@ for i = 1, 10 do
     hl.bind(mainMod .. " + SHIFT + " .. key,     hl.dsp.window.move({ workspace = i }))
 end
 
--- Example special workspace (scratchpad)
-hl.bind(mainMod .. " + Z",         hl.dsp.workspace.toggle_special("magic"))
-hl.bind(mainMod .. " + SHIFT + Z", hl.dsp.exec_cmd("$HOME/.local/bin/scratchpad-move.sh"))
+-- Special workspace (scratchpad)
+hl.bind(mainMod .. " + Z", hl.dsp.workspace.toggle_special("magic"))
+hl.bind(mainMod .. " + SHIFT + Z", function()
+    local w = hl.get_active_window()
+    if not w then return end
+    local ws = (w.workspace and w.workspace.name) or ""
+    if ws == "special:magic" then
+        local mon = hl.get_active_monitor()
+        local target = mon and mon.activeWorkspace and mon.activeWorkspace.id or 1
+        hl.dispatch(hl.dsp.window.move({ workspace = target }))
+        hl.dispatch(hl.dsp.window.set_prop({ prop = "no_blur", value = "unset", window = "activewindow" }))
+        hl.dispatch(hl.dsp.window.set_prop({ prop = "opacity_override", value = "unset", window = "activewindow" }))
+    else
+        hl.dispatch(hl.dsp.window.move({ workspace = "special:magic" }))
+        hl.dispatch(hl.dsp.window.set_prop({ prop = "no_blur", value = "1", window = "activewindow" }))
+        hl.dispatch(hl.dsp.window.set_prop({ prop = "opacity_override", value = "1", window = "activewindow" }))
+        hl.dispatch(hl.dsp.window.set_prop({ prop = "opacity", value = "0.7", window = "activewindow" }))
+    end
+end)
 
 -- Switch workspaces with mainMod + SHIFT + scroll
 hl.bind(mainMod .. " + SHIFT + mouse_down", hl.dsp.focus({ workspace = "e+1" }))
@@ -245,3 +262,6 @@ hl.bind("XF86AudioNext",  hl.dsp.exec_cmd("playerctl next"),       { locked = tr
 hl.bind("XF86AudioPause", hl.dsp.exec_cmd("playerctl play-pause"), { locked = true })
 hl.bind("XF86AudioPlay",  hl.dsp.exec_cmd("playerctl play-pause"), { locked = true })
 hl.bind("XF86AudioPrev",  hl.dsp.exec_cmd("playerctl previous"),   { locked = true })
+
+-- Mechanical keypress sounds (WayClick) toggle
+hl.bind("CTRL + X", hl.dsp.exec_cmd(wayclick))

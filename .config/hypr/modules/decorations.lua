@@ -128,6 +128,13 @@ hl.config({
     misc = {
         force_default_wallpaper = 0,    -- Set to 0 or 1 to disable the anime mascot wallpapers
         disable_hyprland_logo   = true, -- If true disables the random hyprland logo / anime girl background. :(
+        close_special_on_empty = true, -- auto-close empty scratchpad (dusky)
+    },
+})
+
+hl.config({
+    binds = {
+        hide_special_on_workspace_change = false, -- keep scratchpad visible (dusky)
     },
 })
 

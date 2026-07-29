@@ -10,7 +10,7 @@ main_menu() {
         RCLONE_SUFFIX=""
     fi
 
-    printf " \uf023  Security\n \uf185  Power Profile\n \uf2ed  System Cleanup\n \uf233  Waybar\n \uf1fc  Themes\n \uf245  Cursors\n \uf0e4  Refresh Rate\n \uf26c  Resolution\n \uf0ac  Default Browser\n \uf07b  Default File Manager\n \uf0e7  Animation Speed\n \uf11c  Keybinds\n \uf304  Update Mirrors\n \uf11b  Games\n \uf013  System Reset\n \uf019  Rclone Mount${RCLONE_SUFFIX}" | fzf --cycle --prompt="Scrow Menu > " --reverse --border --ansi
+    printf " \uf023  Security\n \uf185  Power Profile\n \uf2ed  System Cleanup\n \uf233  Waybar\n \uf1fc  Themes\n \uf245  Cursors\n \uf0e4  Refresh Rate\n \uf26c  Resolution\n \uf0ac  Default Browser\n \uf07b  Default File Manager\n \uf0e7  Animation Speed\n \uf11c  Keybinds\n \uf304  Update Mirrors\n \uf11b  Games\n \uf013  System Reset\n \uf019  Rclone Mount${RCLONE_SUFFIX}\n \uf04c  WayClick" | fzf --cycle --prompt="Scrow Menu > " --reverse --border --ansi
 }
 
 pick_cursor() {
@@ -399,6 +399,42 @@ pick_games() {
     done
 }
 
+pick_wayclick() {
+    WAYCLICK_STATE_FILE="$HOME/.config/dusky/settings/wayclick"
+    WAYCLICK_VOLUME_FILE="$HOME/.config/wayclick/volume"
+
+    [ ! -f "$WAYCLICK_VOLUME_FILE" ] && echo "100" > "$WAYCLICK_VOLUME_FILE"
+
+    while true; do
+        current_state=$(cat "$WAYCLICK_STATE_FILE" 2>/dev/null || echo "False")
+        current_volume=$(cat "$WAYCLICK_VOLUME_FILE" 2>/dev/null || echo "100")
+
+        if [[ "$current_state" == "True" ]]; then
+            toggle_display="Toggle WayClick        ON"
+        else
+            toggle_display="Toggle WayClick        OFF"
+        fi
+
+        OPTIONS=("$toggle_display" "Change Volume")
+        OPTIONS+=("Back")
+
+        SEL=$(printf "%s\n" "${OPTIONS[@]}" | fzf --cycle --prompt="WayClick > " --reverse --border --ansi)
+
+        [ -z "$SEL" ] && return
+        [[ "$SEL" == "Back" ]] && return
+
+        if [[ "$SEL" == *"Toggle"* ]]; then
+            "$HOME/.local/bin/wayclick.sh"
+        elif [[ "$SEL" == "Change Volume" ]]; then
+            vol=$(printf '' | fzf --print-query --prompt="Volume (0-100) > " --reverse --border --ansi 2>/dev/null | head -1)
+            if [[ -n "$vol" && "$vol" =~ ^[0-9]+$ && "$vol" -ge 0 && "$vol" -le 100 ]]; then
+                echo "$vol" > "$WAYCLICK_VOLUME_FILE"
+                notify-send -h "int:value:${vol}" -h "string:x-canonical-private-synchronous:wayclick" -t 1000 "WayClick" "${vol}% volume"
+            fi
+        fi
+    done
+}
+
 # Main loop
 while true; do
     CHOICE=$(main_menu)
@@ -422,5 +458,6 @@ while true; do
         *Games)                pick_games ;;
         *System\ Reset)        "$HOME/.local/bin/system-reset.sh" ;;
         *Rclone\ Mount*)       "$HOME/.local/bin/rclone-toggle.sh" ;;
+        *WayClick)             pick_wayclick ;;
     esac
 done
