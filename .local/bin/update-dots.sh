@@ -85,8 +85,11 @@ case "$CHOICE" in
         else
             git add .
             git commit -m "Cleanup + updated $(date +%Y-%m-%d_%H:%M)"
-            git push
-            notify-send "Done!" "Cleaned and pushed $CHANGES changes"
+            if git push; then
+                notify-send "Done!" "Cleaned and pushed $CHANGES changes"
+            else
+                notify-send -u critical "Push Failed" "Check auth: gh auth login"
+            fi
         fi
         ;;
     "Push Configs Only")
@@ -107,8 +110,11 @@ case "$CHOICE" in
         else
             git add .
             git commit -m "Updated configs $(date +%Y-%m-%d_%H:%M)"
-            git push
-            notify-send "Done!" "Pushed configs to GitHub"
+            if git push; then
+                notify-send "Done!" "Pushed configs to GitHub"
+            else
+                notify-send -u critical "Push Failed" "Check auth: gh auth login"
+            fi
         fi
         ;;
     "Push Scripts Only")
@@ -125,8 +131,11 @@ case "$CHOICE" in
         else
             git add .
             git commit -m "Updated scripts $(date +%Y-%m-%d_%H:%M)"
-            git push
-            notify-send "Done!" "Pushed scripts to GitHub"
+            if git push; then
+                notify-send "Done!" "Pushed scripts to GitHub"
+            else
+                notify-send -u critical "Push Failed" "Check auth: gh auth login"
+            fi
         fi
         ;;
     "View Status")
