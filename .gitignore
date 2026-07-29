@@ -52,3 +52,4 @@ target/
 
 # Backups
 *.bak
+.local/bin/update-dots.sh
