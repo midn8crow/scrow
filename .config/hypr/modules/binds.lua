@@ -264,4 +264,4 @@ hl.bind("XF86AudioPlay",  hl.dsp.exec_cmd("playerctl play-pause"), { locked = tr
 hl.bind("XF86AudioPrev",  hl.dsp.exec_cmd("playerctl previous"),   { locked = true })
 
 -- Mechanical keypress sounds (WayClick) toggle
-hl.bind("CTRL + X", hl.dsp.exec_cmd(wayclick))
+hl.bind("CTRL + SHIFT + X", hl.dsp.exec_cmd(wayclick))
