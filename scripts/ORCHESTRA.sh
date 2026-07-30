@@ -777,6 +777,14 @@ configure_hyprpm() {
     sudo chmod +x /etc/pacman.d/hooks/hyprpm-post-update.sh
 
     print_ok "Hyprpm auto-update hook installed"
+
+    print_step "Installing ScrollOverview plugin..."
+
+    hyprpm add https://github.com/yayuuu/hyprland-scroll-overview.git || true
+    hyprpm update || true
+    hyprpm enable scrolloverview || true
+
+    print_ok "ScrollOverview plugin installed"
 }
 
 set_permissions() {
