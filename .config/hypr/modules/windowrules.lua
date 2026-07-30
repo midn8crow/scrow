@@ -187,5 +187,19 @@ hl.window_rule({
     center = true,
 })
 
+hl.window_rule({
+    name  = "zenity-float",
+    match = { class = "zenity" },
+    float  = true,
+    center = true,
+})
+
+hl.window_rule({
+    name  = "portal-dialog-float",
+    match = { class = "xdg-desktop-portal-gtk" },
+    float  = true,
+    center = true,
+})
+
 
 

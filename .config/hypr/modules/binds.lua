@@ -157,6 +157,7 @@ hl.bind(mainMod .. " + SHIFT + P", hl.dsp.exec_cmd("$HOME/.local/bin/pick-color-
 hl.bind(mainMod .. " + T", hl.dsp.exec_cmd("$HOME/.local/bin/ocr-toggle.sh"))
 hl.bind(mainMod .. " + S", hl.dsp.exec_cmd("$HOME/.local/bin/screenshot-region.sh"))
 hl.bind(mainMod .. " + SHIFT + T", hl.dsp.exec_cmd("$HOME/.local/bin/secure-tunnel.sh"))
+hl.bind(mainMod .. " + SHIFT + V", hl.dsp.exec_cmd("$HOME/.local/bin/video-compressor.sh"))
 hl.bind(mainMod .. " + PRINT", hl.dsp.exec_cmd("$HOME/.local/bin/screenshot-full.sh"))
 hl.bind(mainMod .. " + L", hl.dsp.exec_cmd("fcitx5-remote -t"))
 
