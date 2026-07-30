@@ -3,14 +3,13 @@
     bg1: #1b212266;
     bg2: #161c1e66;
     fg0: #dee3e5;
-    fg1: #bfc8ca;
+    fg1: #bfc8cb;
 
     red: #ffb4ab;
-    green: #b1cbd0;
-    yellow: #bbc5ea;
-    blue: #82d3e2;
-    purple: #82d3e2;
-    aqua: #004f59;
-
-    highlight: #82d3e233;
+    green: #b2cbd1;
+    yellow: #bdc5eb;
+    blue: #83d2e4;
+    purple: #83d2e4;
+    aqua: #004e5a;
+    highlight: #83d2e433;
 }

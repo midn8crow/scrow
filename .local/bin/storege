@@ -1,0 +1,73 @@
+#!/bin/bash
+
+entries=()
+
+while read dev mnt size used avail pcent; do
+  case "$mnt" in
+    /home)                   p=1; desc="Your home/personal files" ;;
+    /)                       p=2; desc="Root (system files)" ;;
+    /boot)                   p=3; desc="Boot partition" ;;
+    /dev)                    p=9; desc="Device files (virtual)" ;;
+    /run)                    p=9; desc="Runtime data (virtual)" ;;
+    /dev/shm)                p=9; desc="Shared memory (virtual)" ;;
+    /tmp)                    p=9; desc="Temporary files (virtual)" ;;
+    /sys/firmware/efi/efivars) p=9; desc="EFI variables (virtual)" ;;
+    /run/user/*)             p=9; desc="User runtime (virtual)" ;;
+    *)                       p=9; desc="" ;;
+  esac
+  [[ -z "$desc" ]] && continue
+  entries+=("$p|$dev|$mnt|$size|$used|$avail|$pcent|$desc")
+done < <(df -h --output=source,target,size,used,avail,pcent | tail -n +2)
+
+IFS=$'\n' entries=($(sort -t'|' -k1,1n <<< "${entries[*]}"))
+
+max_dev=9  max_mnt=5  max_size=4  max_used=4  max_avail=5  max_pcent=4  max_desc=10
+
+for e in "${entries[@]}"; do
+  IFS='|' read -r _ dev mnt size used avail pcent desc <<< "$e"
+  [[ ${#dev} -gt $max_dev ]] && max_dev=${#dev}
+  [[ ${#mnt} -gt $max_mnt ]] && max_mnt=${#mnt}
+  [[ ${#size} -gt $max_size ]] && max_size=${#size}
+  [[ ${#used} -gt $max_used ]] && max_used=${#used}
+  [[ ${#avail} -gt $max_avail ]] && max_avail=${#avail}
+  [[ ${#pcent} -gt $max_pcent ]] && max_pcent=${#pcent}
+  [[ ${#desc} -gt $max_desc ]] && max_desc=${#desc}
+done
+
+c1=$((max_dev+2))
+c2=$((max_mnt+2))
+c3=$((max_size+2))
+c4=$((max_used+2))
+c5=$((max_avail+2))
+c6=$((max_pcent+2))
+c7=$((max_desc+2))
+
+hline() {
+  local l="$1" m="$2" r="$3"
+  printf "%s" "$l"
+  printf "═%.0s" $(seq 1 $c1)
+  printf "%s" "$m"
+  printf "═%.0s" $(seq 1 $c2)
+  printf "%s" "$m"
+  printf "═%.0s" $(seq 1 $c3)
+  printf "%s" "$m"
+  printf "═%.0s" $(seq 1 $c4)
+  printf "%s" "$m"
+  printf "═%.0s" $(seq 1 $c5)
+  printf "%s" "$m"
+  printf "═%.0s" $(seq 1 $c6)
+  printf "%s" "$m"
+  printf "═%.0s" $(seq 1 $c7)
+  printf "%s\n" "$r"
+}
+
+hline "╔" "╦" "╗"
+printf "║ %-*s ║ %-*s ║ %-*s ║ %-*s ║ %-*s ║ %-*s ║ %-*s ║\n" "$max_dev" "Partition" "$max_mnt" "Mount" "$max_size" "Size" "$max_used" "Used" "$max_avail" "Avail" "$max_pcent" "Use%" "$max_desc" "What it is"
+hline "╠" "╬" "╣"
+
+for e in "${entries[@]}"; do
+  IFS='|' read -r _ dev mnt size used avail pcent desc <<< "$e"
+  printf "║ %-*s ║ %-*s ║ %-*s ║ %-*s ║ %-*s ║ %-*s ║ %-*s ║\n" "$max_dev" "$dev" "$max_mnt" "$mnt" "$max_size" "$size" "$max_used" "$used" "$max_avail" "$avail" "$max_pcent" "$pcent" "$max_desc" "$desc"
+done
+
+hline "╚" "╩" "╝"
