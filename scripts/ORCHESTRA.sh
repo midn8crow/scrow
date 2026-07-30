@@ -194,14 +194,12 @@ install_core_packages() {
     local ui_pkgs=(
         "waybar"
         "rofi"
-        "wlogout"
         "mako"
-        "swww-daemon"
-        "polkit-gnome"
         "nm-connection-editor"
         "network-manager-applet"
         "blueman"
         "pavucontrol"
+        "hyprpolkitagent"
     )
     
     # Terminal & Shell
@@ -214,11 +212,7 @@ install_core_packages() {
         "fzf"
         "zoxide"
         "eza"
-        "bat"
-        "fd"
         "ripgrep"
-        "tree"
-        "unzip"
         "p7zip"
         "wget"
         "curl"
@@ -227,33 +221,24 @@ install_core_packages() {
     
     # File Managers
     local filemanager_pkgs=(
-        "dolphin"
         "thunar"
-        "thunar-archive-plugin"
         "gvfs"
-        "ffmpegthumbs"
+        "file-roller"
+        "ffmpegthumbnailer"
     )
     
     # Fonts
     local font_pkgs=(
         "ttf-jetbrains-mono-nerd"
         "noto-fonts"
-        "noto-fonts-cjk"
         "noto-fonts-emoji"
-        "ttf-font-awesome"
-        "ttf-cascadia-code"
-        "otf-font-awesome"
     )
     
     # Appearance
     local theme_pkgs=(
-        "adw-gtk3"
-        "kvantum"
+        "adw-gtk-theme"
         "qt6ct"
-        "nwg-look"
-        "lxappearance"
         "papirus-icon-theme"
-        "bibata-cursor-theme"
     )
     
     # System Tools
@@ -261,30 +246,148 @@ install_core_packages() {
         "fastfetch"
         "btop"
         "htop"
-        "nvtop"
         "mpv"
         "cava"
         "brightnessctl"
         "playerctl"
-        "imagemagick"
         "ffmpeg"
         "wireplumber"
-        "pulseaudio-utils"
-        "xdotool"
         "jq"
-        "yq"
-        "tree"
         "pacman-contrib"
         "reflector"
-        "man-db"
-        "man-pages"
+        "awww"
+        "rclone"
+        "loupe"
+        "firefox"
+        "7zip"
+        "amd-ucode"
+        "attr"
+        "base"
+        "base-devel"
+        "blender"
+        "bluez"
+        "bluez-utils"
+        "catppuccin-gtk-theme-mocha"
+        "chess-tui"
+        "chromium"
+        "cloudflare-warp-bin"
+        "cmatrix"
+        "cups"
+        "cups-pk-helper"
+        "ddcutil"
+        "dunst"
+        "efibootmgr"
+        "fcitx5"
+        "fcitx5-configtool"
+        "fcitx5-gtk"
+        "fcitx5-qt"
+        "file"
+        "flac"
+        "fuse3"
+        "gimp"
+        "git-delta"
+        "github-cli"
+        "gpsd"
+        "grim"
+        "grub"
+        "gst-plugin-pipewire"
+        "gvfs-afc"
+        "gvfs-dnssd"
+        "gvfs-gphoto2"
+        "gvfs-mtp"
+        "hyprshot"
+        "inkscape"
+        "intel-media-driver"
+        "iproute2"
+        "keypunch-git"
+        "kimageformats"
+        "libgepub"
+        "libgsf"
+        "libopenraw"
+        "libpulse"
+        "libqalculate"
+        "libreoffice-fresh"
+        "libva-intel-driver"
+        "libva-utils"
+        "linux-firmware"
+        "llvm"
+        "localsend"
+        "lua"
+        "lynis"
+        "mkinitcpio"
+        "modemmanager"
+        "mousepad"
+        "mpvpaper"
+        "ncurses"
+        "neovim"
+        "networkmanager"
+        "obsidian"
+        "openbangla-keyboard-fcitx-git"
+        "opencode"
+        "p11-kit"
+        "pacseek-bin"
+        "paru-debug"
+        "pipewire"
+        "pipewire-alsa"
+        "pipewire-jack"
+        "pipewire-pulse"
+        "polkit-kde-agent"
+        "poppler-glib"
+        "power-profiles-daemon"
+        "proton-vpn-gtk-app"
+        "proxychains-ng"
+        "psmisc"
+        "python-distro"
+        "python-keyring"
+        "qt5-wayland"
+        "qt6-wayland"
+        "resvg"
+        "rofi-emoji"
+        "satty"
+        "sddm"
+        "slurp"
+        "smartmontools"
+        "songrec"
+        "stockfish"
+        "swappy"
+        "system-config-printer"
+        "systemd-sysvcompat"
+        "tela-circle-icon-theme-dracula"
+        "tela-circle-icon-theme-nord"
+        "telegram-desktop"
+        "tesseract"
+        "tesseract-data-ben"
+        "tesseract-data-eng"
+        "tor"
+        "torbrowser-launcher"
+        "traceroute"
+        "tty-clock"
+        "tumbler"
+        "uv"
+        "uwsm"
+        "vim"
+        "vulkan-intel"
+        "vulkan-nouveau"
+        "vulkan-radeon"
+        "waybar-cava-git"
+        "webp-pixbuf-loader"
+        "wofi"
+        "wtype"
+        "xdg-user-dirs"
+        "xf86-video-amdgpu"
+        "xf86-video-ati"
+        "xf86-video-nouveau"
+        "xorg-server"
+        "yazi"
+        "ytdlp-gui"
+        "zenity"
+        "zram-generator"
     )
     
     # Clipboard
     local clipboard_pkgs=(
         "wl-clipboard"
         "cliphist"
-        "xclip"
     )
     
     # Security
@@ -355,14 +458,10 @@ install_aur_packages() {
     print_step "Installing AUR packages..."
     
     local aur_pkgs=(
-        "hyprlauncher"
-        "hyprplugins"
         "wlr-randr"
         "gpu-screen-recorder"
-        "zen-browser-bin"
-        "visual-studio-code-bin"
-        "ttf-material-design-icons"
-        "python-gpustat"
+        "brave-bin"
+        "vscodium-bin"
         "matugen"
     )
     
@@ -441,6 +540,13 @@ deploy_configs() {
     if [[ -f "$DOTFILES_DIR/.zshrc" ]]; then
         cp "$DOTFILES_DIR/.zshrc" "$HOME/.zshrc"
         print_ok "Zsh config deployed"
+    fi
+    
+    # Copy cursor themes
+    if [[ -d "$DOTFILES_DIR/.local/share/icons" ]]; then
+        mkdir -p "$HOME/.local/share/icons"
+        cp -r "$DOTFILES_DIR/.local/share/icons/"* "$HOME/.local/share/icons/"
+        print_ok "Cursor themes deployed"
     fi
 }
 
@@ -541,54 +647,32 @@ configure_gtk() {
     mkdir -p "$HOME/.config/gtk-3.0"
     cat > "$HOME/.config/gtk-3.0/settings.ini" << 'EOF'
 [Settings]
-gtk-theme-name=adw-gtk3-dark
-gtk-icon-theme-name=Papirus-Dark
-gtk-font-name=JetBrainsMono Nerd Font 12
 gtk-cursor-theme-name=Bibata-Modern-Classic
 gtk-cursor-theme-size=24
-gtk-toolbar-style=GTK_TOOLBAR_BOTH_HORIZ
-gtk-toolbar-icon-size=GTK_ICON_SIZE_LARGE_TOOLBAR
-gtk-button-images=0
-gtk-menu-images=0
-gtk-enable-event-sounds=1
-gtk-enable-input-feedback-sounds=0
-gtk-xft-antialias=1
-gtk-xft-hinting=1
-gtk-xft-hintstyle=hintfull
 EOF
     
     mkdir -p "$HOME/.config/gtk-4.0"
     cp "$HOME/.config/gtk-3.0/settings.ini" "$HOME/.config/gtk-4.0/settings.ini"
+    
+    gsettings set org.gnome.desktop.interface color-scheme prefer-dark 2>/dev/null || true
     
     # Qt config
     mkdir -p "$HOME/.config/qt6ct"
     cat > "$HOME/.config/qt6ct/qt6ct.conf" << 'EOF'
 [Appearance]
 color_scheme_path=
-custom_palette=false
-icon_theme=Papirus-Dark
-standard_dialogs=default
-style=adwaita-dark
-
-[Interface]
-activate_item_on_single_click=true
-buttonbox_layout=0
-cursor_flash_time=1000
-dialog_buttons_have_icons=1
-double_click_interval=400
-gui_effects=@Invalid()
-keyboard_scheme=2
-menus_have_icons=true
-show_shortcuts_in_context_menus=true
-styleoverwrite=false
-wheel_scroll_lines=3
-
-[Settings]
-recurse=true
-sort=true
+icon_theme=
+style=Fusion
+color_scheme_type=2
 EOF
     
     print_ok "GTK configured"
+}
+
+configure_loupe() {
+    print_step "Configuring Loupe (Image Viewer)..."
+    gsettings set org.gnome.Loupe show-properties false 2>/dev/null || true
+    print_ok "Loupe configured"
 }
 
 configure_fonts() {
@@ -951,6 +1035,7 @@ main() {
     configure_hyprland
     configure_shell
     configure_gtk
+    configure_loupe
     configure_fonts
     configure_services
     configure_security
