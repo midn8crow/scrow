@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -u
-TITLE="Video Compressor"
+TITLE="Compressor"
 TMPDIR=$(mktemp -d)
 trap 'rm -f "$FFPIDFILE"; rm -rf "$TMPDIR"' EXIT
 
@@ -18,24 +18,191 @@ fi
 
 notify() { notify-send -a "$TITLE" "$1" "$2"; }
 
+compress_photos() {
+    files=$(zenity --file-selection --title="Select photos to compress" --multiple \
+        --file-filter="Images | *.jpg *.jpeg *.png *.webp *.gif" 2>/dev/null)
+    [ -z "$files" ] && return 1
+    IFS='|' read -ra PHOTOS <<< "$files"
+
+    qopt=$(zenity --list --title="$TITLE - Photos: Quality" \
+        --text="Select quality for ${#PHOTOS[@]} photo(s):" \
+        --column="Mode" --column="Description" \
+        "Target file size" "Compress each photo to a specific size (e.g. 1MB)" \
+        "High Quality" "Quality 90, minimal loss" \
+        "Balanced"     "Quality 80, good balance" \
+        "Small File"   "Quality 65, small size" \
+        "Custom"       "Enter your own quality (1-100)" \
+        --extra-button="Back" \
+        --width=550 --height=320)
+    [ "$qopt" = "Back" ] && return 1
+    [ -z "$qopt" ] && return 1
+    MODE="quality"
+    QUALITY=""
+    CONVERT_JPG=""
+    case "$qopt" in
+        "Target file size")
+            TARGET_MB=$(zenity --entry --title="$TITLE - Photos: Target Size" \
+                --text="Target size in MB per photo:" --entry-text="1")
+            [ -z "$TARGET_MB" ] && return 1
+            TARGET_BYTES=$(( TARGET_MB * 1024 * 1024 ))
+            MODE="target"
+            if zenity --question --title="$TITLE - Photos: Target Size" \
+                --text="Convert to JPEG?\n\nJPEG gives the smallest size and reliably hits the target.\nYour original is kept; a new .jpg file is created."; then
+                CONVERT_JPG=1
+            fi
+            ;;
+        "High Quality") QUALITY=90 ;;
+        "Balanced") QUALITY=80 ;;
+        "Small File") QUALITY=65 ;;
+        "Custom")
+            QUALITY=$(zenity --entry --title="$TITLE - Photos: Quality" \
+                --text="Enter quality (1-100):" --entry-text="80")
+            [ -z "$QUALITY" ] && return 1
+            ;;
+    esac
+
+    sizeopt=$(zenity --list --title="$TITLE - Photos: Resize" \
+        --text="Resize option (only shrinks if larger):" \
+        --column="Option" --column="Description" \
+        "Keep Size"   "Keep original dimensions" \
+        "Max 2560px"  "Shrink only if larger than 2560px" \
+        "Max 1920px"  "Shrink only if larger than 1920px" \
+        "Max 1280px"  "Shrink only if larger than 1280px" \
+        "Max 720px"   "Shrink only if larger than 720px" \
+        --extra-button="Back" \
+        --width=500 --height=300)
+    [ "$sizeopt" = "Back" ] && return 1
+    [ -z "$sizeopt" ] && return 1
+    case "$sizeopt" in
+        "Keep Size") RESIZE="" ;;
+        "Max 2560px") RESIZE="-resize 2560x2560>" ;;
+        "Max 1920px") RESIZE="-resize 1920x1920>" ;;
+        "Max 1280px") RESIZE="-resize 1280x1280>" ;;
+        "Max 720px") RESIZE="-resize 720x720>" ;;
+    esac
+
+    if ! command -v gm >/dev/null 2>&1; then
+        zenity --error --text="GraphicsMagick (gm) is not installed.\nInstall it with: sudo pacman -S graphicsmagick"
+        return 1
+    fi
+
+    total=${#PHOTOS[@]}
+    rm -f "$TMPDIR/photo_err.log"
+    (
+        i=0
+        for f in "${PHOTOS[@]}"; do
+            i=$((i+1))
+            if [ "$MODE" = "target" ] && [ "$CONVERT_JPG" = "1" ]; then
+                out="${f%.*}-compressed.jpg"
+            else
+                out="${f%.*}-compressed.${f##*.}"
+            fi
+            pct=$(( i * 100 / total ))
+            if [ "$MODE" = "target" ]; then
+                if [ "$CONVERT_JPG" = "1" ]; then
+                    tmp="$TMPDIR/photo_tmp.jpg"
+                else
+                    tmp="$TMPDIR/photo_tmp.${f##*.}"
+                fi
+                lo=1; hi=98; best_q=1; best_size=0
+                small_q=1; small_size=999999999999
+                for it in 1 2 3 4 5 6 7 8 9; do
+                    mid=$(( (lo + hi) / 2 ))
+                    if gm convert "$f" $RESIZE -quality "$mid" "$tmp" 2>>"$TMPDIR/photo_err.log"; then
+                        sz=$(stat -c%s "$tmp" 2>/dev/null || echo 0)
+                        if [ "$sz" -gt 0 ]; then
+                            if [ "$sz" -lt "$small_size" ]; then
+                                small_size=$sz; small_q=$mid
+                            fi
+                            if [ "$sz" -le "$TARGET_BYTES" ]; then
+                                best_q=$mid; best_size=$sz
+                                lo=$((mid + 1))
+                            else
+                                hi=$((mid - 1))
+                            fi
+                        fi
+                    else
+                        hi=$((mid - 1))
+                    fi
+                    echo "$pct"
+                    echo "# $(basename "$f") testing quality $mid..."
+                done
+                if [ "$best_size" -gt 0 ]; then
+                    USE_Q=$best_q
+                else
+                    USE_Q=$small_q
+                fi
+                if gm convert "$f" $RESIZE -quality "$USE_Q" "$out" 2>>"$TMPDIR/photo_err.log"; then
+                    if [ "$best_size" -gt 0 ]; then
+                        echo "$pct"
+                        echo "# $(basename "$f") done (quality $USE_Q)"
+                    else
+                        echo "$pct"
+                        echo "# $(basename "$f") saved, still above target"
+                    fi
+                else
+                    echo "$pct"
+                    echo "# FAILED: $(basename "$f")"
+                fi
+            else
+                if gm convert "$f" $RESIZE -quality "$QUALITY" "$out" 2>>"$TMPDIR/photo_err.log"; then
+                    echo "$pct"
+                    echo "# $(basename "$f") done"
+                else
+                    echo "$pct"
+                    echo "# FAILED: $(basename "$f")"
+                fi
+            fi
+        done
+        echo "100"
+        echo "# Finished"
+    ) | zenity --progress --title="$TITLE - Photos" --text="Processing photos..." --percentage=0 --auto-close 2>/dev/null
+
+    if [ "${PIPESTATUS[1]}" -eq 1 ]; then
+        notify "Cancelled" "Photo compression cancelled"
+        return 1
+    fi
+
+    OK=0
+    FAIL=0
+    ORIG_TOTAL=0
+    NEW_TOTAL=0
+    for f in "${PHOTOS[@]}"; do
+        if [ "$MODE" = "target" ] && [ "$CONVERT_JPG" = "1" ]; then
+            out="${f%.*}-compressed.jpg"
+        else
+            out="${f%.*}-compressed.${f##*.}"
+        fi
+        if [ -f "$out" ] && [ -s "$out" ]; then
+            OK=$((OK+1))
+            ORIG_TOTAL=$(( ORIG_TOTAL + $(stat -c%s "$f") ))
+            NEW_TOTAL=$(( NEW_TOTAL + $(stat -c%s "$out") ))
+        else
+            FAIL=$((FAIL+1))
+        fi
+    done
+
+    notify "Done" "$OK photo(s) compressed${FAIL:+, $FAIL failed}"
+    if [ "$FAIL" -gt 0 ]; then
+        zenity --error --title="$TITLE" \
+            --text="Compressed: $OK\nFailed: $FAIL\n\nError details:\n$(tail -5 "$TMPDIR/photo_err.log" 2>/dev/null)" \
+            --width=450
+    else
+        zenity --info --title="$TITLE" \
+            --text="Photos done!\n\nCompressed: $OK\nTotal size: $(numfmt --to=iec "$ORIG_TOTAL") -> $(numfmt --to=iec "$NEW_TOTAL")\n\nOutputs saved as: *-compressed.jpg/png" \
+            --width=450
+    fi
+
+    return 0
+}
+
 while true; do
     choice=$(zenity --list --title="$TITLE" --text="Choose an action:" \
-        --column="Action" "Compress a video" "Restore from backup" "Quit" \
+        --column="Action" "Compress a video" "Compress photos" \
         --width=400 --height=250)
     case "$choice" in
-        "Restore from backup")
-            backup=$(zenity --file-selection --title="Select .backup file to restore" \
-                --file-filter="Backup files | *.backup" 2>/dev/null)
-            [ -z "$backup" ] && continue
-            original="${backup%.backup}"
-            [ ! -f "$original" ] && { zenity --error --text="Original not found:\n$original"; continue; }
-            if zenity --question --text="Restore will replace:\n$original\nwith backup:\n$backup\nContinue?"; then
-                cp "$backup" "$original"
-                notify "Restored" "$(basename "$original") restored"
-                zenity --info --text="Backup restored!"
-            fi
-            continue ;;
-        "Quit"|"") exit 0 ;;
+        "Compress photos") compress_photos; continue ;;
+        "" ) exit 0 ;;
     esac
 
     INPUT=$(zenity --file-selection --title="Select video to compress" \
@@ -54,10 +221,10 @@ while true; do
             "Balanced"           "Good quality, smaller file (CRF 28)" \
             "Small File"         "Lower quality, smallest file (CRF 32)" \
             "Custom CRF"         "Enter your own CRF value (0-51)" \
-            "Back"               "Return to main menu" \
+            --extra-button="Back" \
             --width=650 --height=420)
-        [ -z "$preset" ] && continue 2
         [ "$preset" = "Back" ] && continue 2
+        [ -z "$preset" ] && continue 2
 
         TARGET_SIZE_MB=""
         if [ "$preset" = "Target file size" ]; then
@@ -82,10 +249,10 @@ while true; do
                 "1080p"    "Scale to 1920x1080 (if larger)" \
                 "720p"     "Scale to 1280x720" \
                 "480p"     "Scale to 854x480" \
-                "Back"     "Back to quality menu" \
+                --extra-button="Back" \
                 --width=500 --height=280)
-            [ -z "$res_option" ] && continue 2
             [ "$res_option" = "Back" ] && continue 2
+            [ -z "$res_option" ] && continue 2
 
             SCALE=""
             if [ "$res_option" != "Original" ]; then

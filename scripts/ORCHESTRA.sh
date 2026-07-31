@@ -505,6 +505,7 @@ install_core_packages() {
         "ytdlp-gui"
         "zenity"
         "zram-generator"
+        "graphicsmagick"
     )
     
     # Clipboard
