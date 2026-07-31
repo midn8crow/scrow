@@ -506,6 +506,7 @@ install_core_packages() {
         "zenity"
         "zram-generator"
         "graphicsmagick"
+        "graphicsmagick"
     )
     
     # Clipboard
