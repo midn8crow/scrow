@@ -196,3 +196,6 @@ alias secmonitor='~/security-hardening/monitor.sh'
 alias chess='chess-tui -e /usr/bin/stockfish'
 
 fastfetch
+
+# rustup
+. "$HOME/.cargo/env"

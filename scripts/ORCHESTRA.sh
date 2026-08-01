@@ -507,6 +507,8 @@ install_core_packages() {
         "zram-generator"
         "graphicsmagick"
         "graphicsmagick"
+        "moviebox-tui"
+        "rust"
     )
     
     # Clipboard
