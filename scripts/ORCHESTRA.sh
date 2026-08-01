@@ -33,6 +33,8 @@ BACKUP_DIR="$HOME/.config/backup/$(date +%Y%m%d_%H%M%S)"
 LOG_FILE="/tmp/orchestra-install.log"
 GPU="unknown"
 IS_LAPTOP=false
+# AUR-only packages filtered out of the core pacman list (installed via paru later)
+AUR_EXTRA=()
 
 # =============================================================================
 # UTILITY FUNCTIONS
@@ -563,6 +565,27 @@ install_core_packages() {
         )
     fi
     
+    # Split tools into repo vs AUR packages (AUR ones go to the paru step so
+    # pacman is never given a target it cannot resolve).
+    # Make sure the sync database exists first so pacman -Si works on a fresh install.
+    if [[ ! -d /var/lib/pacman/sync ]]; then
+        print_info "No pacman sync database found - syncing..."
+        sudo pacman -Sy --noconfirm >/dev/null 2>&1 || true
+    fi
+    local repo_tools=() p
+    AUR_EXTRA=()
+    for p in "${tools_pkgs[@]}"; do
+        if pacman -Si "$p" >/dev/null 2>&1; then
+            repo_tools+=("$p")
+        else
+            AUR_EXTRA+=("$p")
+        fi
+    done
+    local aur_only_count=${#AUR_EXTRA[@]}
+    if [[ "$aur_only_count" -gt 0 ]]; then
+        print_info "Moving $aur_only_count AUR package(s) to the paru step"
+    fi
+
     # Install all packages
     sudo pacman -S --needed --noconfirm \
         "${wayland_pkgs[@]}" \
@@ -571,7 +594,7 @@ install_core_packages() {
         "${filemanager_pkgs[@]}" \
         "${font_pkgs[@]}" \
         "${theme_pkgs[@]}" \
-        "${tools_pkgs[@]}" \
+        "${repo_tools[@]}" \
         "${clipboard_pkgs[@]}" \
         "${security_pkgs[@]}" \
         "${nvidia_pkgs[@]}" \
@@ -600,7 +623,14 @@ install_aur_packages() {
         )
     fi
     
-    paru -S --needed --noconfirm "${aur_pkgs[@]}"
+    # Include any AUR-only packages filtered out of the core list, then install.
+    if [[ ${#AUR_EXTRA[@]} -gt 0 ]]; then
+        aur_pkgs+=("${AUR_EXTRA[@]}")
+    fi
+
+    if ! paru -S --needed --noconfirm "${aur_pkgs[@]}"; then
+        print_warn "Some AUR packages failed to install (continuing). Check the log."
+    fi
     
     print_ok "AUR packages installed"
 }
@@ -764,6 +794,12 @@ configure_shell() {
     command -v starship &>/dev/null && starship init zsh > "$HOME/.starship-init.zsh" 2>/dev/null
     command -v fzf &>/dev/null && fzf --zsh > "$HOME/.fzf-init.zsh" 2>/dev/null
     command -v zoxide &>/dev/null && zoxide init zsh > "$HOME/.zoxide-init.zsh" 2>/dev/null
+
+    # Wire rustup cargo env (guarded so a system without rustup doesn't error)
+    if [[ -f "$HOME/.zshrc" ]] && ! grep -q 'cargo/env' "$HOME/.zshrc"; then
+        printf '\n. "$HOME/.cargo/env" 2>/dev/null || true\n' >> "$HOME/.zshrc"
+        print_ok "cargo (rustup) env wired into .zshrc"
+    fi
     
     print_ok "Shell configured"
 }
@@ -845,15 +881,25 @@ configure_security() {
     
     # Install security packages
     print_info "Installing security packages..."
-    sudo pacman -S --needed --noconfirm nftables fail2ban clamav rkhunter pacman-contrib 2>/dev/null || true
+    sudo pacman -S --needed --noconfirm nftables fail2ban clamav rkhunter pacman-contrib bubblewrap 2>/dev/null || true
     
     # Deploy security scripts to ~/security-hardening/
     print_info "Deploying security scripts..."
     mkdir -p "$HOME/security-hardening"
     if [[ -d "$security_dir" ]]; then
-        sudo cp "$security_dir"/* "$HOME/security-hardening/" 2>/dev/null || true
-        sudo chmod +x "$HOME/security-hardening/"*.sh 2>/dev/null || true
+        cp "$security_dir"/* "$HOME/security-hardening/" 2>/dev/null || true
+        chmod +x "$HOME/security-hardening/"*.sh 2>/dev/null || true
         print_ok "Security scripts deployed to ~/security-hardening/"
+    fi
+
+    # Install the pre-install package scan hook (fires on every pacman/paru update)
+    print_info "Installing update-scan pacman hook..."
+    mkdir -p /etc/pacman.d/hooks
+    if [ -f "$HOME/security-hardening/update-scan.hook" ]; then
+        sudo install -Dm644 "$HOME/security-hardening/update-scan.hook" /etc/pacman.d/hooks/update-scan.hook
+        print_ok "Update-scan hook installed (every update is scanned before install)"
+    else
+        print_warn "update-scan.hook not found, skipping"
     fi
     
     # Deploy scrow menu scripts to ~/.local/bin/
