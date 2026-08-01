@@ -90,8 +90,16 @@ if [ -n "$1" ]; then
 else
     if [ ! -t 0 ]; then
         EXT_DIR=$(mktemp -d /var/tmp/update-scan.XXXXXX 2>/dev/null) || EXT_DIR=$(mktemp -d /tmp/update-scan.XXXXXX)
-        while IFS= read -r pkg; do
-            [ -n "$pkg" ] && scan_package "$pkg"
+        while IFS= read -r target; do
+            [ -n "$target" ] || continue
+            if [ -f "$target" ]; then
+                scan_package "$target"
+            elif [ -f "/var/cache/pacman/pkg/$target" ]; then
+                scan_package "/var/cache/pacman/pkg/$target"
+            else
+                mapfile -t files < <(find /var/cache/pacman/pkg -maxdepth 1 -type f -name "$target-*.pkg.tar.zst" 2>/dev/null | sort -V)
+                [ "${#files[@]}" -gt 0 ] && scan_package "${files[-1]}"
+            fi
         done
     else
         printf 'Usage: %s <package.pkg.tar.zst>...   (or pipe package paths on stdin)\n' "$0"

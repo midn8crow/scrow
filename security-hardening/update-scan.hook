@@ -8,4 +8,5 @@ Target = *
 Description = Scanning packages for suspicious patterns (security-hardening)
 When = PreTransaction
 Exec = /home/shadhin/security-hardening/update-scan.sh
+NeedsTargets
 AbortOnFail = no
