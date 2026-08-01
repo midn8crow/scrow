@@ -20,5 +20,6 @@
       hl.exec_cmd("setsid bash -c 'wl-paste --watch cliphist store' </dev/null >/dev/null 2>&1 &")
       hl.exec_cmd("fcitx5")
       hl.exec_cmd("nm-applet --indicator")
+      hl.exec_cmd("$HOME/.local/bin/capslock-indicator.sh")
  end)
 

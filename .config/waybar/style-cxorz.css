@@ -101,6 +101,23 @@ window#waybar {
     color: @fg;
 }
 
+#custom-capslock {
+    padding: 1px 12px 0;
+    margin: 6px 4px;
+    border-radius: 18px;
+    background: alpha(@red, 0.25);
+    color: @red;
+    font-weight: 700;
+    transition: background-color 0.1s ease, color 0.1s ease;
+}
+
+#custom-capslock.off {
+    padding: 0;
+    margin: 0;
+    background: transparent;
+    color: transparent;
+}
+
 #custom-date {
     padding: 1px 16px 0;
     margin: 6px 4px;

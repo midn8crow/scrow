@@ -14,6 +14,7 @@
   "modules-right": [
     "tray",
     "custom/notifications",
+    "custom/capslock",
     "custom/date",
     "clock",
     "pulseaudio",
@@ -41,6 +42,12 @@
     "format": "{}",
     "exec": "date +'%b %d'",
     "interval": 60,
+    "tooltip": false
+  },
+  "custom/capslock": {
+    "exec": "~/.config/waybar/scripts/capslock.sh",
+    "return-type": "json",
+    "interval": 0.3,
     "tooltip": false
   },
   "hyprland/window": {

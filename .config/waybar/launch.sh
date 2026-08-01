@@ -20,5 +20,16 @@ fi
 if [[ -z "$config" || ! -f "$DIR/config-${config}.jsonc" ]]; then
     setsid waybar >/dev/null 2>&1 &
 else
-    setsid waybar -c "$DIR/config-${config}.jsonc" -s "$DIR/style-${config}.css" >/dev/null 2>&1 &
+    CFG="$DIR/config-${config}.jsonc"
+    STYLE="$DIR/style-${config}.css"
+    mapfile -t OUT <<< "$(python3 "$DIR/capslock.py" "$CFG" "$STYLE")"
+    PCFG="${OUT[0]}"
+    PSTYLE="${OUT[1]}"
+    [[ -z "$PSTYLE" ]] && PSTYLE="$STYLE"
+    if [[ -n "$PCFG" && -f "$PCFG" ]]; then
+        setsid waybar -c "$PCFG" -s "$PSTYLE" >/dev/null 2>&1 &
+    else
+        setsid waybar -c "$CFG" -s "$STYLE" >/dev/null 2>&1 &
+    fi
+    find "$DIR" -maxdepth 1 -name ".capslock-style-*.css" ! -name ".capslock-style-${config}.css" -delete 2>/dev/null
 fi
