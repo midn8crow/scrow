@@ -86,7 +86,7 @@
 },
   "custom/scrow": {
     "format": "scrow",
-    "on-click": "/home/shadhin/.local/bin/scrow-menu-tui.sh",
+    "on-click": "/home/shadhin/.local/bin/scrow-menu-tui",
     "on-click-right": "xdg-terminal-exec",
     "tooltip-format": "Scrow Menu\n\nSuper + Alt + Space"
   },

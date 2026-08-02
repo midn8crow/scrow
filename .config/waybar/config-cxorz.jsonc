@@ -27,7 +27,7 @@
   ],
   "custom/launcher": {
     "format": "󰪥",
-    "on-click": "kitty --class scrow-tui -e /home/shadhin/.local/bin/scrow-menu-tui.sh",
+    "on-click": "kitty --class scrow-tui -e /home/shadhin/.local/bin/scrow-menu-tui",
     "tooltip": false
   },
   "custom/notifications": {

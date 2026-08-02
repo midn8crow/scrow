@@ -191,17 +191,27 @@ fetch_fresh() {
 # =============================================================================
 
 main() {
-    CHOICE=$(printf "Update from Backup\nFetch from GitHub\nBack" | fzf --prompt="System Reset > " --reverse --border --ansi)
-    
-    [ -z "$CHOICE" ] && exit 0
-    [ "$CHOICE" = "Back" ] && exit 0
-    
-    case "$CHOICE" in
-        "Update from Backup")
+    case "${1:-}" in
+        backup)
             restore_from_backup
             ;;
-        "Fetch from GitHub")
+        github)
             fetch_from_github
+            ;;
+        *)
+            CHOICE=$(printf "Update from Backup\nFetch from GitHub\nBack" | fzf --prompt="System Reset > " --reverse --border --ansi)
+            
+            [ -z "$CHOICE" ] && exit 0
+            [ "$CHOICE" = "Back" ] && exit 0
+            
+            case "$CHOICE" in
+                "Update from Backup")
+                    restore_from_backup
+                    ;;
+                "Fetch from GitHub")
+                    fetch_from_github
+                    ;;
+            esac
             ;;
     esac
 }

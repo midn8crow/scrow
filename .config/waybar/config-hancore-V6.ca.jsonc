@@ -49,7 +49,7 @@
 },
   "custom/scrow": {
     "format": "<span font=.scrow.>\ue900</span>",
-    "on-click": "/home/shadhin/.local/bin/scrow-menu-tui.sh",
+    "on-click": "/home/shadhin/.local/bin/scrow-menu-tui",
     "on-click-right": "xdg-terminal-exec",
     "tooltip-format": "Scrow Menu\n\nSuper + Alt + Space"
   },

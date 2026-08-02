@@ -126,8 +126,8 @@ hl.bind("ALT + W", hl.dsp.exec_cmd("$HOME/.config/waybar/switch-waybar.sh next")
 hl.bind("ALT + SHIFT + W", hl.dsp.exec_cmd("$HOME/.config/waybar/switch-waybar.sh prev"))
 hl.bind("SUPER + ALT + RIGHT", hl.dsp.exec_cmd("$HOME/.local/bin/vol-notify.sh up"), { repeating = true })
 hl.bind("SUPER + ALT + LEFT", hl.dsp.exec_cmd("$HOME/.local/bin/vol-notify.sh down"), { repeating = true })
-hl.bind("ALT + UP",    hl.dsp.exec_cmd("$HOME/.local/bin/brightness.sh up"))
-hl.bind("ALT + DOWN",  hl.dsp.exec_cmd("$HOME/.local/bin/brightness.sh down"))
+hl.bind("ALT + UP",    hl.dsp.window.cycle_next({ next = true, floating = true }))
+hl.bind("ALT + DOWN",  hl.dsp.window.cycle_next({ next = true, tiled = true }))
 hl.bind("ALT + 0", hl.dsp.exec_cmd("$HOME/.config/waybar/launch.sh"))
 hl.bind(mainMod .. " + N", hl.dsp.exec_cmd("$HOME/.local/bin/rofi-mako.sh"))
 hl.bind(mainMod .. " + R", hl.dsp.exec_cmd("hyprctl reload"))
@@ -135,7 +135,7 @@ hl.bind(mainMod .. " + B", hl.dsp.exec_cmd(browser))
 hl.bind("ALT + V", hl.dsp.exec_cmd("cliphist list | rofi -dmenu -p Clipboard | cliphist decode | wl-copy"))
 hl.bind("CTRL + SUPER + space", hl.dsp.exec_cmd("rofi -config ~/.config/rofi/emoji.rasi -show emoji -emoji-format '{emoji}'"))
 hl.bind("ALT + C", hl.dsp.exec_cmd("$HOME/.local/bin/rofi-calculator.sh"))
-hl.bind("CTRL + SHIFT + space", hl.dsp.exec_cmd("kitty --class scrow-tui -e $HOME/.local/bin/keybinds"))
+hl.bind("CTRL + SHIFT + space", hl.dsp.exec_cmd("kitty --class scrow-tui -o remember_window_size=no -o initial_window_width=820 -o initial_window_height=36c -e $HOME/.local/bin/scrow-menu-tui --keybinds"))
 local blur_off = {}
 hl.bind(mainMod .. " + period", function()
     local w = hl.get_active_window()
@@ -151,7 +151,7 @@ hl.bind(mainMod .. " + period", function()
         blur_off[a] = true
     end
 end, { description = "Toggle Blur & Opacity", locked = true })
-hl.bind(mainMod .. " + SHIFT + S", hl.dsp.exec_cmd("kitty --class scrow-tui -e $HOME/.local/bin/scrow-menu-tui.sh"))
+hl.bind(mainMod .. " + SHIFT + S", hl.dsp.exec_cmd("kitty --class scrow-tui -o remember_window_size=no -o initial_window_width=820 -o initial_window_height=36c -e $HOME/.local/bin/scrow-menu-tui"))
 hl.bind(mainMod .. " + SHIFT + U", hl.dsp.exec_cmd("$HOME/.local/bin/update-dots.sh"))
 hl.bind(mainMod .. " + SHIFT + P", hl.dsp.exec_cmd("$HOME/.local/bin/pick-color-region.sh"))
 hl.bind(mainMod .. " + T", hl.dsp.exec_cmd("$HOME/.local/bin/ocr-toggle.sh"))
@@ -192,11 +192,24 @@ hl.bind(mainMod .. " + SHIFT + L", function()
     hl.workspace_rule({ workspace = id, layout = ws_layouts[id] })
 end)
 
--- Move focus with mainMod + arrow keys
-hl.bind(mainMod .. " + left",  hl.dsp.focus({ direction = "left" }))
-hl.bind(mainMod .. " + right", hl.dsp.focus({ direction = "right" }))
-hl.bind(mainMod .. " + up",    hl.dsp.focus({ direction = "up" }))
-hl.bind(mainMod .. " + down",  hl.dsp.focus({ direction = "down" }))
+-- Move focus with mainMod + arrow keys; move the window if it's floating
+local float_move_step = 20
+
+local function move_float_or_focus(dx, dy, dir)
+    return function()
+        local w = hl.get_active_window()
+        if w and w.floating then
+            hl.dispatch(hl.dsp.window.move({ x = dx, y = dy, relative = true }))
+        else
+            hl.dispatch(hl.dsp.focus({ direction = dir }))
+        end
+    end
+end
+
+hl.bind(mainMod .. " + left",  move_float_or_focus(-float_move_step, 0, "left"),   { repeating = true })
+hl.bind(mainMod .. " + right", move_float_or_focus(float_move_step, 0, "right"),  { repeating = true })
+hl.bind(mainMod .. " + up",    move_float_or_focus(0, -float_move_step, "up"),    { repeating = true })
+hl.bind(mainMod .. " + down",  move_float_or_focus(0, float_move_step, "down"),   { repeating = true })
 
 -- Swap window with mainMod + SHIFT + arrow keys
 hl.bind(mainMod .. " + SHIFT + left",  hl.dsp.window.swap({ direction = "left" }))
