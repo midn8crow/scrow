@@ -29,7 +29,7 @@
   "custom/appmenu": {
     "format": "󰣇",
     "tooltip-format": "Left: Open the application launcher\nRight: Show all keybindings",
-    "on-click": "/home/shadhin/.local/bin/scrow-menu-tui",
+    "on-click": "$HOME/.local/bin/scrow-menu-tui",
     "on-click-right": "~/.config/notscripter/scripts/keybindings.sh",
     "tooltip": false
   },
