@@ -84,7 +84,7 @@
   },
   "custom/scrow": {
     "format": "<span font=.scrow.>\ue900</span>",
-    "on-click": "$HOME/.local/bin/scrow-menu-tui",
+    "on-click": "kitty --class scrow-tui -o remember_window_size=no -o initial_window_width=820 -o initial_window_height=36c -e $HOME/.local/bin/scrow-menu-tui",
     "on-click-right": "xdg-terminal-exec",
     "tooltip-format": "Scrow Menu\n\nSuper + Alt + Space"
   },
