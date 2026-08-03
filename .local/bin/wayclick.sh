@@ -101,7 +101,7 @@ readonly VENV_DIR="$BASE_DIR/.venv"
 readonly PYTHON_BIN="$VENV_DIR/bin/python"
 readonly RUNNER_SCRIPT="$BASE_DIR/runner.py"
 readonly CONFIG_DIR="$HOME/.config/wayclick"
-readonly STATE_FILE="$HOME/.config/dusky/settings/wayclick"
+readonly STATE_FILE="$HOME/.config/scrow/settings/wayclick"
 readonly VOLUME_FILE="$HOME/.config/wayclick/volume"
 
 # --- ANSI COLORS ---
