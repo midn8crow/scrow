@@ -3,3 +3,7 @@
 [templates.firefox]
 input_path  = '~/.config/matugen/templates/firefox-colors.css'
 output_path = '~/.config/firefox/colors.css'
+
+[templates.scrowmenu]
+input_path  = '~/.config/matugen/templates/scrowmenu-colors.conf'
+output_path = '~/.config/scrowmenu/colors.conf'

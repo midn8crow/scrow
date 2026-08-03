@@ -138,6 +138,18 @@ hl.config({
 BEOF
 hyprctl eval "hl.config({ general = { col = { active_border = \"rgba(${active_hex}ee)\", inactive_border = \"rgba(${inactive_hex}aa)\" } } })"
 
+# Scrow menu colors
+mkdir -p "$HOME/.config/scrowmenu"
+cat > "$HOME/.config/scrowmenu/colors.conf" << SCEOF
+base=${background}
+accent=${primary}
+text=${on_background}
+text_dim=${on_surface_variant}
+text_faint=${outline}
+green=${tertiary}
+red=${error}
+SCEOF
+
 # Qt6 color scheme (Fusion dark)
 cat > "$HOME/.config/qt6ct/qt6ct.conf" << QEOF
 [Appearance]

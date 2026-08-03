@@ -214,6 +214,17 @@ FEOF
 # Copy to Firefox profile
 cp "$HOME/.config/firefox/colors.css" "$HOME/.mozilla/firefox/efypgmxk.default-release/chrome/colors.css" 2>/dev/null
 
+# Scrow menu colors
+cat > "$HOME/.config/scrowmenu/colors.conf" << SCEOF
+base=${background}
+accent=${primary}
+text=${on_background}
+text_dim=${on_surface_variant}
+text_faint=${outline}
+green=${tertiary}
+red=${error}
+SCEOF
+
 # Reload waybar
 killall -SIGUSR2 waybar 2>/dev/null || (killall waybar 2>/dev/null; sleep 0.5; waybar &)
 
