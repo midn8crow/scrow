@@ -35,6 +35,6 @@ x-scheme-handler/http=zen.desktop;
 x-scheme-handler/https=zen.desktop;
 text/html=zen.desktop;
 x-scheme-handler/chrome=zen.desktop;
-application/json=nvim.desktop;codium.desktop;org.xfce.mousepad.desktop;vim.desktop;libreoffice-writer.desktop;
+application/json=libreoffice-writer.desktop;org.xfce.mousepad.desktop;nvim.desktop;codium.desktop;vim.desktop;
 video/mp4=mpv.desktop;
 audio/mpeg=mpv.desktop;
