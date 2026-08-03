@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 
+if pgrep -f "rofi -dmenu.*Notifications" >/dev/null 2>&1; then
+    pkill -f "rofi -dmenu.*Notifications"
+    exit 0
+fi
+
 ACTIVE=$(makoctl list -j 2>/dev/null || echo "[]")
 HISTORY=$(makoctl history -j 2>/dev/null || echo "[]")
 
