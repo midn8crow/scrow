@@ -21,6 +21,7 @@ temp/
 *.pem
 .env
 .env.local
+.config/rclone/rclone.conf
 
 # Large files
 *.iso
