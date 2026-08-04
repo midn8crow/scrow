@@ -200,12 +200,5 @@ hl.window_rule({
     center = true,
 })
 
-hl.window_rule({
-    name  = "kdeconnect-float",
-    match = { class = "org.kde.kdeconnect.app" },
-    float  = true,
-    center = true,
-})
-
 
 

@@ -10,7 +10,9 @@
 @define-color headerbar_shade_color rgba(0, 0, 0, 0.36);
 @define-color sidebar_bg_color #11111b;
 @define-color sidebar_fg_color #cdd6f4;
+@define-color sidebar_backdrop_color #11111b;
 @define-color secondary_sidebar_bg_color #181825;
+@define-color secondary_sidebar_backdrop_color #181825;
 @define-color card_bg_color #181825;
 @define-color card_fg_color #cdd6f4;
 @define-color card_shade_color rgba(0, 0, 0, 0.36);

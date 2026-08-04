@@ -511,6 +511,8 @@ install_core_packages() {
         "graphicsmagick"
         "moviebox-tui"
         "rust"
+        "hypr-kdeconnect-fix-git"
+        "kdeconnect"
     )
     
     # Clipboard
