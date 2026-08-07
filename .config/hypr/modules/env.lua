@@ -49,6 +49,7 @@ hl.env("XMODIFIERS", "@im=fcitx")
 
 --AMD Performance--
 hl.env("AMD_VULKAN_ICD", "RADV")
+hl.env("AMD_DEBUG", "nodcc")
 hl.env("RADV_PERFTEST", "gpl")
 hl.env("mesa_glthread", "true")
 hl.env("vblank_mode", "0")
