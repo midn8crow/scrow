@@ -90,7 +90,7 @@ SELECTED_INDEX=$(echo -n "$MENU_STRING" | rofi -dmenu -i -p "󰎟 Notifications"
     -hover-select \
     -me-select-entry '' \
     -me-accept-entry 'MousePrimary' \
-    -theme-str 'window {width: 45%;} listview {lines: 6; fixed-height: false;} element {padding: 10px 14px;} element-text {vertical-align: 0.5;}')
+    -theme-str 'window {width: 35%;} listview {lines: 6; fixed-height: false;} element {padding: 10px 14px;} element-text {vertical-align: 0.5;}')
 
 ROFI_EXIT=$?
 

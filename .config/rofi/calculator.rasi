@@ -3,7 +3,7 @@
 window {
     location:           center;
     anchor:             center;
-    width:              340px;
+    width:              380px;
     border:             2px;
     border-color:       @purple;
     border-radius:      16px;
@@ -69,7 +69,7 @@ element {
     border-radius:      8px;
     cursor:             pointer;
     background-color:   @bg1;
-    padding:            8px 0;
+    padding:            10px 0;
     spacing:            0;
 }
 
@@ -92,7 +92,7 @@ element-text {
     background-color:   transparent;
     text-color:         inherit;
     cursor:             inherit;
-    font:               "JetBrainsMono Nerd Font Bold 12";
+    font:               "JetBrainsMono Nerd Font Bold 14";
     padding:            0;
 }
 

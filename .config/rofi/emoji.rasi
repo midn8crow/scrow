@@ -14,8 +14,10 @@ configuration {
     kb-mode-previous:       "Shift+Tab,ISO_Left_Tab";
     kb-element-next:        "";
     kb-element-prev:        "";
-    kb-row-up:              "Up";
-    kb-row-down:            "Down";
+    kb-row-up:              "Up,k";
+    kb-row-down:            "Down,j";
+    kb-row-left:            "h";
+    kb-row-right:           "l";
     me-select-entry:        "";
     me-accept-entry:        "MousePrimary";
     click-to-exit:          true;

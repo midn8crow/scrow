@@ -339,3 +339,32 @@ hl.bind("XF86AudioPrev",  hl.dsp.exec_cmd("playerctl previous"),   { locked = tr
 
 -- Mechanical keypress sounds (WayClick) toggle
 hl.bind("CTRL + SHIFT + X", hl.dsp.exec_cmd(wayclick))
+
+-- Zoom at cursor: ALT+Z enters zoom mode, scroll wheel zooms around the
+-- mouse pointer, ALT+Z / ESC / any other key exits and resets to 1x
+local zoom_script = "$HOME/.local/bin/zoom.sh"
+local zoom_step = "0.25"
+
+local function zoom_exit()
+    hl.dispatch(hl.dsp.exec_cmd(zoom_script .. " reset"))
+    hl.dispatch(hl.dsp.submap("reset"))
+end
+
+hl.bind("ALT + Z", hl.dsp.submap("zoom"), { description = "Enter zoom mode" })
+
+hl.define_submap("zoom", function()
+    hl.bind("mouse_down", hl.dsp.exec_cmd(zoom_script .. " +" .. zoom_step), { description = "Zoom in" })
+    hl.bind("mouse_up",   hl.dsp.exec_cmd(zoom_script .. " -" .. zoom_step), { description = "Zoom out" })
+    hl.bind("ALT + Z", zoom_exit, { description = "Exit zoom mode" })
+    hl.bind("escape", zoom_exit, { description = "Exit zoom mode" })
+    hl.bind("catchall", zoom_exit, { description = "Exit zoom mode on any key" })
+end)
+
+-- Screen rotation: hold ALT+SHIFT+R and press arrow keys to rotate the focused
+-- monitor by 90-degree steps. R is optional while holding the chord.
+local rotate_script = "$HOME/.local/bin/rotate-screen.sh"
+
+hl.bind("ALT + SHIFT + right", hl.dsp.exec_cmd(rotate_script .. " ccw"),   { description = "Rotate counter-clockwise" })
+hl.bind("ALT + SHIFT + left",  hl.dsp.exec_cmd(rotate_script .. " cw"),    { description = "Rotate clockwise" })
+hl.bind("ALT + SHIFT + up",    hl.dsp.exec_cmd(rotate_script .. " half"),  { description = "Rotate 180" })
+hl.bind("ALT + SHIFT + down",  hl.dsp.exec_cmd(rotate_script .. " reset"), { description = "Reset rotation" })

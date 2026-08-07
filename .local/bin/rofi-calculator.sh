@@ -26,15 +26,31 @@ append_history() {
     history=$(echo -e "$history" | tail -2)
 }
 
+evaluate() {
+    local expr="$1"
+    local result
+    result=$(qalc -t "$expr" 2>/dev/null)
+    if [ -n "$result" ] && [ "$result" != "Error" ]; then
+        append_history "${expr} = ${result}"
+        echo -n "$result" | wl-copy
+        notify-send -a "Calculator" -i calculator "${expr} = ${result}" -t 2000
+        expression="$result"
+    else
+        append_history "${expr} = Error"
+        expression=""
+    fi
+}
+
 while true; do
     display_msg="$(calc_display)"
 
     choice=$(printf '%s\n' "${buttons[@]}" | rofi -dmenu \
         -config ~/.config/rofi/calculator.rasi \
         -mesg "$display_msg" \
-        -p " Calc" \
-        -selected-row 0 \
-        -no-custom)
+        -hover-select \
+        -me-select-entry '' \
+        -me-accept-entry MousePrimary \
+        -selected-row 0)
 
     [ $? -ne 0 ] && exit 0
 
@@ -69,16 +85,7 @@ while true; do
             expression="${expression}${choice}"
             ;;
         "=")
-            result=$(qalc -t "$expression" 2>/dev/null)
-            if [ -n "$result" ] && [ "$result" != "Error" ]; then
-                append_history "${expression} = ${result}"
-                echo -n "$result" | wl-copy
-                notify-send -a "Calculator" -i calculator "${expression} = ${result}" -t 2000
-                expression="$result"
-            else
-                append_history "${expression} = Error"
-                expression=""
-            fi
+            evaluate "$expression"
             ;;
         "÷")
             expression="${expression}/"
@@ -94,6 +101,10 @@ while true; do
             ;;
         "."|[0-9])
             expression="${expression}${choice}"
+            ;;
+        *)
+            typed="${choice%=}"
+            [ -n "$typed" ] && evaluate "${expression}${typed}"
             ;;
     esac
 done
