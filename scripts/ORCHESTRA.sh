@@ -894,15 +894,6 @@ configure_security() {
         print_ok "Security scripts deployed to ~/security-hardening/"
     fi
 
-    # Install the pre-install package scan hook (fires on every pacman/paru update)
-    print_info "Installing update-scan pacman hook..."
-    mkdir -p /etc/pacman.d/hooks
-    if [ -f "$HOME/security-hardening/update-scan.hook" ]; then
-        sudo install -Dm644 "$HOME/security-hardening/update-scan.hook" /etc/pacman.d/hooks/update-scan.hook
-        print_ok "Update-scan hook installed (every update is scanned before install)"
-    else
-        print_warn "update-scan.hook not found, skipping"
-    fi
     
     # Deploy scrow menu scripts to ~/.local/bin/
     print_info "Deploying scrow menu scripts..."

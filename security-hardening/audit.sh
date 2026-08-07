@@ -286,15 +286,51 @@ fi
 echo ""
 
 # 16. ClamAV malware scan
-echo -e "${YELLOW}[16] Running ClamAV malware scan...${NC}"
+echo -e "${YELLOW}[16] Running ClamAV malware scan (may take a few minutes)...${NC}"
 if command -v clamscan &>/dev/null; then
     if [ ! -s /var/lib/clamav/main.cvd ] && [ ! -s /var/lib/clamav/main.cld ]; then
         warn "ClamAV virus database missing - run: sudo freshclam"
     else
-        SCAN_OUT=$(clamscan -r /home/* /etc /usr/local/bin /usr/local/sbin /opt /tmp 2>/dev/null)
-        INFECTED=$(echo "$SCAN_OUT" | grep -E ": FOUND$" || true)
-        SCANNED=$(echo "$SCAN_OUT" | grep -E "Scanned files" | awk '{print $3}' || echo 0)
-        if [ -n "$INFECTED" ]; then
+        CLAM_EXCLUDE=(
+            --exclude-dir='^/home/[^/]+/\.cache$'
+            --exclude-dir='^/home/[^/]+/\.local/share/Trash$'
+            --exclude-dir='^/home/[^/]+/gdrive$'
+            --exclude-dir='^/home/[^/]+/paru$'
+        )
+        SCAN_LOG=$(mktemp /tmp/clamscan.XXXXXX)
+        printf '  counting files to scan...   '
+        TOTAL=$(find /home/* /etc /usr/local/bin /usr/local/sbin /opt /tmp -type f -size -25M \
+            ! -path '*/\.cache/*' ! -path '*/.local/share/Trash/*' ! -path '*/gdrive/*' \
+            ! -path '*/paru/*' 2>/dev/null | wc -l)
+        TOTAL=$(echo "$TOTAL" | tr -d '[:space:]')
+        printf '\r  \033[K'
+        timeout 600 clamscan -r /home/* /etc /usr/local/bin /usr/local/sbin /opt /tmp \
+            --max-filesize=25M --max-scansize=100M "${CLAM_EXCLUDE[@]}" 2>/dev/null > "$SCAN_LOG" &
+        CLAM_PID=$!
+        SPIN=('|' '/' '-' '\')
+        i=0
+        while kill -0 "$CLAM_PID" 2>/dev/null; do
+            COUNT=$(grep -c '^/' "$SCAN_LOG" 2>/dev/null || true)
+            PCT=0
+            [ "${TOTAL:-0}" -gt 0 ] 2>/dev/null && PCT=$(( COUNT * 100 / TOTAL ))
+            [ "$PCT" -gt 99 ] 2>/dev/null && PCT=99
+            LEFT=$(( TOTAL - COUNT ))
+            [ "$LEFT" -lt 0 ] 2>/dev/null && LEFT=0
+            LAST=$(tail -n1 "$SCAN_LOG" 2>/dev/null)
+            printf '\r  %s scanning: %s/%s files (%s%%)  left: %s  (last: %s)   ' \
+                "${SPIN[$((i%4))]}" "$COUNT" "${TOTAL:-?}" "$PCT" "$LEFT" "$(basename "$LAST" 2>/dev/null)"
+            i=$((i+1))
+            sleep 0.5
+        done
+        wait "$CLAM_PID"
+        SCAN_RC=$?
+        printf '\r  \033[K'
+        INFECTED=$(grep -E ": FOUND$" "$SCAN_LOG" || true)
+        SCANNED=$(grep -E "Scanned files" "$SCAN_LOG" | awk '{print $3}' || echo 0)
+        rm -f "$SCAN_LOG"
+        if [ "$SCAN_RC" -eq 124 ]; then
+            warn "ClamAV scan timed out after 10 min - run manually: sudo clamscan -r /home /etc"
+        elif [ -n "$INFECTED" ]; then
             threat "Malware detected by ClamAV:"
             echo "$INFECTED" | head -5 | while IFS= read -r line; do echo "      $line"; done
         else
