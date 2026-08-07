@@ -3,13 +3,19 @@
 configuration {
     show-icons:     false;
     font:           "Noto Color Emoji 16";
-    modi:           "emoji";
+    modi:           "recents:$HOME/.local/bin/emoji-recents.sh,all:$HOME/.local/bin/emoji-all.sh,people:$HOME/.local/bin/emoji-people.sh,organs:$HOME/.local/bin/emoji-organs.sh,animals:$HOME/.local/bin/emoji-animals.sh,food:$HOME/.local/bin/emoji-food.sh,symbols:$HOME/.local/bin/emoji-symbols.sh";
     matching:       "normal";
     sort:           false;
 
     kb-cancel:              "Escape";
     kb-remove-char-back:    "BackSpace,Shift+BackSpace";
     kb-accept-entry:        "Return,KP_Enter";
+    kb-mode-next:           "Tab";
+    kb-mode-previous:       "Shift+Tab,ISO_Left_Tab";
+    kb-element-next:        "";
+    kb-element-prev:        "";
+    kb-row-up:              "Up";
+    kb-row-down:            "Down";
     me-select-entry:        "";
     me-accept-entry:        "MousePrimary";
     click-to-exit:          true;
@@ -18,7 +24,7 @@ configuration {
 window {
     location:           center;
     anchor:             center;
-    width:              420px;
+    width:              440px;
     border-width:       1px;
     border-color:       @purple;
     border-radius:      10px;
@@ -28,7 +34,7 @@ window {
 }
 
 mainbox {
-    children:           [ inputbar, listview ];
+    children:           [ inputbar, listview, mode-switcher ];
     spacing:            8px;
     background-color:   transparent;
 }
@@ -60,6 +66,7 @@ entry {
 listview {
     columns:            8;
     lines:              6;
+    fixed-columns:      true;
     cycle:              true;
     scrollbar:          false;
     spacing:            2px;
@@ -123,4 +130,34 @@ element alternate.urgent {
 element selected.urgent {
     background-color:   transparent;
     text-color:         @fg1;
+}
+
+mode-switcher {
+    spacing:            2px;
+    padding:            4px 0 0 0;
+    background-color:   transparent;
+}
+
+button {
+    padding:            4px 8px;
+    border-radius:      10px;
+    background-color:   @bg1;
+    text-color:         @fg1;
+    font:               "JetBrainsMono Nerd Font 8";
+    horizontal-align:   0.5;
+    vertical-align:     0.5;
+}
+
+button normal.normal,
+button normal.active,
+button normal.urgent {
+    background-color:   @bg1;
+    text-color:         @fg1;
+}
+
+button selected.normal {
+    background-color:   @highlight;
+    text-color:         #ffffff;
+    border-width:       1px;
+    border-color:       @purple;
 }
