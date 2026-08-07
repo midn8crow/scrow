@@ -54,3 +54,10 @@ target/
 # Backups
 *.bak
 .local/bin/update-dots.sh
+
+# Runtime junk (regenerated every session)
+.config/ibus/bus/
+.config/fcitx/dbus/
+.config/mimeinfo.cache
+*.tmp
+*.pid
