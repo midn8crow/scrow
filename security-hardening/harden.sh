@@ -22,8 +22,8 @@ echo ""
 
 # 1. Install packages
 echo -e "${YELLOW}[1/12] Installing security packages...${NC}"
-pacman -S --needed --noconfirm nftables fail2ban pacman-contrib bubblewrap 2>/dev/null || true
-echo -e "  ${GREEN}[OK]${NC} Packages installed"
+pacman -S --needed --noconfirm nftables fail2ban pacman-contrib bubblewrap clamav rkhunter lynis 2>/dev/null || true
+echo -e "  ${GREEN}[OK]${NC} Packages installed (nftables, fail2ban, clamav, rkhunter, lynis)"
 
 # 2. Firewall
 echo -e "${YELLOW}[2/12] Loading firewall rules...${NC}"
@@ -97,36 +97,39 @@ for svc in avahi-daemon cups bluetooth; do
 done
 echo -e "  ${GREEN}[OK]${NC} Unused services disabled"
 
-# 10. Deploy package-scanning scripts (aur-check + update-scan)
+# 10. Deploy package-scanning scripts (aur-check + audit + monitor)
 echo -e "${YELLOW}[10/12] Deploying package-scanning scripts...${NC}"
 SRC_SEC="$USER_HOME/dotfiles/security-hardening"
 LIVE_SEC="$USER_HOME/security-hardening"
 mkdir -p "$LIVE_SEC"
-for f in aur-check.sh update-scan.sh update-scan.hook; do
+for f in aur-check.sh audit.sh monitor.sh; do
     if [ -f "$SRC_SEC/$f" ]; then
         cp "$SRC_SEC/$f" "$LIVE_SEC/$f"
     fi
 done
-chmod +x "$LIVE_SEC/aur-check.sh" "$LIVE_SEC/update-scan.sh" 2>/dev/null || true
-echo -e "  ${GREEN}[OK]${NC} aur-check.sh + update-scan.sh deployed (bubblewrap sandbox included)"
+chmod +x "$LIVE_SEC/aur-check.sh" "$LIVE_SEC/audit.sh" "$LIVE_SEC/monitor.sh" 2>/dev/null || true
+echo -e "  ${GREEN}[OK]${NC} aur-check.sh + audit.sh + monitor.sh deployed (bubblewrap sandbox included)"
 
-# 11. Pacman pre-install scan hook (runs on every pacman/paru update, survives reboots)
-echo -e "${YELLOW}[11/12] Installing update-scan pacman hook...${NC}"
-mkdir -p /etc/pacman.d/hooks
-if [ -f "$LIVE_SEC/update-scan.hook" ]; then
-    install -Dm644 "$LIVE_SEC/update-scan.hook" /etc/pacman.d/hooks/update-scan.hook
-    echo -e "  ${GREEN}[OK]${NC} Hook installed - every update scans packages before install"
-else
-    echo -e "  ${YELLOW}[WARN]${NC} update-scan.hook not found, skipping"
-fi
-
-# 12. Wire cargo (rustup) into the shell so rustup-managed tools are found
-echo -e "${YELLOW}[12/12] Wiring cargo (rustup) into shell...${NC}"
+# 11. Wire cargo (rustup) into the shell so rustup-managed tools are found
+echo -e "${YELLOW}[11/12] Wiring cargo (rustup) into shell...${NC}"
 for rc in "$USER_HOME/.zshrc" "$USER_HOME/dotfiles/.zshrc"; do
     [ -f "$rc" ] || continue
     grep -q '. "$HOME/.cargo/env"' "$rc" || echo '. "$HOME/.cargo/env"' >> "$rc"
 done
 echo -e "  ${GREEN}[OK]${NC} cargo env sourced (new shells see rustup cargo)"
+
+# 13. Initialize security databases (ClamAV + rkhunter baseline)
+echo -e "${YELLOW}[12/12] Initializing ClamAV + rkhunter databases...${NC}"
+if command -v freshclam &>/dev/null; then
+    freshclam >/dev/null 2>&1 && echo -e "  ${GREEN}[OK]${NC} ClamAV virus database updated" || echo -e "  ${YELLOW}[WARN]${NC} freshclam failed (check network / run: sudo freshclam)"
+    systemctl enable --now clamav-freshclam.timer >/dev/null 2>&1 || true
+else
+    echo -e "  ${YELLOW}[WARN]${NC} freshclam not found (reinstall clamav)"
+fi
+if command -v rkhunter &>/dev/null; then
+    rkhunter --propupd >/dev/null 2>&1 && echo -e "  ${GREEN}[OK]${NC} rkhunter baseline properties saved" || echo -e "  ${YELLOW}[WARN]${NC} rkhunter propupd failed"
+fi
+echo ""
 
 echo ""
 echo "=========================================="
@@ -180,15 +183,7 @@ else
     echo -e "  ${RED}[FAIL]${NC} VPN hook: not installed"
 fi
 
-# Check pre-install scan hook
-if [ -f /etc/pacman.d/hooks/update-scan.hook ] && [ -x "$LIVE_SEC/update-scan.sh" ]; then
-    echo -e "  ${GREEN}[OK]${NC} Update scan: hook installed + scanner ready"
-    CHECK=$((CHECK+1))
-else
-    echo -e "  ${RED}[FAIL]${NC} Update scan: hook or scanner missing"
-fi
-
 echo ""
-echo "  $CHECK/6 checks passed"
+echo "  $CHECK/5 checks passed"
 echo ""
 echo "Reboot recommended."

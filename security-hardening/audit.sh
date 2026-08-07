@@ -6,8 +6,10 @@ if [ "$EUID" -ne 0 ]; then
     exec sudo "$0" "$@"
 fi
 
-# Clear screen AND scrollback buffer
-printf '\033[2J\033[H\033[3J'
+# Clear screen AND scrollback buffer (skip when run from harden.sh)
+if [ -z "$HARDEN_AUDIT" ]; then
+    printf '\033[2J\033[H\033[3J'
+fi
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -54,8 +56,8 @@ if [ -f ~/.ssh/config ]; then
     fi
 fi
 if [ -f /etc/ssh/sshd_config ]; then
-    PERMIT_ROOT=$(grep -i "^PermitRootLogin" /etc/ssh/sshd_config 2>/dev/null | awk '{print $2}')
-    PASS_AUTH=$(grep -i "^PasswordAuthentication" /etc/ssh/sshd_config 2>/dev/null | awk '{print $2}')
+    PERMIT_ROOT=$(sshd -T 2>/dev/null | sed -n 's/^permitrootlogin[[:space:]]*//p' | head -1)
+    PASS_AUTH=$(sshd -T 2>/dev/null | sed -n 's/^passwordauthentication[[:space:]]*//p' | head -1)
     if [ "$PERMIT_ROOT" = "yes" ]; then
         threat "SSH root login enabled"
     else
@@ -131,7 +133,7 @@ echo ""
 
 # 6. Listening ports
 echo -e "${YELLOW}[6] Analyzing listening ports...${NC}"
-SAFE_PORTS=":(22|80|443|53|631|3000|8080|8443|9090|67|68|5353|5432|3306|6379|27017|111|2049|8200|8888|5000|5355|1900|7946|2377|9100|9200|2375|2376|10250|10255|6443) "
+SAFE_PORTS=":(22|80|443|53|631|3000|8080|8443|9090|67|68|5353|5432|3306|6379|27017|111|2049|8200|8888|5000|5355|1900|7946|2377|9100|9200|2375|2376|10250|10255|6443|1714|1716) "
 UNUSUAL_PORTS=$(ss -tlnp 2>/dev/null | grep -vE "$SAFE_PORTS" | grep "LISTEN" | head -10)
 if [ -n "$UNUSUAL_PORTS" ]; then
     warn "Ports listening (review these):"
@@ -240,7 +242,7 @@ echo ""
 
 # 12. Kernel modules
 echo -e "${YELLOW}[12] Checking loaded kernel modules...${NC}"
-KNOWN_MODULES="ext4|xfs|btrfs|vfat|fat|ntfs|fuse|usb|hid|input|sound|snd|drm|i915|nvidia|amdgpu|bluetooth|rfkill|tun|bridge|veth|overlay|loop|sr_mod|sd_mod|ahci|ata|nvme|nfs|cifs|ipv6|ip_tables|nf_|xt_|tcp|udp|bonding|8021q|virtio|kvm|kvm_amd|kvm_intel|cfg80211|mac80211|intel|amd|realtek|r8169|r8168|r8125|e1000|e1000e|igb|igc|i40e|bnxt|mlx|thunderbolt|pcspkr|joydev|evdev|pciehp|acpi|battery|button|processor|thermal|fan|joydev|ppp|slip|cdc|usbcore|usbhid|uhid|uinput|hid_generic|hid_apple|hid_logitech|nls|crc|crypto|aes|sha|md5|lzo|zstd|deflate|arc4|ccm|gcm|chacha|poly1305|nft_|nf_|xt_|ip6_|ip_|iptable|raw|conntrack|br_netfilter|stp|llc|8021q|dummy|dummy0|veth|tap|tun|bond|bonding|team|bridge|vrf|geneve|vxlan|wireguard|openvswitch|nbd|dm_|md_|raid|async|iscsi|target|fuse|cuse|bpf|btrfs|zram|zswap|crypto_|algif|af_alg"
+KNOWN_MODULES="ext4|xfs|btrfs|vfat|fat|ntfs|fuse|usb|hid|input|sound|snd|drm|i915|nvidia|amdgpu|bluetooth|rfkill|tun|bridge|veth|overlay|loop|sr_mod|sd_mod|ahci|ata|nvme|nfs|cifs|ipv6|ip_tables|nf_|xt_|tcp|udp|bonding|8021q|virtio|kvm|kvm_amd|kvm_intel|cfg80211|mac80211|intel|amd|realtek|r8169|r8168|r8125|e1000|e1000e|igb|igc|i40e|bnxt|mlx|thunderbolt|pcspkr|joydev|evdev|pciehp|acpi|battery|button|processor|thermal|fan|joydev|ppp|slip|cdc|usbcore|usbhid|uhid|uinput|hid_generic|hid_apple|hid_logitech|nls|crc|crypto|aes|sha|md5|lzo|zstd|deflate|arc4|ccm|gcm|chacha|poly1305|nft_|nf_|xt_|ip6_|ip_|iptable|raw|conntrack|br_netfilter|stp|llc|8021q|dummy|dummy0|veth|tap|tun|bond|bonding|team|bridge|vrf|geneve|vxlan|wireguard|openvswitch|nbd|dm_|md_|raid|async|iscsi|target|fuse|cuse|bpf|btrfs|zram|zswap|crypto_|algif|af_alg|ee1004|sp5100_tco|i2c_piix4|wmi_bmof|rapl|k10temp|mousedev|i2c_dev"
 SUSPICIOUS_MODS=$(lsmod 2>/dev/null | awk 'NR>1 && $3==0 {print $1}' | grep -viE "$KNOWN_MODULES" | head -5)
 if [ -n "$SUSPICIOUS_MODS" ]; then
     warn "Unusual kernel modules loaded:"
@@ -280,6 +282,60 @@ if command -v checkupdates &>/dev/null; then
     [ "${UPDATES:-0}" -gt 0 ] 2>/dev/null && warn "$UPDATES packages have updates available" || ok "System up to date"
 else
     info "checkupdates not available (install pacman-contrib)"
+fi
+echo ""
+
+# 16. ClamAV malware scan
+echo -e "${YELLOW}[16] Running ClamAV malware scan...${NC}"
+if command -v clamscan &>/dev/null; then
+    if [ ! -s /var/lib/clamav/main.cvd ] && [ ! -s /var/lib/clamav/main.cld ]; then
+        warn "ClamAV virus database missing - run: sudo freshclam"
+    else
+        SCAN_OUT=$(clamscan -r /home/* /etc /usr/local/bin /usr/local/sbin /opt /tmp 2>/dev/null)
+        INFECTED=$(echo "$SCAN_OUT" | grep -E ": FOUND$" || true)
+        SCANNED=$(echo "$SCAN_OUT" | grep -E "Scanned files" | awk '{print $3}' || echo 0)
+        if [ -n "$INFECTED" ]; then
+            threat "Malware detected by ClamAV:"
+            echo "$INFECTED" | head -5 | while IFS= read -r line; do echo "      $line"; done
+        else
+            ok "ClamAV scan clean (${SCANNED:-0} files scanned)"
+        fi
+    fi
+else
+    info "clamscan not installed (install with: sudo pacman -S clamav)"
+fi
+echo ""
+
+# 17. Rootkit check
+echo -e "${YELLOW}[17] Running rootkit check (rkhunter)...${NC}"
+if command -v rkhunter &>/dev/null; then
+    RK_OUT=$(rkhunter --check --rwo --nocolors --skip-keypress 2>/dev/null)
+    if [ -n "$RK_OUT" ]; then
+        warn "rkhunter warnings:"
+        echo "$RK_OUT" | head -10 | while IFS= read -r line; do echo "      $line"; done
+    else
+        ok "rkhunter - no rootkit warnings"
+    fi
+else
+    info "rkhunter not installed (install with: sudo pacman -S rkhunter)"
+fi
+echo ""
+
+# 18. Lynis deep audit
+echo -e "${YELLOW}[18] Running deep audit (lynis)...${NC}"
+if command -v lynis &>/dev/null; then
+    LYNIS_OUT=$(lynis --cronjob --no-colors audit system 2>/dev/null)
+    HARDEN=$(echo "$LYNIS_OUT" | grep -i "hardening index" | tail -1 | sed 's/^[[:space:]]*//')
+    [ -n "$HARDEN" ] && ok "$HARDEN"
+    LYNIS_WARN=$(echo "$LYNIS_OUT" | grep -ciE "warning" || true)
+    LYNIS_WARN=$(echo "$LYNIS_WARN" | tr -d '[:space:]')
+    if [ "${LYNIS_WARN:-0}" -gt 0 ] 2>/dev/null; then
+        warn "lynis: $LYNIS_WARN warnings - full report: /var/log/lynis-report.dat"
+    else
+        ok "lynis - no warnings found"
+    fi
+else
+    info "lynis not installed (install with: sudo pacman -S lynis)"
 fi
 echo ""
 
