@@ -6,7 +6,7 @@ options=" Lock
  Reboot
  Shutdown"
 
-chosen=$(echo -e "$options" | rofi -dmenu -p "Power Menu")
+chosen=$(echo -e "$options" | rofi -dmenu -p "Power Menu" -theme-str 'window { width: 300; }')
 
 [ -z "$chosen" ] && exit 0
 sleep 0.3
