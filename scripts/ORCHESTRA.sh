@@ -513,6 +513,7 @@ install_core_packages() {
         "rust"
         "hypr-kdeconnect-fix-git"
         "kdeconnect"
+        "sqlite"
     )
     
     # Clipboard

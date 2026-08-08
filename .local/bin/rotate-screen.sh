@@ -28,6 +28,30 @@ scale=$(echo "$cur" | jq -r '.scale')
 
 hyprctl eval "hl.monitor({ output = \"$mon\", mode = \"$mode\", position = \"$pos\", scale = \"$scale\", transform = $nt })"
 
+# Only run the mouse-unrotate daemon while the screen is actually rotated.
+# On reset the kernel releases the grab and destroys the virtual mouse.
+daemon="$HOME/.local/bin/mouse-rotate-daemon.py"
+daemon_running() { pgrep -f "$daemon" >/dev/null 2>&1; }
+start_daemon() {
+    if ! daemon_running; then
+        setsid nohup "$daemon" </dev/null >/dev/null 2>&1 &
+        disown
+    fi
+}
+kill_daemon() { pkill -f "$daemon" 2>/dev/null || true; }
+notify() {
+    notify-send --app-name=rotate-screen.sh --icon=object-rotate-right -t 1000 \
+        --hint=string:x-canonical-private-synchronous:mouse-driver "$1" "$2" >/dev/null 2>&1 || true
+}
+
+if [ "$nt" -eq 0 ]; then
+    kill_daemon
+    notify "Mouse Driver" "off — normal input"
+else
+    start_daemon
+    notify "Mouse Driver" "on — pointer un-rotated"
+fi
+
 case "$nt" in
     0) label="0° (normal)" ;;
     1) label="90°" ;;
