@@ -187,6 +187,22 @@ hl.window_rule({
 })
 
 hl.window_rule({
+    name  = "scrow-network-tui-popup",
+    match = { class = "scrow_tui" },
+    float  = true,
+    size   = "960 700",
+    center = true,
+})
+
+hl.window_rule({
+    name  = "scrow-blueman-popup",
+    match = { class = "^(blueman-.*)$" },
+    float  = true,
+    size   = "800 600",
+    center = true,
+})
+
+hl.window_rule({
     name  = "zenity-float",
     match = { class = "zenity" },
     float  = true,

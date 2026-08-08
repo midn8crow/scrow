@@ -216,7 +216,7 @@ hl.bind(mainMod .. " + L", hl.dsp.exec_cmd("fcitx5-remote -t"))
 hl.bind(mainMod .. " + G", hl.dsp.exec_cmd("$HOME/user_scripts/google_image_search/google_image_search.sh"))
 
 -- Control Center (WiFi & Bluetooth)
-hl.bind(mainMod .. " + V", hl.dsp.exec_cmd("$HOME/.local/bin/control-center.sh"))
+hl.bind(mainMod .. " + V", hl.dsp.exec_cmd("$HOME/.local/bin/scrow-control-center.sh"))
 
 -- Music Recognition (Shazam)
 hl.bind(mainMod .. " + ALT + M", hl.dsp.exec_cmd("kitty --class music_recognition.sh $HOME/user_scripts/music/music_recognition.sh"))

@@ -106,18 +106,17 @@ freshclam 2>/dev/null || echo -e "  ${YELLOW}[WARN]${NC} freshclam failed (run m
 systemctl enable clamav-freshclam 2>/dev/null || true
 echo -e "  ${GREEN}[OK]${NC} ClamAV configured"
 
-# 10. ClamAV Real-Time Monitor
-echo -e "${YELLOW}[10/11] Setting up real-time virus monitor...${NC}"
-if [ -f "$SCRIPT_DIR/clamav-monitor.sh" ] && [ -f "$SCRIPT_DIR/clamav-monitor.service" ]; then
-    cp "$SCRIPT_DIR/clamav-monitor.sh" /usr/local/bin/clamav-monitor.sh
-    chmod +x /usr/local/bin/clamav-monitor.sh
-    cp "$SCRIPT_DIR/clamav-monitor.service" /etc/systemd/system/clamav-monitor.service
-    systemctl daemon-reload
-    systemctl enable clamav-monitor
-    systemctl start clamav-monitor
-    echo -e "  ${GREEN}[OK]${NC} Real-time virus monitoring active"
+# 10. ClamAV scanning is tied to the audit - no background scanner
+echo -e "${YELLOW}[10/11] ClamAV malware scanning...${NC}"
+echo "  ClamAV scans run on demand via: ./audit.sh (step 16)."
+echo "  The always-on clamav-monitor.service has been removed: it rescanned"
+echo "  /tmp every 5 min and pegged the CPU (~1GB RAM, 100% core)."
+if systemctl list-unit-files clamav-monitor.service 2>/dev/null | grep -q clamav-monitor; then
+    systemctl disable --now clamav-monitor.service 2>/dev/null || true
+    pkill -f clamscan 2>/dev/null || true
+    echo -e "  ${GREEN}[OK]${NC} Always-on clamav-monitor service disabled"
 else
-    echo -e "  ${YELLOW}[SKIP]${NC} clamav-monitor files not found"
+    echo -e "  ${GREEN}[OK]${NC} No clamav-monitor service present"
 fi
 
 # 11. USB Auto-Scan

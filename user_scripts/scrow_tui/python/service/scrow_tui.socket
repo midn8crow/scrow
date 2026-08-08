@@ -1,0 +1,13 @@
+[Unit]
+Description=Scrow TUI IPC Socket Architecture
+Documentation=man:scrow(1)
+
+[Socket]
+ListenStream=%t/scrow.sock
+SocketMode=0600
+PassCredentials=yes
+ReceiveBuffer=1048576
+SendBuffer=1048576
+
+[Install]
+WantedBy=sockets.target

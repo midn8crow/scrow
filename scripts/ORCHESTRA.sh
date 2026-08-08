@@ -514,6 +514,50 @@ install_core_packages() {
         "hypr-kdeconnect-fix-git"
         "kdeconnect"
         "sqlite"
+        "autoconf"
+        "bison"
+        "brotli"
+        "cmake"
+        "cryptsetup"
+        "cython"
+        "dconf"
+        "e2fsprogs"
+        "flex"
+        "gd"
+        "glib2"
+        "glslang"
+        "gnupg"
+        "gpm"
+        "groff"
+        "gsm"
+        "hdf5"
+        "hunspell"
+        "iputils"
+        "jasper"
+        "kbd"
+        "leptonica"
+        "libatasmart"
+        "libpaper"
+        "libproxy"
+        "libpsl"
+        "libtool"
+        "libxcvt"
+        "make"
+        "meson"
+        "openimageio"
+        "openssl"
+        "openvpn"
+        "patch"
+        "pkgconf"
+        "polkit"
+        "ppp"
+        "python-charset-normalizer"
+        "python-idna"
+        "python-pygments"
+        "python-tqdm"
+        "python-wheel"
+        "qt5-declarative"
+        "zstd"
     )
     
     # Clipboard
@@ -914,12 +958,9 @@ configure_security() {
     sudo cp "$security_dir/fail2ban_jail.local" /etc/fail2ban/jail.local 2>/dev/null || true
     sudo cp "$security_dir/usb-scan.sh" /usr/local/bin/usb-scan.sh 2>/dev/null || true
     sudo cp "$security_dir/usb-scan.rules" /etc/udev/rules.d/99-usb-scan.rules 2>/dev/null || true
-    sudo cp "$security_dir/clamav-monitor.sh" /usr/local/bin/clamav-monitor.sh 2>/dev/null || true
-    sudo cp "$security_dir/clamav-monitor.service" /etc/systemd/system/clamav-monitor.service 2>/dev/null || true
     
     # Make scripts executable
     sudo chmod +x /usr/local/bin/usb-scan.sh 2>/dev/null || true
-    sudo chmod +x /usr/local/bin/clamav-monitor.sh 2>/dev/null || true
     
     # Load firewall rules directly (systemctl start can fail in terminals)
     print_info "Loading firewall rules..."
@@ -937,8 +978,8 @@ configure_security() {
     sudo systemctl enable sshd 2>/dev/null || true
     sudo systemctl start sshd 2>/dev/null || true
     sudo systemctl daemon-reload 2>/dev/null || true
-    sudo systemctl enable clamav-monitor 2>/dev/null || true
-    sudo systemctl start clamav-monitor 2>/dev/null || true
+    # ClamAV scans run on demand via ./audit.sh - no always-on scanner
+    sudo systemctl disable --now clamav-monitor 2>/dev/null || true
     
     # Install VPN/WARP firewall re-apply hook
     print_info "Installing VPN firewall hook..."
