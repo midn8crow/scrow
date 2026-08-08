@@ -1,0 +1,131 @@
+@import "colors/colors.css";
+
+* {
+    border: none;
+    font-size: 14px;
+    font-family: "JetBrainsMono Nerd Font", "JetBrainsMono NF";
+    min-height: 25px;
+}
+
+window#waybar {
+  background: transparent;
+  margin: 5px;
+ }
+
+#custom-logo {
+  padding: 0 10px;
+}
+
+.modules-right {
+  padding-left: 5px;
+  border-radius: 15px 0 0 15px;
+  margin-top: 2px;
+  background: @module-bg;
+}
+
+.modules-center {
+  padding: 0 15px;
+  margin-top: 2px;
+  border-radius: 15px 15px 15px 15px;
+  background: @module-bg;
+}
+
+.modules-left {
+  border-radius: 0 15px 15px 0;
+  margin-top: 2px;
+  background: @module-bg;
+}
+
+#battery,
+#custom-clipboard,
+#custom-colorpicker,
+#custom-powerDraw,
+#bluetooth,
+#pulseaudio,
+#network,
+#disk,
+#memory,
+#backlight,
+#cpu,
+#temperature,
+#custom-weather,
+#idle_inhibitor,
+#jack,
+#tray,
+#window,
+#workspaces,
+#clock {
+  padding: 0 5px;
+}
+#pulseaudio {
+  padding-top: 3px;
+}
+
+#temperature.critical,
+#pulseaudio.muted {
+  color: @red;
+  padding-top: 0;
+}
+
+#clock{
+  color: @blue;
+}
+
+#battery.charging {
+    color: @fg;
+    background-color: @green;
+}
+
+#battery.warning:not(.charging) {
+    background-color: @yellow;
+    color: black;
+}
+
+#battery.critical:not(.charging) {
+    background-color: @red;
+    color: @fg;
+    animation-name: blink;
+    animation-duration: 0.5s;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    animation-direction: alternate;
+}
+
+@keyframes blink {
+    to {
+        background-color: @fg;
+        color: #000000;
+    }
+}
+
+
+
+
+#cava {
+  margin: 6px 12px;
+  min-height: 30px;
+  min-width: 150px;
+  font-size: 0.7rem;
+  letter-spacing: 1px;
+  background-color: @module-bg;
+}
+
+#mpris {
+  /* max-width: 200px; */
+}
+
+#custom-capslock {
+    padding: 1px 12px 0;
+    margin: 6px 4px;
+    border-radius: 18px;
+    background: rgba(240, 120, 120, 0.22);
+    color: #f38ba8;
+    font-weight: 700;
+    transition: background-color 0.1s ease, color 0.1s ease;
+}
+#custom-capslock.off {
+    padding: 0;
+    margin: 0;
+    background: transparent;
+    color: transparent;
+}
