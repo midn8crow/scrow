@@ -68,6 +68,7 @@ entry {
 listview {
     columns:            8;
     lines:              6;
+    flow:               horizontal;
     fixed-columns:      true;
     cycle:              true;
     scrollbar:          false;
