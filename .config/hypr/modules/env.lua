@@ -49,7 +49,6 @@ hl.env("XMODIFIERS", "@im=fcitx")
 
 --AMD Performance--
 hl.env("AMD_VULKAN_ICD", "RADV")
-hl.env("AMD_DEBUG", "nodcc")
 hl.env("RADV_PERFTEST", "gpl")
 hl.env("mesa_glthread", "true")
 hl.env("vblank_mode", "0")
@@ -63,4 +62,3 @@ hl.env("NVIDIA_NO_OVERLAY", "1")
 hl.env("__NV_PRIME_RENDER_OFFLOAD", "1")
 hl.env("__GL_GSYNC_ALLOWED", "1")
 hl.env("__GL_VRR_ALLOWED", "1")
-hl.env("WLR_NO_HARDWARE_CURSORS", "1")
