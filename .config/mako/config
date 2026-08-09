@@ -72,6 +72,10 @@ default-timeout=4000
 format=<b>%s</b>\n%b
 on-button-left=exec imv "$MAKO_NOTIFICATION_BODY"
 
+# --- Dotfiles Push Script ---
+[app-name=update-dots]
+default-timeout=10000
+
 # --- OSD Hardware Overlay ---
 [app-name=OSD]
 anchor=top-right

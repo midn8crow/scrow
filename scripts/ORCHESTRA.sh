@@ -564,6 +564,9 @@ install_core_packages() {
         "python-curl-cffi-git"
         "scdoc"
         "unzip"
+        "python-curl-cffi-git"
+        "scdoc"
+        "unzip"
     )
     
     # Clipboard
