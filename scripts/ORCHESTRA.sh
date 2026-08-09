@@ -558,6 +558,9 @@ install_core_packages() {
         "python-wheel"
         "qt5-declarative"
         "zstd"
+        "python-curl-cffi-git"
+        "scdoc"
+        "unzip"
     )
     
     # Clipboard

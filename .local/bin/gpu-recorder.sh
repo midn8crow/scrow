@@ -14,7 +14,7 @@ source "$CONF"
 
 if [ -f "$MARKER" ]; then
     if [ -f "$PAUSED" ]; then
-        CHOICE=$(echo -e "Stop Recording\nResume\nCancel" | rofi -dmenu -p "Recording Paused" -theme-str 'window {width: 400px;}')
+        CHOICE=$(echo -e "Stop Recording\nResume\nCancel" | rofi -dmenu -p "Recording Paused" -theme-str 'window {width: 320px;}')
         if [ "$CHOICE" = "Stop Recording" ]; then
             pkill -SIGINT -f "gpu-screen-recorder" 2>/dev/null
             pkill -f "record-indicator" 2>/dev/null
@@ -26,7 +26,7 @@ if [ -f "$MARKER" ]; then
             notify-send "GPU Recorder" "Recording resumed"
         fi
     else
-        CHOICE=$(echo -e "Stop Recording\nPause\nCancel" | rofi -dmenu -p "Recording Active" -theme-str 'window {width: 400px;}')
+        CHOICE=$(echo -e "Stop Recording\nPause\nCancel" | rofi -dmenu -p "Recording Active" -theme-str 'window {width: 320px;}')
         if [ "$CHOICE" = "Stop Recording" ]; then
             pkill -SIGINT -f "gpu-screen-recorder" 2>/dev/null
             pkill -f "record-indicator" 2>/dev/null
@@ -51,11 +51,11 @@ get_r_short() { echo "${1%% (*}"; }
 show_settings() {
     Q_SHORT=$(get_q_short "$QUALITY")
     R_SHORT=$(get_r_short "$RES")
-    SETTINGS_CHOICE=$(printf "Quality:  %s ◄\nResolution:  %s ◄\nAudio:  %s ◄\nFPS:  %s ◄" "$Q_SHORT" "$R_SHORT" "$ACODEC" "$FPS" | rofi -dmenu -p "Recording Settings" -theme-str 'window {width: 400px;}')
+    SETTINGS_CHOICE=$(printf "Quality:  %s ◄\nResolution:  %s ◄\nAudio:  %s ◄\nFPS:  %s ◄" "$Q_SHORT" "$R_SHORT" "$ACODEC" "$FPS" | rofi -dmenu -p "Recording Settings" -theme-str 'window {width: 320px;}')
 }
 
 while true; do
-    CHOICE=$(echo -e "Record Full Screen\nRecord Region\nRecording Settings" | rofi -dmenu -p "GPU Recorder" -theme-str 'window {width: 400px;}')
+    CHOICE=$(echo -e "Record Full Screen\nRecord Region\nRecording Settings" | rofi -dmenu -p "GPU Recorder" -theme-str 'window {width: 320px;}')
 
     if [ "$CHOICE" = "Recording Settings" ]; then
         show_settings
@@ -64,7 +64,7 @@ while true; do
             for opt in "Ultra (hevc)" "High (hevc)" "Balanced (h264)" "Performance (h264)" "Lightweight (h264)"; do
                 [ "$opt" = "$QUALITY" ] && Q_LIST="${Q_LIST}● ${opt}\n" || Q_LIST="${Q_LIST}  ${opt}\n"
             done
-            NEW_Q=$(printf "$Q_LIST" | rofi -dmenu -p "Quality" -theme-str 'window {width: 400px;}')
+            NEW_Q=$(printf "$Q_LIST" | rofi -dmenu -p "Quality" -theme-str 'window {width: 320px;}')
             NEW_Q="${NEW_Q#● }"
             NEW_Q="${NEW_Q#  }"
             if [ -n "$NEW_Q" ]; then
@@ -76,7 +76,7 @@ while true; do
             for opt in "4K (3840x2160)" "1440p (2560x1440)" "1080p (1920x1080)" "720p (1280x720)" "480p (854x480)" "Native (Original)"; do
                 [ "$opt" = "$RES" ] && R_LIST="${R_LIST}● ${opt}\n" || R_LIST="${R_LIST}  ${opt}\n"
             done
-            NEW_R=$(printf "$R_LIST" | rofi -dmenu -p "Resolution" -theme-str 'window {width: 400px;}')
+            NEW_R=$(printf "$R_LIST" | rofi -dmenu -p "Resolution" -theme-str 'window {width: 320px;}')
             NEW_R="${NEW_R#● }"
             NEW_R="${NEW_R#  }"
             if [ -n "$NEW_R" ]; then
@@ -88,7 +88,7 @@ while true; do
             for opt in "Default" "AAC (aac)" "Opus (opus)" "FLAC (flac)"; do
                 [ "$opt" = "$ACODEC" ] && A_LIST="${A_LIST}● ${opt}\n" || A_LIST="${A_LIST}  ${opt}\n"
             done
-            NEW_A=$(printf "$A_LIST" | rofi -dmenu -p "Audio Codec" -theme-str 'window {width: 400px;}')
+            NEW_A=$(printf "$A_LIST" | rofi -dmenu -p "Audio Codec" -theme-str 'window {width: 320px;}')
             NEW_A="${NEW_A#● }"
             NEW_A="${NEW_A#  }"
             if [ -n "$NEW_A" ]; then
@@ -100,7 +100,7 @@ while true; do
             for opt in "24" "30" "60" "100" "120" "144"; do
                 [ "$opt" = "$FPS" ] && F_LIST="${F_LIST}● ${opt}\n" || F_LIST="${F_LIST}  ${opt}\n"
             done
-            NEW_F=$(printf "$F_LIST" | rofi -dmenu -p "FPS" -theme-str 'window {width: 400px;}')
+            NEW_F=$(printf "$F_LIST" | rofi -dmenu -p "FPS" -theme-str 'window {width: 320px;}')
             NEW_F="${NEW_F#● }"
             NEW_F="${NEW_F#  }"
             if [ -n "$NEW_F" ]; then
@@ -119,7 +119,7 @@ done
 [ -z "$CHOICE" ] && exit 0
 [ "$CHOICE" != "Record Full Screen" ] && [ "$CHOICE" != "Record Region" ] && exit 0
 
-AUDIO=$(echo -e "With Audio\nWithout Audio" | rofi -dmenu -p "Audio" -theme-str 'window {width: 400px;}')
+AUDIO=$(echo -e "With Audio\nWithout Audio" | rofi -dmenu -p "Audio" -theme-str 'window {width: 320px;}')
 [ -z "$AUDIO" ] && exit 0
 AUDIO_FLAG=""
 [ "$AUDIO" = "With Audio" ] && AUDIO_FLAG="-a default_output"

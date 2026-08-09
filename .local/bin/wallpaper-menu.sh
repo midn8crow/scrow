@@ -1,6 +1,6 @@
 #!/bin/bash
 
-SEL=$(printf "Wallpaper\nLive Wallpaper" | rofi -dmenu -p "Wallpaper" -theme-str 'configuration { show-icons: false; } window { width: 18%; }')
+SEL=$(printf "Wallpaper\nLive Wallpaper" | rofi -dmenu -p "Wallpaper" -theme-str 'configuration { show-icons: false; } window { width: 14%; }')
 
 [ -z "$SEL" ] && exit 0
 

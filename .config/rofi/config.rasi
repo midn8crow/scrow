@@ -29,7 +29,7 @@ configuration {
 window {
     location:           center;
     anchor:             center;
-    width:              40%;
+    width:              34%;
     border:             1px;
     border-color:       @purple;
     border-radius:      12px;

@@ -3,6 +3,11 @@
 expression=""
 history=""
 
+if pgrep -f "rofi.*calculator\.rasi" >/dev/null 2>&1; then
+    pkill -f "rofi.*calculator\.rasi"
+    exit 0
+fi
+
 buttons=(
     "sin"  "7"    "8"    "9"    "÷"
     "cos"  "4"    "5"    "6"    "×"

@@ -11,7 +11,7 @@ configuration {
 window {
     location:           center;
     anchor:             center;
-    width:              50%;
+    width:              42%;
     border:             1px;
     border-color:       @purple;
     border-radius:      12px;

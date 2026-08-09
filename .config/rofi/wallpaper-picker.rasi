@@ -3,7 +3,7 @@
 window {
     location:           center;
     anchor:             center;
-    width:              800px;
+    width:              700px;
     height:             500px;
     border:             1px;
     border-color:       @purple;

@@ -21,7 +21,7 @@ configuration {
 }
 
 window {
-    width: 400px;
+    width: 340px;
     border: 2px;
     border-color: @aqua;
     border-radius: 12px;

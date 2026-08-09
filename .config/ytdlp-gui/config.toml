@@ -1,4 +1,5 @@
-download_folder = "/home/shadhin/Music"
+bin_path = "/home/shadhin/.local/bin/yt-dlp-trim.sh"
+download_folder = "/home/shadhin/Downloads"
 save_window_position = false
 
 [window_position]
