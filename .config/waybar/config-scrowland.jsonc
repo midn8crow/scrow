@@ -52,9 +52,8 @@
 
   "custom/appmenu": {
     "format": "󰣇",
-    "tooltip-format": "Left: Open the application launcher\nRight: Show all keybindings",
+    "tooltip-format": "Left: Open the application launcher",
     "on-click": "kitty --class scrow-tui -o remember_window_size=no -o initial_window_width=820 -o initial_window_height=36c -e $HOME/.local/bin/scrow-menu-tui",
-    "on-click-right": "$HOME/.local/bin/keybinds",
     "tooltip": false
   },
 
