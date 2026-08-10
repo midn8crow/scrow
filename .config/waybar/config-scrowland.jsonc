@@ -1,0 +1,190 @@
+{
+  "layer": "top",
+  "position": "top",
+  "spacing": 0,
+  "reload_style_on_change": true,
+  "modules-left": [],
+  "modules-center": [
+    "group/island",
+    "group/right"
+  ],
+  "modules-right": [],
+
+  "group/island": {
+    "orientation": "horizontal",
+    "drawer": {
+      "transition-duration": 450,
+      "children-class": "revealed",
+      "transition-left-to-right": true,
+      "reveal-delay": 0,
+      "start-expanded": false,
+      "click-to-reveal": true
+    },
+    "modules": [
+      "group/left",
+      "pulseaudio",
+      "custom/media",
+      "custom/cava",
+      "cpu",
+      "memory",
+      "disk",
+      "battery",
+      "tray"
+    ]
+  },
+
+  "group/left": {
+    "orientation": "horizontal",
+    "modules": [
+      "custom/appmenu",
+      "hyprland/workspaces"
+    ]
+  },
+
+  "group/right": {
+    "orientation": "horizontal",
+    "reveal-on-right-click": "island",
+    "modules": [
+      "custom/notification",
+      "clock"
+    ]
+  },
+
+  "custom/appmenu": {
+    "format": "󰣇",
+    "tooltip-format": "Left: Open the application launcher\nRight: Show all keybindings",
+    "on-click": "kitty --class scrow-tui -o remember_window_size=no -o initial_window_width=820 -o initial_window_height=36c -e $HOME/.local/bin/scrow-menu-tui",
+    "on-click-right": "~/.config/notscripter/scripts/keybindings.sh",
+    "tooltip": false
+  },
+
+  "hyprland/workspaces": {
+    "on-click": "activate",
+    "active-only": false,
+    "all-outputs": true,
+    "format": "{}",
+    "format-icons": {
+      "urgent": "",
+      "active": "",
+      "default": ""
+    },
+    "persistent-workspaces": {
+      "*": 5
+    }
+  },
+
+  "clock": {
+    "tooltip-format": "<big>{:%Y %B}</big>\n<tt><small>{calendar}</small></tt>",
+    "format": "󰥔 {0:%I:%M %p}",
+    "format-alt": "󰥔 {0:%I:%M %p}   {0:%d-%m-%Y}",
+    "calendar": {
+      "mode": "year",
+      "mode-mon-col": 3,
+      "format": {
+        "today": "<span color='#89d0ed'><b><u>{}</u></b></span>"
+      }
+    }
+  },
+
+  "custom/notification": {
+    "tooltip": false,
+    "format": "{icon}",
+    "format-icons": {
+      "notification": "󱅫",
+      "none": "󰂚",
+      "dnd-notification": "󱅫",
+      "dnd-none": "󰂛",
+      "inhibited-notification": "",
+      "inhibited-none": "",
+      "dnd-inhibited-notification": "",
+      "dnd-inhibited-none": ""
+    },
+    "return-type": "json",
+    "exec-if": "which makoctl",
+    "exec": "$HOME/.local/bin/mako.sh",
+    "on-click": "$HOME/.local/bin/rofi-mako.sh",
+    "on-click-middle": "$HOME/.local/bin/mako.sh --clear && pkill -RTMIN+8 waybar",
+    "on-click-right": "makoctl mode -t do-not-disturb && pkill -RTMIN+8 waybar",
+    "signal": 8,
+    "escape": true
+  },
+
+  "custom/media": {
+    "exec": "$HOME/.config/waybar/scripts/media.sh",
+    "interval": 1,
+    "return-type": "json",
+    "tooltip": true,
+    "on-click": "playerctl play-pause",
+    "on-click-middle": "playerctl next",
+    "on-click-right": "playerctl previous"
+  },
+
+  "custom/cava": {
+    "exec": "$HOME/.local/bin/waybar-cava.py",
+    "restart-interval": 3,
+    "return-type": "json",
+    "image-path": "/tmp/waybar-cava.png",
+    "icon-size": 73,
+    "tooltip": false
+  },
+
+  "pulseaudio": {
+    "format": "{icon} {volume}%",
+    "format-bluetooth": "{volume}% {icon} ",
+    "format-bluetooth-muted": "  {icon} ",
+    "format-muted": " ",
+    "format-icons": {
+      "headphone": "",
+      "hands-free": "",
+      "headset": "",
+      "phone": "",
+      "portable": "",
+      "car": "",
+      "default": [" ", " ", " "]
+    },
+    "scroll-step": 5,
+    "on-click-right": "pavucontrol",
+    "on-click": "amixer set Master toggle"
+  },
+
+  "cpu": {
+    "format": " {usage}%",
+    "on-click": "kitty -e htop"
+  },
+
+  "memory": {
+    "interval": 10,
+    "format": "󰓅 {percentage}%",
+    "format-alt": "󰓅 {used}/{total} GB",
+    "states": {
+      "warning": 75,
+      "critical": 90
+    },
+    "tooltip": false,
+    "on-click": "kitty -e htop"
+  },
+
+  "disk": {
+    "interval": 30,
+    "format": "󰋊 {percentage_used}% ",
+    "path": "/",
+    "on-click": "kitty -e htop"
+  },
+
+  "battery": {
+    "states": {
+      "warning": 30,
+      "critical": 15
+    },
+    "format": "{icon}   {capacity}%",
+    "format-charging": "  {capacity}%",
+    "format-plugged": "  {capacity}%",
+    "format-alt": "{icon}  {time}",
+    "format-icons": [" ", " ", " ", " ", " "]
+  },
+
+  "tray": {
+    "icon-size": 18,
+    "spacing": 8
+  }
+}

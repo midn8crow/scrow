@@ -76,54 +76,21 @@ on-button-left=exec imv "$MAKO_NOTIFICATION_BODY"
 [app-name=update-dots]
 default-timeout=10000
 
-# --- OSD Hardware Overlay ---
-[app-name=OSD]
-anchor=top-right
+# --- OSD Slider (volume / brightness) ---
+[app-name=osd]
+anchor=top-center
 layer=overlay
-width=200
-outer-margin=10,10,0,0
-margin=50,0,0,0
-padding=0
-border-size=0
-border-radius=18
+width=300
+outer-margin=0,0,0,0
+margin=16,0,0,0
+padding=16,12
+border-size=1
+border-radius=26
 icons=1
+max-icon-size=30
+icon-border-radius=26
 text-alignment=center
-default-timeout=1000
-on-button-left=invoke-default-action
-background-color=#0a1612ff
-text-color=#d8e6dfff
-border-color=#86948e33
-
-# --- Volume Bar ---
-[app-name=volume]
-anchor=top-center
-layer=overlay
-width=300
-height=6
-outer-margin=0,0,0,0
-margin=15,0,0,0
-padding=0
-border-size=0
-border-radius=3
-icons=0
-text-alignment=center
-font=monospace 1
-format=%s
+font=monospace 13
+format=%b
 default-timeout=1500
-
-# --- Brightness Bar ---
-[app-name=brightness]
-anchor=top-center
-layer=overlay
-width=300
-height=6
-outer-margin=0,0,0,0
-margin=15,0,0,0
-padding=0
-border-size=0
-border-radius=3
-icons=0
-text-alignment=center
-font=monospace 1
-format=%s
-default-timeout=1500
+# Colors come from mako-colors.ini ([app-name=osd] block, auto-generated)

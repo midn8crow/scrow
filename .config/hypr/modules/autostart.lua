@@ -21,6 +21,5 @@
       hl.exec_cmd("fcitx5")
       hl.exec_cmd("nm-applet --indicator")
       hl.exec_cmd("kdeconnect-indicator")
-      hl.exec_cmd("$HOME/.local/bin/capslock-indicator.sh")
  end)
 

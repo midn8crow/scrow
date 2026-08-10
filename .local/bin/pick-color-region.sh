@@ -154,6 +154,12 @@ background-color=${surface}cc
 text-color=${on_surface}
 border-color=#ffffff22
 progress-color=${primary_container}ff
+
+[app-name=osd]
+background-color=${surface}cc
+text-color=${on_surface}
+border-color=${primary}66
+progress-color=over ${primary}7d
 MEOF
 killall mako 2>/dev/null; sleep 0.3; nohup mako > /dev/null 2>&1 &
 

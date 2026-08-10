@@ -1,0 +1,10 @@
+{
+  "layer": "top",
+  "position": "top",
+  "modules-left": ["hyprland/workspaces"],
+  "modules-center": ["clock"],
+  "modules-right": ["battery"],
+  "hyprland/workspaces": { "format": "{}" },
+  "clock": { "format": "{:%H:%M}" },
+  "battery": { "format": "{capacity}%" }
+}

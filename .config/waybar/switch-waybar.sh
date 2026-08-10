@@ -3,11 +3,16 @@
 DIR="${0%/*}"
 STATE_FILE="$DIR/.current"
 
-# auto-detect waybar configs
+# auto-detect waybar configs (priority order first, then alphabetical)
+PRIORITY=(scrowland cxorz athena)
 CONFIGS=()
+for p in "${PRIORITY[@]}"; do
+    [[ -f "$DIR/config-$p.jsonc" ]] && CONFIGS+=("$p")
+done
 for f in "$DIR"/config-*.jsonc; do
     [ -f "$f" ] || continue
     name=$(basename "$f" | sed 's/^config-//; s/\.jsonc$//')
+    [[ " ${PRIORITY[*]} " == *" $name "* ]] && continue
     CONFIGS+=("$name")
 done
 

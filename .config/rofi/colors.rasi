@@ -2,14 +2,14 @@
     bg0: #0f141766;
     bg1: #1b202366;
     bg2: #171c1f66;
-    fg0: #dfe3e7;
-    fg1: #c0c7cd;
+    fg0: #dee3e6;
+    fg1: #c0c8cc;
 
     red: #ffb4ab;
-    green: #b5c9d7;
-    yellow: #c9c1ea;
-    blue: #8ecff2;
-    purple: #8ecff2;
-    aqua: #004d67;
-    highlight: #8ecff233;
+    green: #b3cad5;
+    yellow: #c4c3eb;
+    blue: #89d0ed;
+    purple: #89d0ed;
+    aqua: #004d62;
+    highlight: #89d0ed33;
 }

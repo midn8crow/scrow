@@ -34,5 +34,5 @@ sleep 0.3
 BRIGHTNESS=$(get_brightness)
 
 if [[ -n "$BRIGHTNESS" ]]; then
-  notify-send -h "int:value:${BRIGHTNESS}" -h "string:x-canonical-private-synchronous:brightness" -t 1500 -a "brightness" -u low " "
+  "$HOME/.local/bin/osd.sh" brightness "$BRIGHTNESS"
 fi

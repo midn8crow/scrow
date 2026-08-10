@@ -2,6 +2,15 @@
 
 DIR="${0%/*}"
 STATE_FILE="$DIR/.current"
+LOG_DIR="${TMPDIR:-/tmp}/waybar"
+mkdir -p "$LOG_DIR"
+
+# prefer the user-built waybar (right-click toggle) over the system one
+if [[ -x "$HOME/.local/bin/waybar" ]]; then
+    WB="$HOME/.local/bin/waybar"
+else
+    WB="waybar"
+fi
 
 pkill waybar 2>/dev/null
 sleep 0.3
@@ -17,19 +26,19 @@ if [[ -z "$config" || ! -f "$DIR/config-${config}.jsonc" ]]; then
     fi
 fi
 
-if [[ -z "$config" || ! -f "$DIR/config-${config}.jsonc" ]]; then
-    setsid waybar >/dev/null 2>&1 &
+CFG="$DIR/config-${config}.jsonc"
+STYLE="$DIR/style-${config}.css"
+if [[ -f "$CFG" ]]; then
+    setsid "$WB" -c "$CFG" -s "$STYLE" </dev/null >"$LOG_DIR/waybar.log" 2>&1 &
 else
-    CFG="$DIR/config-${config}.jsonc"
-    STYLE="$DIR/style-${config}.css"
-    mapfile -t OUT <<< "$(python3 "$DIR/capslock.py" "$CFG" "$STYLE")"
-    PCFG="${OUT[0]}"
-    PSTYLE="${OUT[1]}"
-    [[ -z "$PSTYLE" ]] && PSTYLE="$STYLE"
-    if [[ -n "$PCFG" && -f "$PCFG" ]]; then
-        setsid waybar -c "$PCFG" -s "$PSTYLE" >/dev/null 2>&1 &
-    else
-        setsid waybar -c "$CFG" -s "$STYLE" >/dev/null 2>&1 &
-    fi
-    find "$DIR" -maxdepth 1 -name ".capslock-style-*.css" ! -name ".capslock-style-${config}.css" -delete 2>/dev/null
+    setsid "$WB" </dev/null >"$LOG_DIR/waybar.log" 2>&1 &
 fi
+
+# When launched from a PTY (scrow menu), the parent bash is the session leader.
+# If it exits before the new waybar detaches into its own session, the kernel
+# SIGHUPs waybar's process group and it dies silently. Wait until waybar is up
+# so it has left the dying session's group before this script returns.
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+    pgrep -x waybar >/dev/null && break
+    sleep 0.1
+done

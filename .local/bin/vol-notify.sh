@@ -12,8 +12,4 @@ esac
 VOLUME=$(wpctl get-volume "$SINK" | awk '{print int($2 * 100)}')
 MUTED=$(wpctl get-volume "$SINK" | grep -q MUTED && echo 1 || echo 0)
 
-if [[ "$MUTED" -eq 1 ]]; then
-  notify-send -h "int:value:0" -h "string:x-canonical-private-synchronous:volume" -t 1500 -a "volume" -u low " "
-else
-  notify-send -h "int:value:${VOLUME}" -h "string:x-canonical-private-synchronous:volume" -t 1500 -a "volume" -u low " "
-fi
+"$HOME/.local/bin/osd.sh" volume "$VOLUME" "$MUTED"

@@ -1,0 +1,18 @@
+[general]
+bars = 10
+framerate = 30
+autosens = 1
+sensitivity = 100
+
+[input]
+method = pulse
+source = alsa_output.pci-0000_0a_00.6.analog-stereo.monitor
+sample_rate = 44100
+channels = mono
+
+[output]
+method = raw
+raw_target = /tmp/waybar-cava.fifo
+bit_format = 16bit
+bar_delimiter = ;
+channels = mono
