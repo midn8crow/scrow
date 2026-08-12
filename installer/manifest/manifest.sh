@@ -52,6 +52,7 @@ scrow_repo_files() {
 scrow_manifest_exists() { [[ -s "$SCROW_MANIFEST" ]]; }
 
 scrow_manifest_clear() {
+    [[ "$SCROW_DRY_RUN" == "1" ]] && return 0
     : > "$SCROW_MANIFEST"
 }
 
@@ -61,8 +62,12 @@ scrow_manifest_write_entry() {
     # source  : optional repo-relative path the file was deployed FROM (used for
     #           system files copied to non-matching locations, e.g.
     #           security-hardening/sshd_hardened.conf -> etc/ssh/...).
+    # Idempotent: an existing entry for the same rel is replaced.
     local rel="$1" comp="$2" src_rel="${3:-}"
     local src dest scope type official current meta
+    if [[ "$SCROW_DRY_RUN" == "1" ]]; then
+        return 0
+    fi
     src="$SCROW_REPO/$rel"
     dest="$(scrow_target "$rel")"
     scope="$(scrow_scope "$rel")"
@@ -86,6 +91,10 @@ scrow_manifest_write_entry() {
         current="$(scrow_sha "$dest")"
     else
         current="missing"
+    fi
+    if [[ -f "$SCROW_MANIFEST" ]]; then
+        awk -F'\t' -v r="$rel" '$1 != r' "$SCROW_MANIFEST" > "$SCROW_MANIFEST.tmp" 2>/dev/null
+        mv -f "$SCROW_MANIFEST.tmp" "$SCROW_MANIFEST"
     fi
     printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$rel" "$scope" "$type" "$meta" "$official" "$current" "$comp" >> "$SCROW_MANIFEST"
 }
@@ -114,6 +123,7 @@ scrow_manifest_source() {
 
 scrow_manifest_build() {
     # scrow_manifest_build [component ...]   (defaults to all components)
+    # Appends entries; use scrow_manifest_rebuild for a full regeneration.
     local comps=("$@")
     if [[ ${#comps[@]} -eq 0 ]]; then
         comps=( $(scrow_component_names) )
@@ -132,6 +142,36 @@ scrow_manifest_build() {
             done < <(scrow_repo_files "$p")
         done
     done
+}
+
+# Full regeneration of the manifest. Captures and preserves deployed system
+# entries (files copied from a repo source to a different location, e.g.
+# security configs under /etc) which are not part of any component path.
+scrow_manifest_rebuild() {
+    # scrow_manifest_rebuild [component ...]  (defaults to installed components)
+    local names=("$@")
+    if [[ ${#names[@]} -eq 0 ]]; then
+        names=( $(scrow_state_components) )
+    fi
+    local deployed=()
+    local rel comp src
+    while IFS=$'\t' read -r rel _scope type meta _official _current comp; do
+        [[ -z "$rel" ]] && continue
+        if [[ "$type" == "f" && "$meta" == @* ]]; then
+            deployed+=("$rel|$comp|${meta#@}")
+        fi
+    done < <(scrow_manifest_lines)
+
+    scrow_manifest_clear
+    scrow_manifest_build "${names[@]}"
+
+    local entry
+    for entry in "${deployed[@]}"; do
+        rel="${entry%%|*}"
+        comp="${entry#*|}"; comp="${comp%%|*}"
+        scrow_manifest_write_entry "$rel" "$comp" "${entry##*|}"
+    done
+    scrow_log "manifest rebuilt for: ${names[*]}"
 }
 
 # -----------------------------------------------------------------------------
@@ -193,6 +233,20 @@ scrow_manifest_missing() {
     done < <(scrow_manifest_lines)
 }
 
+# Managed symlinks that are missing or point somewhere other than the official
+# target recorded in the manifest.
+scrow_manifest_broken_symlinks() {
+    while IFS=$'\t' read -r rel _scope type meta _official current _comp; do
+        [[ -z "$rel" ]] && continue
+        [[ "$type" == "l" ]] || continue
+        local target
+        target="$(scrow_target "$rel")"
+        if [[ ! -L "$target" || "$current" != "$meta" ]]; then
+            printf '%s\n' "$rel"
+        fi
+    done < <(scrow_manifest_lines)
+}
+
 scrow_manifest_count() { scrow_manifest_lines | wc -l; }
 
 # -----------------------------------------------------------------------------
@@ -242,13 +296,12 @@ scrow_deploy_path() {
 }
 
 scrow_deploy_component() {
-    # Deploy files + rebuild manifest for one component.
+    # Deploy files for one component. Call scrow_manifest_rebuild afterwards.
     local name="$1" paths p
     paths="$(scrow_component_paths "$name")"
     for p in $paths; do
         scrow_deploy_path "$p"
     done
-    scrow_manifest_build "$name"
 }
 
 scrow_deploy_components() {

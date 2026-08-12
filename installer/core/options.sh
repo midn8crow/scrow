@@ -74,5 +74,9 @@ scrow_parse_args() {
         shift
     done
 
-    export SCROW_COMMAND SCROW_MANAGER SCROW_DRY_RUN SCROW_REPO
+    # SCROW_VERSION may have been resolved before --source overrode SCROW_REPO.
+    SCROW_VERSION="$(cat "$SCROW_REPO/VERSION" 2>/dev/null | tr -d '[:space:]')"
+    SCROW_VERSION="${SCROW_VERSION:-0.0.0}"
+
+    export SCROW_COMMAND SCROW_MANAGER SCROW_DRY_RUN SCROW_REPO SCROW_VERSION
 }

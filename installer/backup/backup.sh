@@ -16,15 +16,27 @@
 
 SCROW_BACKUP_PATH=""
 
+# Extra repo-relative paths to snapshot even when they are not yet SCROW-managed
+# (used before a first install so pre-existing user config is never lost).
+SCROW_BACKUP_PATHS=()
+
+scrow_backup_include_paths() {
+    SCROW_BACKUP_PATHS+=("$@")
+}
+
 _scrow_backup_reason_slug() {
     printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/-\{2,\}/-/g; s/^-//; s/-$//'
+}
+
+_scrow_backup_reason_label() {
+    printf '%s' "$1" | sed 's/[-_]/ /g; s/\b\(.\)/\u\1/g'
 }
 
 scrow_backup_create() {
     # scrow_backup_create <reason>  -> creates a backup, sets $SCROW_BACKUP_PATH
     local reason="$1" dir
     mkdir -p "$SCROW_BACKUP_DIR"
-    dir="$SCROW_BACKUP_DIR/$(date +%Y-%m-%d_%H%M%S)__$(_scrow_backup_reason_slug "$reason")"
+    dir="$SCROW_BACKUP_DIR/$(date +%Y-%m-%d_%H-%M-%S)__$(_scrow_backup_reason_slug "$reason")"
     SCROW_BACKUP_PATH="$dir"
 
     ui_step "Creating automatic backup ($reason)…"
@@ -74,22 +86,40 @@ scrow_backup_create() {
         fi
     done < <(scrow_manifest_lines)
 
+    # Also snapshot pre-existing targets for paths about to be deployed that are
+    # not SCROW-managed yet (e.g. a user's existing ~/.config/hypr on first install).
+    local extra
+    for extra in "${SCROW_BACKUP_PATHS[@]}"; do
+        [[ -n "$extra" ]] || continue
+        target="$(scrow_target "$extra")"
+        [[ -e "$target" || -L "$target" ]] || continue
+        if [[ "$(scrow_scope "$extra")" == "system" ]]; then
+            scrow_need_root
+            ( cd / && sudo cp -a --parents "$extra" "$dir/system/" ) 2>/dev/null
+            nsystem=$(( nsystem + 1 ))
+        else
+            ( cd "$HOME" && cp -a --parents "$extra" "$dir/files/" ) 2>/dev/null
+            nuser=$(( nuser + 1 ))
+        fi
+    done
+    SCROW_BACKUP_PATHS=()
+
     ui_ok "Backup saved → $dir"
     ui_dim "  files: $nuser   system: $nsystem   symlinks: $nsym"
     scrow_log "backup done: $dir (files=$nuser system=$nsystem symlinks=$nsym)"
 }
 
 scrow_backup_list() {
-    # Populates SCROW_BACKUPS with "dir<TAB>date<TAB>reason"
+    # Populates SCROW_BACKUPS with "dir|date|reason", newest first.
     SCROW_BACKUPS=()
     local d date reason
-    for d in "$SCROW_BACKUP_DIR"/*__*; do
+    while IFS= read -r d; do
         [[ -d "$d" ]] || continue
         reason="${d##*__}"
         date="${d##*/}"
         date="${date%%__*}"
         SCROW_BACKUPS+=("$d|$date|$reason")
-    done
+    done < <(find "$SCROW_BACKUP_DIR" -maxdepth 1 -type d -name '*__*' 2>/dev/null | sort -r)
     [[ ${#SCROW_BACKUPS[@]} -gt 0 ]]
 }
 

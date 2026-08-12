@@ -10,6 +10,7 @@
 # State helpers
 # -----------------------------------------------------------------------------
 scrow_state_init() {
+    [[ "$SCROW_DRY_RUN" == "1" ]] && return 0
     mkdir -p "$SCROW_STATE_DIR"
     [[ -f "$SCROW_STATE_FILE" ]] || {
         echo "SCROW_VERSION=$SCROW_VERSION" > "$SCROW_STATE_FILE"
@@ -22,6 +23,7 @@ scrow_state_init() {
 
 scrow_state_set() {
     local key="$1" value="$2"
+    [[ "$SCROW_DRY_RUN" == "1" ]] && return 0
     scrow_state_init
     if grep -q "^$key=" "$SCROW_STATE_FILE" 2>/dev/null; then
         sed -i "s|^$key=.*|$key=$value|" "$SCROW_STATE_FILE"
@@ -42,14 +44,54 @@ scrow_state_get_or() {
     printf '%s' "${v:-$default}"
 }
 
+scrow_state_components() {
+    scrow_state_get_or COMPONENTS "" | tr ' ' '\n' | sed '/^$/d'
+}
+
+scrow_state_add_components() {
+    local current new name
+    current="$(scrow_state_get COMPONENTS)"
+    for name in "$@"; do
+        [[ " $current " == *" $name "* ]] || current="$current $name"
+    done
+    current="$(printf '%s' "$current" | tr -s ' ' | sed 's/^ *//; s/ *$//')"
+    scrow_state_set COMPONENTS "$current"
+}
+
+scrow_services_owned() {
+    scrow_state_get_or SERVICES "" | tr ' ' '\n' | sed '/^$/d'
+}
+
 # -----------------------------------------------------------------------------
 # User services (SCROW-owned, from .config/systemd/user)
 # -----------------------------------------------------------------------------
+_scrow_unit_exec_exists() {
+    # Lightweight check: the ExecStart binary of a unit should exist before we
+    # enable it, so a fresh install never spawns a failing loop.
+    local unit="$1" exec bin
+    exec="$(sed -n 's/^ExecStart=//p' "$unit" | head -1)"
+    [[ -z "$exec" ]] && return 1
+    bin="${exec%% *}"
+    bin="${bin//%h/$HOME}"
+    if [[ "$bin" == -* ]]; then
+        bin="${bin#-}"
+        bin="${bin%% *}"
+        bin="${bin//%h/$HOME}"
+    fi
+    [[ -x "$bin" || -x "$HOME/$bin" ]]
+}
+
 scrow_services_user_deploy() {
     local units=()
-    local f
-    for f in "$HOME"/.config/systemd/user/*.service "$HOME"/.config/systemd/user/*.socket; do
-        [[ -f "$f" || -L "$f" ]] && units+=("$(basename "$f")")
+    local f base
+    for f in "$HOME"/.config/systemd/user/*.service; do
+        [[ -f "$f" ]] || continue
+        if _scrow_unit_exec_exists "$f"; then
+            units+=("$(basename "$f")")
+        else
+            ui_warn "Skipping user service $(basename "$f") — ExecStart binary not found"
+            scrow_log "user service skipped (missing exec): $(basename "$f")"
+        fi
     done
     if [[ ${#units[@]} -gt 0 ]]; then
         ui_step "Enabling SCROW user services…"
@@ -63,6 +105,21 @@ scrow_services_user_deploy() {
         else
             ui_warn "User services will start at next login"
             scrow_log "user service enable deferred to login (no active user session)"
+        fi
+    fi
+}
+
+scrow_services_user_disable() {
+    local units=()
+    local f
+    for f in "$HOME"/.config/systemd/user/*.service; do
+        [[ -f "$f" ]] && units+=("$(basename "$f")")
+    done
+    if [[ ${#units[@]} -gt 0 ]]; then
+        ui_step "Disabling SCROW user services…"
+        scrow_log "user services disable: ${units[*]}"
+        if [[ "$SCROW_DRY_RUN" != "1" ]]; then
+            systemctl --user disable "${units[@]}" >> "$SCROW_CURRENT_LOG" 2>&1 || true
         fi
     fi
 }

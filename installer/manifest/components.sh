@@ -28,7 +28,7 @@ SCROW_COMPONENTS=(
 
     "theming|Theming|GTK/Qt themes, cursors, icons & fonts||adw-gtk-theme qt6ct kvantum nwg-look papirus-icon-theme ttf-jetbrains-mono-nerd noto-fonts noto-fonts-emoji ttf-font-awesome ttf-cascadia-code|matugen|.config/gtk-3.0 .config/gtk-4.0 .config/qt6ct .config/matugen .config/dconf .icons .local/share/icons .local/share/fonts"
 
-    "utilities|Utilities|SCROW scripts, tools & user scripts||fastfetch btop htop mpv cava brightnessctl playerctl ffmpeg imagemagick jq tree p7zip wget curl git unzip xdg-user-dirs wtype pacman-contrib|awww mpvpaper gpu-screen-recorder hyprlauncher wlr-randr|.local/bin user_scripts .config/scrow .config/systemd"
+    "utilities|Utilities|SCROW scripts, tools, user scripts & app configs||fastfetch btop htop mpv cava yazi yt-dlp brightnessctl playerctl ffmpeg imagemagick jq tree p7zip wget curl git unzip xdg-user-dirs wtype pacman-contrib|awww mpvpaper gpu-screen-recorder hyprlauncher wlr-randr ytdlp-gui|.local/bin user_scripts .config/scrow .config/systemd .config/fastfetch .config/mpv .config/btop .config/cava .config/yazi .config/yt-dlp .config/ytdlp-gui .config/moviebox-tui .config/pacseek .config/songrec .config/scrow-keysound .config/wayclick .config/qalculate .config/velo .config/viewnior .config/geeqie .config/Thunar .config/nemo .config/Mousepad .config/xdg-desktop-portal .config/user-dirs.conf .config/user-dirs.dirs .config/user-dirs.disable .config/user-dirs.locale .config/mimeapps.list .config/pavucontrol.ini .mozilla"
 
     "security|Security Hardening|Firewall, AUR scanner & system hardening||nftables fail2ban clamav rkhunter pacman-contrib bubblewrap lynis||security-hardening"
 
@@ -46,7 +46,7 @@ scrow_component_field() {
     for comp in "${SCROW_COMPONENTS[@]}"; do
         if [[ "${comp%%|*}" == "$name" ]]; then
             IFS='|' read -r -a _f <<< "$comp"
-            printf '%s' "${_f[$idx]}"
+            printf '%s\n' "${_f[$idx]}"
             return 0
         fi
     done

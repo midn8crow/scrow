@@ -8,6 +8,10 @@
 export UI_INTERACTIVE=0
 [[ -t 0 ]] && UI_INTERACTIVE=1
 
+# When set, routine ui_* status lines are suppressed (used while the in-place
+# progress panel is on screen). ui_confirm temporarily forces output back on.
+export UI_QUIET=0
+
 _ui_cols() {
     local c
     c="$(tput cols 2>/dev/null)"
@@ -41,7 +45,7 @@ _ui_center_text() {
 # -----------------------------------------------------------------------------
 ui_box_begin() {
     local title="${1:-}" W rem
-    W=$(( _ui_cols - 2 ))
+    W=$(( $(_ui_cols) - 2 ))
     printf '\033[2J\033[H'
     printf '%s╭' "$C_ACCENT"
     if [[ -n "$title" ]]; then
@@ -56,14 +60,14 @@ ui_box_begin() {
 
 ui_box_line() {
     local text="$1" W inner
-    W=$(( _ui_cols - 2 ))
+    W=$(( $(_ui_cols) - 2 ))
     inner=$(( W - 2 ))
     printf '%s│ %s%s%s │%s\n' "$C_ACCENT" "$(_ui_pad_to "$inner" "$text")" "$C_RESET" "$C_ACCENT" "$C_RESET"
 }
 
 ui_box_line_raw() {
     local text="$1" hint="$2" W inner vis
-    W=$(( _ui_cols - 2 ))
+    W=$(( $(_ui_cols) - 2 ))
     inner=$(( W - 2 ))
     vis=$(_ui_vislen "$text")
     printf '%s│ %s%s%s%s%s%s%s │%s\n' "$C_ACCENT" \
@@ -73,7 +77,7 @@ ui_box_line_raw() {
 
 ui_box_end() {
     local W
-    W=$(( _ui_cols - 2 ))
+    W=$(( $(_ui_cols) - 2 ))
     printf '%s╰%s╯%s\n' "$C_ACCENT" "$(printf '─%.0s' $(seq 1 $(( W - 2 ))))" "$C_RESET"
 }
 
@@ -84,16 +88,17 @@ ui_clear() { printf '\033[2J\033[H'; }
 # -----------------------------------------------------------------------------
 # Status lines
 # -----------------------------------------------------------------------------
-ui_info() { printf '%s ›%s %s\n' "$C_ACCENT" "$C_RESET" "$1"; }
-ui_ok()   { printf '%s✓%s %s\n'  "$C_OK"    "$C_RESET" "$1"; }
-ui_warn() { printf '%s⚠%s %s\n'  "$C_WARN"  "$C_RESET" "$1"; }
-ui_err()  { printf '%s✗%s %s\n'  "$C_ERR"   "$C_RESET" "$1"; }
-ui_step() { printf '%s▸%s %s\n'  "$C_ACCENT" "$C_RESET" "$1"; }
-ui_dim()  { printf '%s%s%s\n'    "$C_FAINT" "$1" "$C_RESET"; }
-ui_text() { printf '%s\n' "$1"; }
+ui_info() { [[ "$UI_QUIET" == "1" ]] && return 0; printf '%s ›%s %s\n' "$C_ACCENT" "$C_RESET" "$1"; }
+ui_ok()   { [[ "$UI_QUIET" == "1" ]] && return 0; printf '%s✓%s %s\n'  "$C_OK"    "$C_RESET" "$1"; }
+ui_warn() { [[ "$UI_QUIET" == "1" ]] && return 0; printf '%s⚠%s %s\n'  "$C_WARN"  "$C_RESET" "$1"; }
+ui_err()  { [[ "$UI_QUIET" == "1" ]] && return 0; printf '%s✗%s %s\n'  "$C_ERR"   "$C_RESET" "$1"; }
+ui_step() { [[ "$UI_QUIET" == "1" ]] && return 0; printf '%s▸%s %s\n'  "$C_ACCENT" "$C_RESET" "$1"; }
+ui_dim()  { [[ "$UI_QUIET" == "1" ]] && return 0; printf '%s%s%s\n'    "$C_FAINT" "$1" "$C_RESET"; }
+ui_text() { [[ "$UI_QUIET" == "1" ]] && return 0; printf '%s\n' "$1"; }
+ui_error() { ui_err "$1"; }
 
 ui_hr() {
-    printf '%s%s%s\n' "$C_DIM" "$(printf '─%.0s' $(seq 1 $(( _ui_cols - 2 ))))" "$C_RESET"
+    printf '%s%s%s\n' "$C_DIM" "$(printf '─%.0s' $(seq 1 $(( $(_ui_cols) - 2 ))))" "$C_RESET"
 }
 
 # -----------------------------------------------------------------------------
@@ -105,11 +110,15 @@ ui_readkey() {
     UI_KEY=""
     if [[ "$UI_INTERACTIVE" != "1" ]]; then
         local line
-        IFS= read -r line
+        if ! IFS= read -r line; then
+            UI_KEY="eof"
+            return
+        fi
         case "$line" in
             ""|"enter") UI_KEY="enter" ;;
             "y"|"Y")    UI_KEY="y" ;;
             "n"|"N")    UI_KEY="n" ;;
+            [0-9])      UI_KEY="num$line" ;;
             *)          UI_KEY="enter" ;;
         esac
         return
@@ -153,12 +162,15 @@ ui_pause() {
 # ui_confirm <message> <default: y|n>  -> 0 yes, 1 no
 ui_confirm() {
     local msg="$1" def="${2:-y}" opts
+    local saved="$UI_QUIET"; UI_QUIET=0
     [[ "$def" == "y" ]] && opts="[Y/n]" || opts="[y/N]"
     printf '%s%s%s %s%s%s ' "$C_ACCENT" "$msg" "$C_RESET" "$C_DIM" "$opts" "$C_RESET"
     ui_readkey
+    UI_QUIET="$saved"
     case "$UI_KEY" in
         "y") echo; return 0 ;;
         "n") echo; return 1 ;;
+        "eof") echo; return 1 ;;
         *)   echo; [[ "$def" == "y" ]]; return ;;
     esac
 }
@@ -202,7 +214,7 @@ ui_menu() {
                 UI_MENU_SELECTED=$cur
                 return 0
                 ;;
-            "left"|"q"|"esc")
+            "left"|"q"|"esc"|"eof")
                 UI_MENU_SELECTED=-1
                 return 1
                 ;;
@@ -220,7 +232,7 @@ ui_menu() {
 _ui_menu_render() {
     local title="$1" subtitle="$2" cancel_label="$3" cur="$4"
     local i label hint num W inner
-    W=$(( _ui_cols - 2 ))
+    W=$(( $(_ui_cols) - 2 ))
     inner=$(( W - 2 ))
     ui_box_begin "$title"
     if [[ -n "$subtitle" ]]; then
@@ -267,7 +279,7 @@ ui_checklist() {
                     return 0
                 fi
                 ;;
-            "left"|"q"|"esc")
+            "left"|"q"|"esc"|"eof")
                 return 1
                 ;;
             num*)
@@ -285,7 +297,7 @@ ui_checklist() {
 _ui_checklist_render() {
     local title="$1" subtitle="$2" cur="$3"
     local i label W inner mark line
-    W=$(( _ui_cols - 2 ))
+    W=$(( $(_ui_cols) - 2 ))
     inner=$(( W - 2 ))
     ui_box_begin "$title"
     if [[ -n "$subtitle" ]]; then
@@ -315,16 +327,45 @@ _ui_checklist_render() {
 }
 
 # -----------------------------------------------------------------------------
-# Progress steps
+# Progress panel (in-place, no flicker)
+# -----------------------------------------------------------------------------
+# Usage:
+#   ui_progress_start "Installing SCROW"
+#   ui_progress_add "Checking system"
+#   ui_progress_run
+#   ui_progress_set 0 2     # 0=pending 1=ok 2=running 3=error 4=warn
+#   ui_progress_finish
 # -----------------------------------------------------------------------------
 UI_PROGRESS_TITLE=""
 UI_PROGRESS_STEPS=()
 UI_PROGRESS_STATUS=()
+UI_PROGRESS_ACTIVE=0
+
+_ui_progress_icon() {
+    case "$1" in
+        1) printf '✓' ;;
+        2) printf '▸' ;;
+        3) printf '✗' ;;
+        4) printf '⚠' ;;
+        *) printf '○' ;;
+    esac
+}
+
+_ui_progress_color() {
+    case "$1" in
+        1) printf '%s' "$C_OK" ;;
+        2) printf '%s' "$C_ACCENT" ;;
+        3) printf '%s' "$C_ERR" ;;
+        4) printf '%s' "$C_WARN" ;;
+        *) printf '%s' "$C_DIM" ;;
+    esac
+}
 
 ui_progress_start() {
     UI_PROGRESS_TITLE="$1"
     UI_PROGRESS_STEPS=()
     UI_PROGRESS_STATUS=()
+    UI_PROGRESS_ACTIVE=0
 }
 
 ui_progress_add() {
@@ -332,31 +373,41 @@ ui_progress_add() {
     UI_PROGRESS_STATUS+=(0)
 }
 
+ui_progress_run() {
+    local i
+    UI_PROGRESS_ACTIVE=1
+    ui_clear
+    printf '%s SCROW%s %s%s\n' "$C_BOLD" "$C_RESET" "${C_BOLD}${UI_PROGRESS_TITLE}${C_RESET}"
+    printf '%s%s%s\n' "$C_DIM" "$(printf '─%.0s' $(seq 1 $(( $(_ui_cols) - 2 ))))" "$C_RESET"
+    for i in "${!UI_PROGRESS_STEPS[@]}"; do
+        printf '  %s○%s %s%s\n' "$C_DIM" "$C_RESET" "${UI_PROGRESS_STEPS[$i]}" "$C_RESET"
+    done
+}
+
 ui_progress_set() {
     local idx="$1" status="$2"
     UI_PROGRESS_STATUS[$idx]="$status"
-    _ui_progress_render
+    _ui_progress_update "$idx"
 }
 
-_ui_progress_render() {
-    local i icon status W inner
-    W=$(( _ui_cols - 2 ))
-    inner=$(( W - 2 ))
-    ui_box_begin "$UI_PROGRESS_TITLE"
-    ui_box_blank
-    for i in "${!UI_PROGRESS_STEPS[@]}"; do
-        status="${UI_PROGRESS_STATUS[$i]}"
-        case "$status" in
-            1) icon="${C_OK}✓${C_RESET}" ;;
-            2) icon="${C_ACCENT}▸${C_RESET}" ;;
-            3) icon="${C_ERR}✗${C_RESET}" ;;
-            4) icon="${C_WARN}⚠${C_RESET}" ;;
-            *) icon="${C_DIM}○${C_RESET}" ;;
-        esac
-        ui_box_line "  ${icon}  ${UI_PROGRESS_STEPS[$i]}"
-    done
-    ui_box_blank
-    ui_box_end
+_ui_progress_update() {
+    local idx="$1" total="${#UI_PROGRESS_STEPS[@]}" icon color up
+    icon="$(_ui_progress_icon "${UI_PROGRESS_STATUS[$idx]}")"
+    color="$(_ui_progress_color "${UI_PROGRESS_STATUS[$idx]}")"
+    if [[ "$UI_INTERACTIVE" == "1" ]] && command -v tput >/dev/null 2>&1; then
+        up=$(( total - idx ))
+        (( up > 0 )) && tput cuu "$up"
+        printf '\r\033[2K  %s%s%s %s%s' "$color" "$icon" "$C_RESET" "${UI_PROGRESS_STEPS[$idx]}" "$C_RESET"
+        (( up > 0 )) && tput cud "$up"
+        printf '\r'
+    else
+        printf '  %s%s%s %s%s\n' "$color" "$icon" "$C_RESET" "${UI_PROGRESS_STEPS[$idx]}" "$C_RESET"
+    fi
+}
+
+ui_progress_finish() {
+    printf '\n'
+    UI_PROGRESS_ACTIVE=0
 }
 
 # -----------------------------------------------------------------------------
@@ -365,7 +416,7 @@ _ui_progress_render() {
 ui_alert() {
     local kind="$1" title="$2" body="$3"
     local W inner color icon
-    W=$(( _ui_cols - 2 ))
+    W=$(( $(_ui_cols) - 2 ))
     inner=$(( W - 2 ))
     case "$kind" in
         ok)   color="$C_OK";   icon="✓" ;;

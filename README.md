@@ -47,31 +47,66 @@ A complete, ready-to-use Hyprland configuration for Arch Linux. One command to i
 ### One-Line Install
 
 ```bash
-git clone --bare --depth 1 https://github.com/midn8crow/scrow.git $HOME/dotfiles && git --git-dir=$HOME/dotfiles/ --work-tree=$HOME checkout -f && ~/scripts/ORCHESTRA.sh
+curl -fsSL https://raw.githubusercontent.com/midn8crow/scrow/main/bootstrap.sh | bash
 ```
 
-### Step-by-Step
+This fetches SCROW, starts the installer and opens the SCROW Manager.
+
+### Development / Local Install
 
 ```bash
-# 1. Clone the repository (bare repo method)
-git clone --bare --depth 1 https://github.com/midn8crow/scrow.git $HOME/dotfiles
-
-# 2. Deploy all files
-git --git-dir=$HOME/dotfiles/ --work-tree=$HOME checkout -f
-
-# 3. Run the installer
-~/scripts/ORCHESTRA.sh
+git clone https://github.com/midn8crow/scrow.git
+cd scrow
+./install.sh
 ```
 
-### What the Installer Does
+### After Installation
 
-1. **Detects your hardware** (GPU, laptop/desktop)
-2. **Installs all packages** (Hyprland, Waybar, Kitty, etc.)
-3. **Installs GPU drivers** (NVIDIA/AMD/Intel)
-4. **Copies all configs** to the right places
-5. **Configures your shell** (Zsh + Starship)
-6. **Enables services** (NetworkManager, Bluetooth, Audio)
-7. **Sets up theming** (GTK, Qt, Fonts)
+Run `scrow` from any directory to open the SCROW Manager again.
+
+### SCROW Manager
+
+| Option | Description |
+|--------|-------------|
+| **Full Installation** (Recommended) | Complete official SCROW environment |
+| **Custom Installation** | Choose individual components |
+| **Components** | Install / reinstall / repair individual components |
+| **Update SCROW** | Update to a newer SCROW version |
+| **Restore** | Return to a previous automatic backup |
+| **Reset SCROW** | Restore official files (overwrites local edits) |
+| **Doctor / Repair** | Detect and safely repair problems |
+| **Uninstall SCROW** | Safely remove SCROW-managed content |
+
+### Automatic Backups
+
+Before any operation that can change SCROW-managed files, SCROW automatically creates a backup in:
+
+```
+~/.local/share/scrow/backups/
+```
+
+Backups are never deleted automatically. Use **Restore** in the manager to return to a previous backup. Each backup records the SCROW version, manifest, symlinks and installed state.
+
+### Command Line
+
+```bash
+./install.sh --help        # Show help
+./install.sh --version     # Show version
+./install.sh --dry-run     # Preview every change without touching the system
+```
+
+## What the Installer Does
+
+1. **Checks the system** (Arch Linux, dependencies)
+2. **Detects your hardware** (GPU, laptop/desktop)
+3. **Installs required packages** (pacman + AUR via paru)
+4. **Installs GPU drivers** (AMD/Intel/NVIDIA only as needed)
+5. **Creates a safety backup** of existing configuration
+6. **Deploys all configs** and creates symlinks
+7. **Configures your shell** (Zsh + Starship)
+8. **Enables SCROW services** (NetworkManager, Bluetooth, Audio)
+9. **Sets up theming** (GTK, Qt, Fonts)
+10. **Verifies the installation**
 
 ## Features
 
@@ -344,17 +379,13 @@ hl.exec_cmd("bash -c '$HOME/.local/bin/kbd-backlight-keep.sh &'")
 
 ## Uninstall
 
-```bash
-uninstall-dotfiles
-```
-
-Or manually:
+Open the SCROW Manager and choose **Uninstall SCROW**:
 
 ```bash
-rm -rf ~/.config/{hypr,waybar,kitty,rofi,mako}
-rm -f ~/.config/starship.toml
-rm -f ~/.zshrc
+scrow
 ```
+
+Uninstall removes only SCROW-managed files, symlinks, services and the `scrow` command. Your automatic backups are kept, so you can restore a previous state by cloning the repository and running `./install.sh` → **Restore**.
 
 ## Contributing
 

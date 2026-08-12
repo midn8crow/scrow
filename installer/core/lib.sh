@@ -12,9 +12,14 @@ set -uo pipefail
 # Globals / paths
 # -----------------------------------------------------------------------------
 export SCROW_SELF="$0"
+# Root of the current installer tree (contains install.sh + installer/).
+# This is the repository root when run from a clone, or the self-contained
+# copy at ~/.local/share/scrow/installer when run via the `scrow` command.
+export SCROW_INSTALLER_SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+
 export SCROW_REPO="${SCROW_REPO:-}"
 if [[ -z "$SCROW_REPO" ]]; then
-    SCROW_REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+    SCROW_REPO="$SCROW_INSTALLER_SRC"
 fi
 
 export SCROW_VERSION="$(cat "$SCROW_REPO/VERSION" 2>/dev/null | tr -d '[:space:]')"
@@ -32,6 +37,7 @@ export SCROW_CURRENT_LOG="$SCROW_LOG_DIR/scrow.log"
 
 export SCROW_DRY_RUN="${SCROW_DRY_RUN:-0}"
 export SCROW_UI="${SCROW_UI:-tui}"
+export SCROW_LOG_READY=0
 
 # -----------------------------------------------------------------------------
 # Colors (restrained catppuccin-inspired palette)
@@ -51,6 +57,10 @@ C_DIM=$'\033[38;5;245m'
 # Logging
 # -----------------------------------------------------------------------------
 scrow_log_init() {
+    if [[ "$SCROW_DRY_RUN" == "1" ]]; then
+        SCROW_LOG_READY=0
+        return 0
+    fi
     mkdir -p "$SCROW_LOG_DIR"
     {
         echo "=================================================="
@@ -60,9 +70,11 @@ scrow_log_init() {
         echo "Source  : $SCROW_REPO"
         echo "=================================================="
     } >> "$SCROW_CURRENT_LOG"
+    SCROW_LOG_READY=1
 }
 
 scrow_log() {
+    [[ "$SCROW_LOG_READY" == "1" ]] || return 0
     local level="${2:-INFO}"
     echo "[$(date '+%H:%M:%S')] [$level] $1" >> "$SCROW_CURRENT_LOG"
 }
@@ -77,12 +89,15 @@ scrow_log_run() {
         echo "  [dry-run] ${C_DIM}$*${C_RESET}" >&2
         return 0
     fi
+    local rc=0
     {
         echo "--- $desc"
         echo "--- cmd: $*"
         "$@" 2>&1
-        echo "--- exit: $?"
-    } >> "$SCROW_CURRENT_LOG" 2>&1 || true
+        rc=$?
+        echo "--- exit: $rc"
+    } >> "$SCROW_CURRENT_LOG"
+    return $rc
 }
 
 scrow_log_tee() {
@@ -95,12 +110,15 @@ scrow_log_tee() {
         echo "  [dry-run] ${C_DIM}$*${C_RESET}" >&2
         return 0
     fi
+    local rc=0
     {
         echo "--- $desc"
         echo "--- cmd: $*"
         "$@" 2>&1
-        echo "--- exit: $?"
+        rc=$?
+        echo "--- exit: $rc"
     } >> "$SCROW_CURRENT_LOG"
+    return $rc
 }
 
 # -----------------------------------------------------------------------------
@@ -127,12 +145,15 @@ scrow_run_sudo() {
         echo "  [dry-run] ${C_DIM}sudo $*${C_RESET}" >&2
         return 0
     fi
+    local rc=0
     {
         echo "--- $desc"
         echo "--- cmd: sudo $*"
         sudo "$@" 2>&1
-        echo "--- exit: $?"
-    } >> "$SCROW_CURRENT_LOG" 2>&1 || true
+        rc=$?
+        echo "--- exit: $rc"
+    } >> "$SCROW_CURRENT_LOG"
+    return $rc
 }
 
 # -----------------------------------------------------------------------------
@@ -140,6 +161,7 @@ scrow_run_sudo() {
 # -----------------------------------------------------------------------------
 scrow_die() {
     scrow_log "FATAL $1"
+    UI_QUIET=0
     ui_error "$1"
     exit 1
 }
