@@ -100,9 +100,9 @@ ALT + W
 ```
 
 Available themes:
-- Default (vertical)
+- Default (scrowland)
+- cxorz
 - Athena
-- Minimal
 - And more...
 
 ### Keybinds
