@@ -141,10 +141,11 @@ hl.window_rule({
 
 hl.window_rule({
     name  = "thunar-rename-float",
-    match = { class = "Thunar", title = "Rename.*" },
+    match = { class = "thunar", title = "Rename.*" },
     float  = true,
     center = true,
 })
+
 
 hl.window_rule({
     name  = "ytdlp-gui-float",

@@ -435,9 +435,19 @@ install_core_packages() {
         "qt5-declarative"
         "zstd"
         "python-curl-cffi-git"
-        "scdoc"
         "unzip"
         "mpv-mpris"
+        "git-lfs"
+        "gnome-themes-extra"
+        "gtk-engine-murrine"
+        "gulp"
+        "nodejs"
+        "nvm"
+        "python-distutils-extra"
+        "sassc"
+        "semver"
+        "usbguard"
+        "yarn"
     )
     
     # Clipboard

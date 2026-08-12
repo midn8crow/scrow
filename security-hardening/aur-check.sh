@@ -124,15 +124,15 @@ declare -A PATTERNS=(
 
     # Code execution
     ["eval\("]="Dynamic code execution"
-    ["exec\("]="Process execution"
+    ["\bexec\("]="Process execution"
     ["nohup .* &"]="Background process execution"
-    ["\`.*\`"]="Command substitution (backticks)"
+    ["\`[^\`]*(/dev/tcp|\b(curl|wget|base64|nc|ncat|telnet|python|perl|bash|sh|zsh)\b)[^\`]*\`"]="Command substitution (backticks)"
 
     # Encoded/hidden payloads
     ["base64 -d.*\|.*bash"]="Encoded payload execution"
     ["base64 -d.*\|.*sh"]="Encoded payload execution"
     ["echo.*\|.*base64.*\|.*bash"]="Encoded payload execution"
-    ["printf.*\\\\x[0-9A-Fa-f]"]="Hex-encoded payload"
+    ["printf.*\\\\x[0-9A-Fa-f]{2}(\\\\x[0-9A-Fa-f]{2})+"]="Hex-encoded payload"
     ["\$\(echo.*\|.*\bsh\b"]="Obfuscated shell execution"
 
     # Permission escalation
@@ -168,7 +168,7 @@ declare -A PATTERNS=(
     ["nc -l -p"]="Netcat listener"
     ["nc -e"]="Netcat with execute"
     ["ncat -l"]="Backdoor listener"
-    ["ncat.*-e"]="Backdoor with execute"
+    ["\bncat\b.*-e"]="Backdoor with execute"
     ["/dev/tcp"]="Network connection"
     ["socket\.connect"]="Socket connection"
     ["\.bind\(|bind\(\s*\("]="Network bind"
@@ -226,7 +226,7 @@ declare -A PATTERNS=(
     ["ip addr.*\|.*curl"]="Network info exfiltration"
     ["hostname.*\|.*curl"]="Hostname exfiltration"
     ["whoami.*\|.*curl"]="User info exfiltration"
-    ["id.*\|.*curl"]="User ID exfiltration"
+    ["\bid\b.*\|.*\bcurl\b"]="User ID exfiltration"
 
     # Obfuscation tricks
     ["\$\{.*//.*\}"]="String manipulation (obfuscation)"
@@ -237,8 +237,8 @@ declare -A PATTERNS=(
 SUSPICIOUS=0
 declare -a SUSPICIOUS_FILES
 
-# Scan one text file: strip comment lines, flatten newlines to spaces so
-# patterns can't hide by splitting across lines, then check every pattern.
+# Scan one text file: strip comment lines and check every pattern against each
+# line separately, so wildcards can't match unrelated content across the file.
 scan_file() {
     local f="$1"
     [ -f "$f" ] || return 0
@@ -253,15 +253,12 @@ scan_file() {
         Cargo.lock|package-lock.json|npm-shrinkwrap.json|yarn.lock|pnpm-lock.yaml|pnpm-lock.yml|poetry.lock|Gemfile.lock|composer.lock|go.sum|mix.lock) return 0 ;;
     esac
     case "$ext" in
-        md|txt|rst|adoc|sample|bak|orig|yml|yaml) return 0 ;;
+        md|txt|rst|adoc|sample|bak|orig|yml|yaml|xpm|pnm|ppm|pgm|pbm) return 0 ;;
     esac
     grep -Iq . "$f" 2>/dev/null || return 0   # skip binaries
-    local code
-    code=$(grep -vE '^[[:space:]]*#' "$f" 2>/dev/null | tr '\n' ' ')
-    [ -n "$code" ] || return 0
     local pattern hits=0
     for pattern in "${!PATTERNS[@]}"; do
-        if printf '%s' "$code" | grep -qiE -- "$pattern"; then
+        if grep -qiE -- "$pattern" < <(grep -vE '^[[:space:]]*#' "$f" 2>/dev/null); then
             echo -e "  ${RED}[SUSPICIOUS]${NC} ${f##*/}: $pattern - ${PATTERNS[$pattern]}"
             hits=$((hits + 1))
         fi

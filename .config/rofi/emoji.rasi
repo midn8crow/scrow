@@ -67,7 +67,7 @@ entry {
 
 listview {
     columns:            8;
-    lines:              6;
+    lines:              5;
     flow:               horizontal;
     fixed-columns:      true;
     cycle:              true;
@@ -79,7 +79,7 @@ listview {
 }
 
 element {
-    padding:            6px;
+    padding:            4px;
     border-radius:      10px;
     cursor:             pointer;
     spacing:            0;

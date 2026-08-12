@@ -430,7 +430,7 @@ hl.bind("XF86AudioPlay",  hl.dsp.exec_cmd("playerctl play-pause"), { locked = tr
 hl.bind("XF86AudioPrev",  hl.dsp.exec_cmd("playerctl previous"),   { locked = true })
 
 -- Mechanical keypress sounds (WayClick) toggle
-hl.bind("CTRL + SHIFT + X", hl.dsp.exec_cmd(wayclick))
+hl.bind("CTRL + SHIFT + A", hl.dsp.exec_cmd(wayclick))
 
 -- Zoom at cursor: ALT+Z enters zoom mode, scroll wheel zooms around the
 -- mouse pointer, ALT+Z / ESC / any other key exits and resets to 1x

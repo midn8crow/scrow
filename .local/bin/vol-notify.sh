@@ -1,6 +1,6 @@
 #!/bin/bash
 
-STEP=5
+STEP=1
 SINK="@DEFAULT_AUDIO_SINK@"
 
 case "$1" in
