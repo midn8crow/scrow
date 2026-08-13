@@ -18,6 +18,22 @@ _ui_cols() {
     [[ "$c" =~ ^[0-9]+$ ]] && echo "$c" || echo 80
 }
 
+_ui_rows() {
+    local r
+    r="$(tput lines 2>/dev/null)"
+    [[ "$r" =~ ^[0-9]+$ ]] && echo "$r" || echo 24
+}
+
+# Truncate a string to at most $2 visible characters, adding an ellipsis.
+_ui_trunc() {
+    local text="$1" max="$2" vis
+    (( max < 0 )) && max=0
+    vis=$(_ui_vislen "$text")
+    (( vis <= max )) && { printf '%s' "$text"; return; }
+    (( max > 0 )) || return 0
+    printf '%s' "${text:0:$(( max - 1 ))}…"
+}
+
 _ui_vislen() {
     printf '%s' "$1" | sed $'s/\033\[[0-9;]*m//g' | awk '{ print length }'
 }
@@ -46,9 +62,11 @@ _ui_center_text() {
 ui_box_begin() {
     local title="${1:-}" W rem
     W=$(( $(_ui_cols) - 2 ))
+    (( W < 4 )) && W=4
     printf '\033[2J\033[H'
     printf '%s╭' "$C_ACCENT"
     if [[ -n "$title" ]]; then
+        title="$(_ui_trunc "$title" $(( W - 4 )))"
         printf '─ %s%s%s' "$C_BOLD" "$title" "$C_ACCENT"
         rem=$(( W - 3 - $(_ui_vislen "$title") ))
         (( rem > 0 )) && printf '─%.0s' $(seq 1 "$rem")
@@ -61,6 +79,7 @@ ui_box_begin() {
 ui_box_line() {
     local text="$1" W inner
     W=$(( $(_ui_cols) - 2 ))
+    (( W < 4 )) && W=4
     inner=$(( W - 2 ))
     printf '%s│ %s%s%s │%s\n' "$C_ACCENT" "$(_ui_pad_to "$inner" "$text")" "$C_RESET" "$C_ACCENT" "$C_RESET"
 }
@@ -68,6 +87,7 @@ ui_box_line() {
 ui_box_line_raw() {
     local text="$1" hint="$2" W inner vis
     W=$(( $(_ui_cols) - 2 ))
+    (( W < 4 )) && W=4
     inner=$(( W - 2 ))
     vis=$(_ui_vislen "$text")
     printf '%s│ %s%s%s%s%s%s%s │%s\n' "$C_ACCENT" \
@@ -78,6 +98,7 @@ ui_box_line_raw() {
 ui_box_end() {
     local W
     W=$(( $(_ui_cols) - 2 ))
+    (( W < 4 )) && W=4
     printf '%s╰%s╯%s\n' "$C_ACCENT" "$(printf '─%.0s' $(seq 1 $(( W - 2 ))))" "$C_RESET"
 }
 
@@ -163,7 +184,7 @@ ui_pause() {
 # The default is shown as an explicit tag: "[Y/n]  (default: Yes)" so the
 # keyboard shortcut is never ambiguous.
 ui_confirm() {
-    local msg="$1" def="${2:-y}" opts tag
+    local msg="${1:-}" def="${2:-y}" opts tag
     local saved="$UI_QUIET"; UI_QUIET=0
     if [[ "$def" == "y" ]]; then
         opts="[Y/n]"
@@ -193,14 +214,23 @@ UI_MENU_SELECTED=-1
 
 _ui_menu_item() {
     local num="$1" label="$2" hint="$3" sel="$4" inner="$5"
-    local left right lw rw
+    local left right lw_base avail rw hint_w
+    lw_base=$(_ui_vislen " ${num}  ")
+    avail=$(( inner - lw_base ))
+    if [[ -n "$hint" ]]; then
+        label="$(_ui_trunc "$label" $(( avail - 8 )))"
+        hint_w=$(( avail - $(_ui_vislen " ${label} ") - 2 ))
+        (( hint_w < 0 )) && hint_w=0
+        hint="$(_ui_trunc "$hint" "$hint_w")"
+    else
+        label="$(_ui_trunc "$label" "$avail")"
+    fi
     left=" ${num}  ${label} "
-    lw=$(_ui_vislen "$left")
     if [[ -n "$hint" ]]; then
         rw=$(_ui_vislen " ${hint} ")
-        right="$(printf '%*s' "$(( inner - lw - rw ))" "") ${hint} "
+        right="$(printf '%*s' "$(( inner - $(_ui_vislen "$left") - rw ))" "") ${hint} "
     else
-        right="$(printf '%*s' "$(( inner - lw ))" "")"
+        right="$(printf '%*s' "$(( inner - $(_ui_vislen "$left") ))" "")"
     fi
     if [[ "$sel" == "1" ]]; then
         printf '%s%s%s%s%s%s%s' "${C_REV}${C_ACCENT}${C_BOLD}" "$left" "${C_DIM}" "$right" "${C_RESET}"
@@ -209,11 +239,105 @@ _ui_menu_item() {
     fi
 }
 
+# Boxed line content (no trailing newline), padded to the box inner width.
+_ui_box_line_str() {
+    local text="$1" inner
+    inner=$(( $(_ui_cols) - 4 ))
+    (( inner < 2 )) && inner=2
+    printf '%s│ %s%s%s │%s' "$C_ACCENT" "$(_ui_pad_to "$inner" "$text")" "$C_RESET" "$C_ACCENT" "$C_RESET"
+}
+
+# Rewrite a single terminal line in place (row is 1-based).
+_ui_line_at() {
+    printf '\033[%d;1H\033[K' "$1"
+    printf '%s' "$2"
+}
+
+_ui_menu_item_row() {
+    local idx="$1" subtitle="$2" top="$3" base=1
+    [[ -n "$subtitle" ]] && base=$(( base + 2 ))
+    echo $(( base + 2 + idx - top ))
+}
+
+_ui_menu_redraw_item() {
+    local idx="$1" subtitle="$2" top="$3" inner="$4" sel="$5"
+    local row label hint
+    row="$(_ui_menu_item_row "$idx" "$subtitle" "$top")"
+    label="${UI_MENU_ITEMS[$idx]%%::*}"
+    hint=""
+    [[ "${UI_MENU_ITEMS[$idx]}" == *"::"* ]] && hint="${UI_MENU_ITEMS[$idx]#*::}"
+    _ui_line_at "$row" "$(_ui_box_line_str "$(_ui_menu_item "$(( idx + 1 ))" "$label" "$hint" "$sel" "$inner")")"
+}
+
+_ui_menu_draw() {
+    local title="$1" subtitle="$2" cancel_label="$3" cur="$4" top="$5" inner="$6" item_avail="$7"
+    local i total=${#UI_MENU_ITEMS[@]}
+    ui_box_begin "$title"
+    if [[ -n "$subtitle" ]]; then
+        ui_box_blank
+        ui_box_line "${C_DIM}  $subtitle${C_RESET}"
+    fi
+    if (( top > 0 )); then
+        ui_box_line "${C_DIM}  ↑ more${C_RESET}"
+    else
+        ui_box_blank
+    fi
+    for (( i = top; i < top + item_avail && i < total; i++ )); do
+        local label hint
+        label="${UI_MENU_ITEMS[$i]%%::*}"
+        hint=""
+        [[ "${UI_MENU_ITEMS[$i]}" == *"::"* ]] && hint="${UI_MENU_ITEMS[$i]#*::}"
+        ui_box_line "$(_ui_menu_item "$(( i + 1 ))" "$label" "$hint" "$(( i == cur ))" "$inner")"
+    done
+    if (( top + item_avail < total )); then
+        ui_box_line "${C_DIM}  ↓ more${C_RESET}"
+    else
+        ui_box_blank
+    fi
+    if [[ -n "$cancel_label" ]]; then
+        ui_box_line "${C_DIM}  0  ${cancel_label}${C_RESET}"
+    fi
+    ui_box_blank
+    ui_box_line "${C_DIM}↑↓ Navigate    Enter Select    Esc Back${C_RESET}"
+    ui_box_end
+}
+
 ui_menu() {
-    local title="$1" subtitle="$2" cancel_label="${3:-Back}"
+    local title="$1" subtitle="${2:-}" cancel_label="${3-Back}"
     local cur=0 total=${#UI_MENU_ITEMS[@]} key num_key
+    local cols lines inner fixed item_avail top=0
+    local last_cols=0 last_lines=0 last_top=0 last_cur=-1 first=1 redraw=0
+    [[ $total -eq 0 ]] && return 1
     while :; do
-        _ui_menu_render "$title" "$subtitle" "$cancel_label" "$cur"
+        cols=$(_ui_cols); lines=$(_ui_rows)
+        inner=$(( cols - 4 ))
+        (( inner < 4 )) && inner=4
+        fixed=1
+        [[ -n "$subtitle" ]] && fixed=$(( fixed + 2 ))
+        fixed=$(( fixed + 2 ))
+        [[ -n "$cancel_label" ]] && fixed=$(( fixed + 1 ))
+        fixed=$(( fixed + 3 ))
+        item_avail=$(( lines - fixed ))
+        (( item_avail < 1 )) && item_avail=1
+        (( cur < 0 )) && cur=0
+        (( cur > total - 1 )) && cur=$(( total - 1 ))
+        (( cur < top )) && top=$cur
+        (( cur >= top + item_avail )) && top=$(( cur - item_avail + 1 ))
+        (( top < 0 )) && top=0
+
+        redraw=0
+        (( first )) && redraw=1
+        (( cols != last_cols || lines != last_lines )) && redraw=1
+        (( top != last_top )) && redraw=1
+        if (( redraw )); then
+            _ui_menu_draw "$title" "$subtitle" "$cancel_label" "$cur" "$top" "$inner" "$item_avail"
+            last_cols=$cols; last_lines=$lines; last_top=$top; first=0
+        elif (( cur != last_cur )); then
+            _ui_menu_redraw_item "$last_cur" "$subtitle" "$top" "$inner" 0
+            _ui_menu_redraw_item "$cur" "$subtitle" "$top" "$inner" 1
+        fi
+        last_cur=$cur
+
         ui_readkey
         case "$UI_KEY" in
             "up")   (( cur > 0 )) && cur=$(( cur - 1 )) ;;
@@ -229,39 +353,11 @@ ui_menu() {
             num*)
                 num_key="${UI_KEY#num}"
                 if (( num_key >= 1 && num_key <= total )); then
-                    UI_MENU_SELECTED=$(( num_key - 1 ))
-                    return 0
+                    cur=$(( num_key - 1 ))
                 fi
                 ;;
         esac
     done
-}
-
-_ui_menu_render() {
-    local title="$1" subtitle="$2" cancel_label="$3" cur="$4"
-    local i label hint num W inner
-    W=$(( $(_ui_cols) - 2 ))
-    inner=$(( W - 2 ))
-    ui_box_begin "$title"
-    if [[ -n "$subtitle" ]]; then
-        ui_box_blank
-        ui_box_line "${C_DIM}  $subtitle${C_RESET}"
-    fi
-    ui_box_blank
-    for i in "${!UI_MENU_ITEMS[@]}"; do
-        label="${UI_MENU_ITEMS[$i]%%::*}"
-        hint=""
-        [[ "${UI_MENU_ITEMS[$i]}" == *"::"* ]] && hint="${UI_MENU_ITEMS[$i]#*::}"
-        num=$(( i + 1 ))
-        ui_box_line "$(_ui_menu_item "$num" "$label" "$hint" "$(( i == cur ))" "$inner")"
-    done
-    if [[ -n "$cancel_label" ]]; then
-        ui_box_blank
-        ui_box_line "${C_DIM}  0  ${cancel_label}${C_RESET}"
-    fi
-    ui_box_blank
-    ui_box_line "${C_DIM}↑↓ Navigate    Enter Select    Esc Back${C_RESET}"
-    ui_box_end
 }
 
 # -----------------------------------------------------------------------------
@@ -270,22 +366,106 @@ _ui_menu_render() {
 UI_CHECK_ITEMS=()
 UI_CHECK_STATE=()
 
+_ui_check_item_row() {
+    local idx="$1" subtitle="$2" top="$3" base=1
+    [[ -n "$subtitle" ]] && base=$(( base + 2 ))
+    echo $(( base + 2 + idx - top ))
+}
+
+_ui_checklist_line() {
+    local i="$1" sel="$2" inner="$3"
+    local label="${UI_CHECK_ITEMS[$i]}" mark line
+    label="$(_ui_trunc "$label" $(( inner - 8 )))"
+    if [[ "${UI_CHECK_STATE[$i]}" == "1" ]]; then
+        mark="${C_OK}[✓]${C_RESET}"
+    else
+        mark="${C_DIM}[ ]${C_RESET}"
+    fi
+    if [[ "$sel" == "1" ]]; then
+        line="${C_REV}${C_ACCENT} ${mark}  ${label}${C_RESET}"
+        line+="$(printf '%*s' "$(( inner - $(_ui_vislen "$line") ))" "")"
+    else
+        line=" ${mark}  ${label}"
+        line+="$(printf '%*s' "$(( inner - $(_ui_vislen "$line") ))" "")"
+    fi
+    printf '%s' "$line"
+}
+
+_ui_check_redraw_item() {
+    local idx="$1" subtitle="$2" top="$3" inner="$4" sel="$5" row
+    row="$(_ui_check_item_row "$idx" "$subtitle" "$top")"
+    _ui_line_at "$row" "$(_ui_box_line_str "$(_ui_checklist_line "$idx" "$sel" "$inner")")"
+}
+
+_ui_checklist_draw() {
+    local title="$1" subtitle="$2" cur="$3" top="$4" inner="$5" item_avail="$6"
+    local i total=${#UI_CHECK_ITEMS[@]}
+    ui_box_begin "$title"
+    if [[ -n "$subtitle" ]]; then
+        ui_box_blank
+        ui_box_line "${C_DIM}  $subtitle${C_RESET}"
+    fi
+    if (( top > 0 )); then
+        ui_box_line "${C_DIM}  ↑ more${C_RESET}"
+    else
+        ui_box_blank
+    fi
+    for (( i = top; i < top + item_avail && i < total; i++ )); do
+        ui_box_line "$(_ui_checklist_line "$i" "$(( i == cur ))" "$inner")"
+    done
+    if (( top + item_avail < total )); then
+        ui_box_line "${C_DIM}  ↓ more${C_RESET}"
+    else
+        ui_box_blank
+    fi
+    ui_box_blank
+    ui_box_line "${C_DIM}Space Toggle    Enter Continue    Esc Cancel${C_RESET}"
+    ui_box_end
+}
+
 ui_checklist() {
-    local title="$1" subtitle="$2" cur=0 total=${#UI_CHECK_ITEMS[@]} key num_key
+    local title="$1" subtitle="${2:-}" cur=0 total=${#UI_CHECK_ITEMS[@]} key num_key
+    local cols lines inner fixed item_avail top=0
+    local last_cols=0 last_lines=0 last_top=0 last_cur=-1 first=1 redraw=0
     [[ $total -eq 0 ]] && return 1
     while :; do
-        _ui_checklist_render "$title" "$subtitle" "$cur"
+        cols=$(_ui_cols); lines=$(_ui_rows)
+        inner=$(( cols - 4 ))
+        (( inner < 4 )) && inner=4
+        fixed=1
+        [[ -n "$subtitle" ]] && fixed=$(( fixed + 2 ))
+        fixed=$(( fixed + 5 ))
+        item_avail=$(( lines - fixed ))
+        (( item_avail < 1 )) && item_avail=1
+        (( cur < 0 )) && cur=0
+        (( cur > total - 1 )) && cur=$(( total - 1 ))
+        (( cur < top )) && top=$cur
+        (( cur >= top + item_avail )) && top=$(( cur - item_avail + 1 ))
+        (( top < 0 )) && top=0
+
+        redraw=0
+        (( first )) && redraw=1
+        (( cols != last_cols || lines != last_lines )) && redraw=1
+        (( top != last_top )) && redraw=1
+        if (( redraw )); then
+            _ui_checklist_draw "$title" "$subtitle" "$cur" "$top" "$inner" "$item_avail"
+            last_cols=$cols; last_lines=$lines; last_top=$top; first=0
+        elif (( cur != last_cur )); then
+            _ui_check_redraw_item "$last_cur" "$subtitle" "$top" "$inner" 0
+            _ui_check_redraw_item "$cur" "$subtitle" "$top" "$inner" 1
+        fi
+        last_cur=$cur
+
         ui_readkey
         case "$UI_KEY" in
             "up")   (( cur > 0 )) && cur=$(( cur - 1 )) ;;
             "down") (( cur < total - 1 )) && cur=$(( cur + 1 )) ;;
-            "space"|"right"|"enter")
-                [[ "$UI_KEY" == "space" || "$UI_KEY" == "right" ]] && {
-                    [[ "${UI_CHECK_STATE[$cur]}" == "1" ]] && UI_CHECK_STATE[$cur]="0" || UI_CHECK_STATE[$cur]="1"
-                }
-                if [[ "$UI_KEY" == "enter" ]]; then
-                    return 0
-                fi
+            "space"|"right")
+                [[ "${UI_CHECK_STATE[$cur]}" == "1" ]] && UI_CHECK_STATE[$cur]="0" || UI_CHECK_STATE[$cur]="1"
+                _ui_check_redraw_item "$cur" "$subtitle" "$top" "$inner" 1
+                ;;
+            "enter")
+                return 0
                 ;;
             "left"|"q"|"esc"|"eof")
                 return 1
@@ -295,43 +475,14 @@ ui_checklist() {
                 if (( num_key >= 1 && num_key <= total )); then
                     local idx=$(( num_key - 1 ))
                     [[ "${UI_CHECK_STATE[$idx]}" == "1" ]] && UI_CHECK_STATE[$idx]="0" || UI_CHECK_STATE[$idx]="1"
+                    if (( idx == cur )); then
+                        _ui_check_redraw_item "$idx" "$subtitle" "$top" "$inner" 1
+                    fi
                     cur=$idx
                 fi
                 ;;
         esac
     done
-}
-
-_ui_checklist_render() {
-    local title="$1" subtitle="$2" cur="$3"
-    local i label W inner mark line
-    W=$(( $(_ui_cols) - 2 ))
-    inner=$(( W - 2 ))
-    ui_box_begin "$title"
-    if [[ -n "$subtitle" ]]; then
-        ui_box_blank
-        ui_box_line "${C_DIM}  $subtitle${C_RESET}"
-    fi
-    ui_box_blank
-    for i in "${!UI_CHECK_ITEMS[@]}"; do
-        label="${UI_CHECK_ITEMS[$i]}"
-        if [[ "${UI_CHECK_STATE[$i]}" == "1" ]]; then
-            mark="${C_OK}[✓]${C_RESET}"
-        else
-            mark="${C_DIM}[ ]${C_RESET}"
-        fi
-        if (( i == cur )); then
-            line="${C_REV}${C_ACCENT} ${mark}  ${label}${C_RESET}"
-            line+="$(printf '%*s' "$(( inner - $(_ui_vislen "$mark") - 2 - $(_ui_vislen "$label") - 2 ))" "")"
-        else
-            line=" ${mark}  ${label}"
-            line+="$(printf '%*s' "$(( inner - $(_ui_vislen "$line") ))" "")"
-        fi
-        ui_box_line "$line"
-    done
-    ui_box_blank
-    ui_box_line "${C_DIM}Space Toggle    Enter Continue    Esc Cancel${C_RESET}"
-    ui_box_end
 }
 
 # -----------------------------------------------------------------------------
