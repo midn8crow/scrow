@@ -40,14 +40,11 @@ scrow_doctor_check_system() {
         scrow_doctor_err "Not running Arch Linux"
     fi
 
-    local net=0
-    if ping -c 1 -W 3 archlinux.org >/dev/null 2>&1 || ping -c 1 -W 3 1.1.1.1 >/dev/null 2>&1; then
-        net=1
-    fi
-    if (( net )); then
+    if scrow_check_network_now --quiet; then
         scrow_doctor_ok "Network reachable"
     else
-        scrow_doctor_warn "Network unreachable (install / update / reset need the network)"
+        scrow_doctor_warn "Cannot reach GitHub over HTTPS (install / update / reset need the network)"
+        [[ -n "$SCROW_NET_DIAG" ]] && ui_dim "  Reason: $SCROW_NET_DIAG"
     fi
 
     local tool

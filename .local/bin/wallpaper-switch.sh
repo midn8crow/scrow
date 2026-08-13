@@ -20,6 +20,14 @@ if [[ -f "$HISTORY_FILE" ]]; then
     current=${current:-0}
 fi
 
+# Self-heal a stale/invalid index (e.g. wallpapers were removed since the last
+# use). Falling back to 0 (the SCROW default wallpaper) keeps restore working
+# without requiring the user to clear the cache manually.
+if [[ ! "$current" =~ ^[0-9]+$ ]] || (( current >= count )) || [[ ! -f "${walls[$current]}" ]]; then
+    current=0
+    echo "$current" > "$HISTORY_FILE"
+fi
+
 if [[ "$1" == "restore" ]]; then
     TYPE_FILE="$HOME/.cache/wallpaper-type"
     if [[ -f "$TYPE_FILE" ]] && [[ "$(cat "$TYPE_FILE" 2>/dev/null)" == "live" ]]; then

@@ -276,7 +276,6 @@ hl.bind(mainMod .. " + period", function()
     end
 end, { description = "Toggle Blur & Opacity", locked = true })
 hl.bind(mainMod .. " + SHIFT + S", hl.dsp.exec_cmd("kitty --class scrow-tui -o remember_window_size=no -o initial_window_width=820 -o initial_window_height=36c -e $HOME/.local/bin/scrow-menu-tui"))
-hl.bind(mainMod .. " + SHIFT + U", hl.dsp.exec_cmd("$HOME/.local/bin/update-dots.sh"))
 hl.bind(mainMod .. " + SHIFT + P", hl.dsp.exec_cmd("$HOME/.local/bin/pick-color-region.sh"))
 hl.bind(mainMod .. " + T", hl.dsp.exec_cmd("$HOME/.local/bin/ocr-toggle.sh"))
 hl.bind(mainMod .. " + S", hl.dsp.exec_cmd("$HOME/.local/bin/screenshot-region.sh"))

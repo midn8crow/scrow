@@ -25,6 +25,11 @@ scrow_repo_ensure_mirror() {
     fi
     mkdir -p "$SCROW_STATE_DIR"
     [[ "$SCROW_LOG_READY" == "1" ]] || scrow_log_init "$SCROW_SELF"
+    # Remove a stale/partial leftover so `git clone` cannot fail on an
+    # already-existing destination directory.
+    if [[ -e "$SCROW_REPO_DIR" && ! -d "$SCROW_REPO_DIR/.git" ]]; then
+        rm -rf "$SCROW_REPO_DIR"
+    fi
     if git clone --depth 1 --branch "$SCROW_REPO_BRANCH" "$SCROW_REPO_URL" "$SCROW_REPO_DIR" \
         >> "$SCROW_CURRENT_LOG" 2>&1; then
         ui_ok "Repository mirror ready"

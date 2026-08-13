@@ -32,3 +32,22 @@ placessidebar {
 placessidebar:backdrop {
   background-color: @sidebar_backdrop_color;
 }
+
+.thunar,
+.thunar * {
+  background-image: none;
+  background-color: #0f1416;
+  color: #dee3e6;
+}
+
+.thunar *:selected,
+.thunar .view:selected,
+.thunar .sidebar .view:selected {
+  background-color: #85d2e8;
+  color: #0f1416;
+}
+
+.thunar .view:not(:selected):hover,
+.thunar .sidebar .view:not(:selected):hover {
+  background-color: #1b2022;
+}

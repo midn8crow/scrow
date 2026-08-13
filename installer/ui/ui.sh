@@ -160,11 +160,19 @@ ui_pause() {
 # Confirmation prompt
 # -----------------------------------------------------------------------------
 # ui_confirm <message> <default: y|n>  -> 0 yes, 1 no
+# The default is shown as an explicit tag: "[Y/n]  (default: Yes)" so the
+# keyboard shortcut is never ambiguous.
 ui_confirm() {
-    local msg="$1" def="${2:-y}" opts
+    local msg="$1" def="${2:-y}" opts tag
     local saved="$UI_QUIET"; UI_QUIET=0
-    [[ "$def" == "y" ]] && opts="[Y/n]" || opts="[y/N]"
-    printf '%s%s%s %s%s%s ' "$C_ACCENT" "$msg" "$C_RESET" "$C_DIM" "$opts" "$C_RESET"
+    if [[ "$def" == "y" ]]; then
+        opts="[Y/n]"
+        tag="default: Yes"
+    else
+        opts="[y/N]"
+        tag="default: No"
+    fi
+    printf '%s%s%s %s%s%s  %s%s%s ' "$C_ACCENT" "$msg" "$C_RESET" "$C_DIM" "$opts" "$C_RESET" "$C_FAINT" "$tag" "$C_RESET"
     ui_readkey
     UI_QUIET="$saved"
     case "$UI_KEY" in

@@ -146,6 +146,12 @@ hl.window_rule({
     center = true,
 })
 
+hl.window_rule({
+    name  = "thunar-blank-black",
+    match = { class = "thunar" },
+    opacity = "1 1",
+})
+
 
 hl.window_rule({
     name  = "ytdlp-gui-float",

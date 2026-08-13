@@ -323,10 +323,17 @@ mako
 
 ### Wallpaper not changing
 
+SCROW applies the default wallpaper automatically on login and self-heals a
+stale/removed wallpaper index, so no manual cache clearing is needed. To
+re-apply manually:
+
 ```bash
-swww-daemon &
-swww img /path/to/wallpaper.jpg
+~/.local/bin/wallpaper-switch.sh restore
 ```
+
+The default SCROW wallpaper is installed with SCROW and lives in
+`~/Pictures/Wallpapers/`. Add more wallpapers there and switch them with
+`SUPER + W`.
 
 ### Colors not updating
 

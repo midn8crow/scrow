@@ -24,16 +24,29 @@ printf 'Fetching SCROW installer…\n'
 
 mkdir -p "$(dirname "$SCROW_BOOT_DIR")"
 
+# Clear any stale/partial leftover from an earlier run. A directory without a
+# valid .git would make `git clone` below fail with "destination already
+# exists", which previously surfaced as a bogus "check your connection" error.
+if [[ -e "$SCROW_BOOT_DIR" && ! -d "$SCROW_BOOT_DIR/.git" ]]; then
+    printf 'Removing stale SCROW copy…\n'
+    rm -rf "$SCROW_BOOT_DIR"
+fi
+
 if [[ -d "$SCROW_BOOT_DIR/.git" ]]; then
     printf 'Refreshing local copy…\n'
-    git -C "$SCROW_BOOT_DIR" fetch --quiet origin 2>/dev/null || true
-    git -C "$SCROW_BOOT_DIR" reset --hard "origin/$SCROW_BOOT_BRANCH" >/dev/null 2>&1 || true
-else
-    git clone --depth 1 --branch "$SCROW_BOOT_BRANCH" \
-        https://github.com/midn8crow/scrow.git "$SCROW_BOOT_DIR" >/dev/null 2>&1 || {
+    if ! git -C "$SCROW_BOOT_DIR" fetch --quiet origin 2>/dev/null \
+       || ! git -C "$SCROW_BOOT_DIR" reset --hard "origin/$SCROW_BOOT_BRANCH" >/dev/null 2>&1; then
+        printf 'Local copy could not be refreshed — re-fetching…\n'
+        rm -rf "$SCROW_BOOT_DIR"
+    fi
+fi
+
+if [[ ! -d "$SCROW_BOOT_DIR/.git" ]]; then
+    if ! git clone --depth 1 --branch "$SCROW_BOOT_BRANCH" \
+        https://github.com/midn8crow/scrow.git "$SCROW_BOOT_DIR"; then
         printf 'SCROW: could not download the installer. Check your connection.\n' >&2
         exit 1
-    }
+    fi
 fi
 
 ver="$(cat "$SCROW_BOOT_DIR/VERSION" 2>/dev/null | tr -d '[:space:]')"

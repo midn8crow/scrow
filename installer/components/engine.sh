@@ -214,7 +214,7 @@ scrow_post_shell() {
         local do_shell=0
         if [[ -n "${SCROW_SET_SHELL:-}" ]]; then
             do_shell="$SCROW_SET_SHELL"
-        elif ui_confirm "Set zsh as your default shell?" "n"; then
+        elif ui_confirm "Set zsh as your default shell?" "y"; then
             do_shell=1
         fi
         if [[ "$do_shell" == "1" ]]; then
@@ -262,7 +262,7 @@ scrow_post_security() {
         fi
     else
         ui_step "Applying security hardening…"
-        if ! ui_confirm "Apply SCROW security hardening? (firewall, sysctl, fail2ban)" "n"; then
+        if ! ui_confirm "Apply SCROW security hardening? (firewall, sysctl, fail2ban)" "y"; then
             ui_dim "  skipped (can be applied later via Components → Security)"
             return 0
         fi

@@ -279,10 +279,10 @@ scrow_cmd_full() {
 
     SCROW_APPLY_SECURITY=0
     SCROW_SET_SHELL=0
-    if ui_confirm "Apply SCROW security hardening? (firewall, sysctl, fail2ban)" "n"; then
+    if ui_confirm "Apply SCROW security hardening? (firewall, sysctl, fail2ban)" "y"; then
         SCROW_APPLY_SECURITY=1
     fi
-    if ui_confirm "Set zsh as your default shell?" "n"; then
+    if ui_confirm "Set zsh as your default shell?" "y"; then
         SCROW_SET_SHELL=1
     fi
     export SCROW_APPLY_SECURITY SCROW_SET_SHELL
@@ -343,10 +343,10 @@ scrow_cmd_custom() {
     SCROW_APPLY_SECURITY=0
     SCROW_SET_SHELL=0
     if [[ " ${selected[*]} " == *" security "* ]]; then
-        ui_confirm "Apply SCROW security hardening? (firewall, sysctl, fail2ban)" "n" && SCROW_APPLY_SECURITY=1
+        ui_confirm "Apply SCROW security hardening? (firewall, sysctl, fail2ban)" "y" && SCROW_APPLY_SECURITY=1
     fi
     if [[ " ${selected[*]} " == *" shell "* ]]; then
-        ui_confirm "Set zsh as your default shell?" "n" && SCROW_SET_SHELL=1
+        ui_confirm "Set zsh as your default shell?" "y" && SCROW_SET_SHELL=1
     fi
     export SCROW_APPLY_SECURITY SCROW_SET_SHELL
 
