@@ -2,9 +2,9 @@
 # =============================================================================
 # SCROW — one-line bootstrap
 # =============================================================================
-# Fetches the SCROW repository, pins to the tagged release matching VERSION
-# when available, and launches the installer. Small by design: all real
-# logic lives in the version-controlled repository.
+# Downloads the SCROW repository and launches the installer. Uses curl + tar,
+# so it works on a bare system that has no git yet (git is only needed later,
+# and the installer installs it as part of the Utilities component).
 #
 #   curl -fsSL https://raw.githubusercontent.com/midn8crow/scrow/main/bootstrap.sh | bash
 #
@@ -18,39 +18,43 @@ set -uo pipefail
 
 SCROW_BOOT_DIR="${SCROW_BOOT_DIR:-$HOME/.local/share/scrow/bootstrap}"
 SCROW_BOOT_BRANCH="${SCROW_BOOT_BRANCH:-main}"
+SCROW_REPO_URL="${SCROW_REPO_URL:-https://github.com/midn8crow/scrow.git}"
 
 printf 'SCROW — Arch Linux • Hyprland\n'
 printf 'Fetching SCROW installer…\n'
 
 mkdir -p "$(dirname "$SCROW_BOOT_DIR")"
 
-# Clear any stale/partial leftover from an earlier run. A directory without a
-# valid .git would make `git clone` below fail with "destination already
-# exists", which previously surfaced as a bogus "check your connection" error.
-if [[ -e "$SCROW_BOOT_DIR" && ! -d "$SCROW_BOOT_DIR/.git" ]]; then
-    printf 'Removing stale SCROW copy…\n'
-    rm -rf "$SCROW_BOOT_DIR"
-fi
+# Always start from a clean copy — never trust a stale/partial previous
+# download (that is what previously caused phantom "check your connection"
+# failures and broken re-installs).
+rm -rf "$SCROW_BOOT_DIR"
+mkdir -p "$SCROW_BOOT_DIR"
 
-if [[ -d "$SCROW_BOOT_DIR/.git" ]]; then
-    printf 'Refreshing local copy…\n'
-    if ! git -C "$SCROW_BOOT_DIR" fetch --quiet origin 2>/dev/null \
-       || ! git -C "$SCROW_BOOT_DIR" reset --hard "origin/$SCROW_BOOT_BRANCH" >/dev/null 2>&1; then
-        printf 'Local copy could not be refreshed — re-fetching…\n'
+got_repo=0
+if command -v git >/dev/null 2>&1; then
+    if git clone --depth 1 --branch "$SCROW_BOOT_BRANCH" "$SCROW_REPO_URL" "$SCROW_BOOT_DIR"; then
+        got_repo=1
+    else
         rm -rf "$SCROW_BOOT_DIR"
+        mkdir -p "$SCROW_BOOT_DIR"
     fi
 fi
 
-if [[ ! -d "$SCROW_BOOT_DIR/.git" ]]; then
-    if ! git clone --depth 1 --branch "$SCROW_BOOT_BRANCH" \
-        https://github.com/midn8crow/scrow.git "$SCROW_BOOT_DIR"; then
+if (( ! got_repo )); then
+    # No git installed (or the git clone failed): fall back to a plain
+    # tarball download, which only needs curl + tar.
+    if ! curl -fsSL --connect-timeout 8 \
+        "https://github.com/midn8crow/scrow/archive/refs/heads/$SCROW_BOOT_BRANCH.tar.gz" \
+        | tar -xz --strip-components=1 -C "$SCROW_BOOT_DIR"; then
         printf 'SCROW: could not download the installer. Check your connection.\n' >&2
         exit 1
     fi
 fi
 
 ver="$(cat "$SCROW_BOOT_DIR/VERSION" 2>/dev/null | tr -d '[:space:]')"
-if [[ -n "$ver" ]] && git -C "$SCROW_BOOT_DIR" rev-parse -q --verify "refs/tags/v$ver" >/dev/null 2>&1; then
+if (( got_repo )) && [[ -n "$ver" ]] \
+    && git -C "$SCROW_BOOT_DIR" rev-parse -q --verify "refs/tags/v$ver" >/dev/null 2>&1; then
     git -C "$SCROW_BOOT_DIR" checkout --quiet "v$ver" 2>/dev/null || true
     printf 'Using verified release v%s\n' "$ver"
 else

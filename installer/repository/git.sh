@@ -30,6 +30,17 @@ scrow_repo_ensure_mirror() {
     if [[ -e "$SCROW_REPO_DIR" && ! -d "$SCROW_REPO_DIR/.git" ]]; then
         rm -rf "$SCROW_REPO_DIR"
     fi
+    # git is required for the mirror; install it on the fly if missing so a
+    # bare system can use update/reset without a prior Utilities install.
+    if ! command -v git >/dev/null 2>&1; then
+        ui_step "git is required — installing it…"
+        if [[ "$SCROW_DRY_RUN" == "1" ]]; then
+            ui_dim "  [dry-run] pacman -S --needed --noconfirm git"
+        elif ! sudo pacman -S --needed --noconfirm git >> "$SCROW_CURRENT_LOG" 2>&1; then
+            ui_warn "Could not install git (run 'sudo pacman -S git' manually)"
+            return 1
+        fi
+    fi
     if git clone --depth 1 --branch "$SCROW_REPO_BRANCH" "$SCROW_REPO_URL" "$SCROW_REPO_DIR" \
         >> "$SCROW_CURRENT_LOG" 2>&1; then
         ui_ok "Repository mirror ready"
