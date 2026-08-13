@@ -18,22 +18,71 @@ SCROW_DISABLE_SERVICES=0
 # -----------------------------------------------------------------------------
 # Planning
 # -----------------------------------------------------------------------------
+# Tools that can never be auto-installed (we run under them / they are
+# part of Arch itself). Missing these is a hard error.
+SCROW_TOOLS_HARD="bash sudo pacman"
+# Tools that SCROW can install itself via pacman when missing.
+SCROW_TOOLS_INSTALLABLE="git curl"
+
+# scrow_install_tools <tool...>  -> installs missing tools via pacman.
+scrow_install_tools() {
+    local -a tools=("$@")
+    [[ ${#tools[@]} -eq 0 ]] && return 0
+    ui_step "Installing required tool(s): ${tools[*]}"
+    if [[ "$SCROW_DRY_RUN" == "1" ]]; then
+        ui_dim "  [dry-run] sudo pacman -S --needed --noconfirm ${tools[*]}"
+        return 0
+    fi
+    scrow_need_root
+    if ! scrow_log_tee "install required tools" \
+        sudo pacman -S --needed --noconfirm "${tools[@]}"; then
+        ui_err "Could not install required tool(s): ${tools[*]}"
+        return 1
+    fi
+    ui_ok "Tools ready: ${tools[*]}"
+}
+
 scrow_check_dependencies() {
-    local tool
-    local missing=0
-    for tool in bash git curl sudo pacman; do
-        if ! command -v "$tool" >/dev/null 2>&1; then
+    # Returns 0 when the system is ready. Missing git/curl are installed
+    # automatically; only tools SCROW cannot install (bash, sudo, pacman)
+    # cause a hard failure.
+    local tool missing=0
+    for tool in $SCROW_TOOLS_HARD; do
+        command -v "$tool" >/dev/null 2>&1 || {
             ui_err "Missing required tool: $tool"
             missing=1
-        fi
+        }
     done
+
+    local -a install=()
+    for tool in $SCROW_TOOLS_INSTALLABLE; do
+        command -v "$tool" >/dev/null 2>&1 || install+=("$tool")
+    done
+    if [[ ${#install[@]} -gt 0 ]]; then
+        scrow_install_tools "${install[@]}" || missing=1
+    fi
     return $missing
+}
+
+# Returns 0 when any of the given components needs AUR packages (paru).
+_scrow_needs_aur_helper() {
+    local -a comps=("$@")
+    local c
+    for c in "${comps[@]}"; do
+        [[ -n "$(scrow_component_aur "$c")" ]] && return 0
+    done
+    return 1
 }
 
 scrow_preflight() {
     # Returns 0 when the system is ready. Runs before any change.
-    scrow_detect_system || return 1
+    # Optional args: component names to inspect for AUR needs.
     scrow_check_dependencies || return 1
+    scrow_detect_system || return 1
+    if _scrow_needs_aur_helper "$@" && ! command -v paru >/dev/null 2>&1; then
+        ui_step "AUR helper (paru) is required for some selected components."
+        scrow_ensure_paru || ui_warn "Could not install paru — AUR packages will be skipped."
+    fi
     scrow_detect_gpu
     scrow_detect_laptop
     return 0
@@ -81,25 +130,34 @@ _scrow_component_list_text() {
 }
 
 _scrow_plan_summary() {
-    # $1 = title, rest = component names
+    # $1 = title, rest = component names. Shows the plan as a dialog and
+    # returns 0 only when the user chooses to proceed (dialog is skipped in
+    # dry-run mode, which prints the plan into the log instead).
     local title="$1"
     shift
     local names=("$@")
-    ui_text ""
-    ui_text "${C_BOLD}${title}${C_RESET}"
-    ui_hr
-    ui_text "  GPU:        $(scrow_gpu_desc)     Device: $([[ "$SCROW_LAPTOP" == "1" ]] && echo Laptop || echo Desktop)"
-    ui_text "  Components: $(_scrow_component_list_text "${names[@]}")"
-    ui_text "  Packages:   ${#SCROW_PLAN_REPO[@]} via pacman  ·  ${#SCROW_PLAN_AUR[@]} via AUR (paru)"
-    ui_text "  Existing SCROW-managed files are backed up automatically."
+    local body
+    body="GPU:        $(scrow_gpu_desc)    Device: $([[ "$SCROW_LAPTOP" == "1" ]] && echo Laptop || echo Desktop)
+Components: $(_scrow_component_list_text "${names[@]}")
+Packages:   ${#SCROW_PLAN_REPO[@]} via pacman  ·  ${#SCROW_PLAN_AUR[@]} via AUR (paru)
+
+Existing SCROW-managed files are backed up automatically."
     if [[ "$SCROW_DRY_RUN" == "1" ]]; then
+        ui_text ""
+        ui_text "${C_BOLD}${title}${C_RESET}"
+        ui_hr
+        printf '  %s\n' "$body"
         ui_text ""
         ui_text "  ${C_DIM}DRY RUN — nothing will be changed.${C_RESET}"
         ui_text "  ${C_DIM}Pacman:${C_RESET}  ${SCROW_PLAN_REPO[*]:-none}"
         [[ ${#SCROW_PLAN_AUR[@]} -gt 0 ]] && ui_text "  ${C_DIM}AUR:${C_RESET}     ${SCROW_PLAN_AUR[*]}"
+        ui_hr
+        ui_text ""
+        return 0
     fi
-    ui_hr
-    ui_text ""
+    UI_DIALOG_FOCUS=1
+    ui_dialog info "$title" "$body" "Cancel" "Proceed" || return 1
+    [[ "$UI_DIALOG_SELECTED" == "1" ]]
 }
 
 # -----------------------------------------------------------------------------
@@ -179,34 +237,32 @@ _scrow_view_log() {
 
 _scrow_failure_panel() {
     # $1 = retry function name, $2 = context description
-    local retry_fn="$1" ctx="$2"
-    while :; do
-        ui_clear
-        ui_alert err "Operation Failed" "The step “$SCROW_FLOW_FAILED_LABEL” did not complete.
+    local retry_fn="$1" ctx="$2" body
+    body="The step “$SCROW_FLOW_FAILED_LABEL” did not complete.
 
 ${ctx:-A safety backup was created before changes were made.}
 You can retry the operation, inspect the log, or go back."
-        printf '\n  %s[R]%s Retry    %s[L]%s View Log    %s[B]%s Back\n' \
-            "$C_BOLD" "$C_RESET" "$C_BOLD" "$C_RESET" "$C_BOLD" "$C_RESET"
-        ui_readkey
-        case "$UI_KEY" in
-            r|R) "$retry_fn"; return $? ;;
-            l|L) _scrow_view_log; continue ;;
-            *)   return 1 ;;
+    while :; do
+        UI_DIALOG_FOCUS=0
+        ui_dialog err "Operation Failed" "$body" "Retry" "View Log" "Back"
+        case "$UI_DIALOG_SELECTED" in
+            0) "$retry_fn"; return $? ;;
+            1) _scrow_view_log; continue ;;
+            *) return 1 ;;
         esac
     done
 }
 
 _scrow_success_panel() {
-    local title="$1"
-    ui_clear
-    ui_alert ok "$title" "SCROW ${C_BOLD}v$SCROW_VERSION${C_RESET} is ready.
+    local title="$1" body
+    body="SCROW ${C_BOLD}v$SCROW_VERSION${C_RESET} is ready.
 
   ${C_ACCENT}scrow${C_RESET}  — open the SCROW Manager from anywhere
   Logs:   ${SCROW_CURRENT_LOG}
 
 Itachi is Goat 🐦⬛"
-    ui_pause
+    UI_DIALOG_FOCUS=0
+    ui_dialog ok "$title" "$body" "OK"
 }
 
 # -----------------------------------------------------------------------------
@@ -271,11 +327,10 @@ scrow_cmd_full() {
     fi
 
     ui_clear
-    scrow_preflight || { ui_pause; return 1; }
+    scrow_preflight "${all_components[@]}" || { ui_pause; return 1; }
     scrow_plan_for_components "${all_components[@]}"
 
-    _scrow_plan_summary "SCROW — Full Installation" "${all_components[@]}"
-    [[ "$SCROW_DRY_RUN" == "1" ]] || ui_confirm "Proceed with the Full Installation?" || { ui_text "  Cancelled."; return 0; }
+    _scrow_plan_summary "SCROW — Full Installation" "${all_components[@]}" || { ui_text "  Cancelled."; return 0; }
 
     SCROW_APPLY_SECURITY=0
     SCROW_SET_SHELL=0
@@ -310,6 +365,7 @@ scrow_cmd_full() {
     else
         _scrow_failure_panel scrow_cmd_full \
             "A safety backup was created at: ${SCROW_BACKUP_PATH}"
+        return $?
     fi
     return $rc
 }
@@ -334,11 +390,10 @@ scrow_cmd_custom() {
         return 0
     fi
 
-    scrow_preflight || { ui_pause; return 1; }
+    scrow_preflight "${selected[@]}" || { ui_pause; return 1; }
     scrow_plan_for_components "${selected[@]}"
 
-    _scrow_plan_summary "SCROW — Custom Installation" "${selected[@]}"
-    [[ "$SCROW_DRY_RUN" == "1" ]] || ui_confirm "Proceed with the Custom Installation?" || { ui_text "  Cancelled."; return 0; }
+    _scrow_plan_summary "SCROW — Custom Installation" "${selected[@]}" || { ui_text "  Cancelled."; return 0; }
 
     SCROW_APPLY_SECURITY=0
     SCROW_SET_SHELL=0
@@ -373,6 +428,7 @@ scrow_cmd_custom() {
     else
         _scrow_failure_panel scrow_cmd_custom \
             "A safety backup was created at: ${SCROW_BACKUP_PATH}"
+        return $?
     fi
     return $rc
 }
@@ -414,17 +470,24 @@ scrow_cmd_update() {
         return 0
     fi
 
-    ui_text "SCROW Update"
-    ui_hr
-    ui_text "  Current version:  ${C_DIM}v$current${C_RESET}"
-    ui_text "  Latest version:   ${C_OK}v$remote${C_RESET}"
     local -a mods=( $(scrow_manifest_out_of_sync | cut -f1) )
+    local body="Current version:  v$current
+Latest version:   v$remote"
     if [[ ${#mods[@]} -gt 0 ]]; then
-        ui_text ""
-        ui_warn "${#mods[@]} locally modified file(s) found — they will be preserved."
+        body+="
+
+${#mods[@]} locally modified file(s) found — they will be preserved."
     fi
-    ui_hr
-    [[ "$SCROW_DRY_RUN" == "1" ]] || ui_confirm "Update SCROW to v$remote?" || { ui_text "  Cancelled."; return 0; }
+    if [[ "$SCROW_DRY_RUN" == "1" ]]; then
+        ui_text "SCROW Update"
+        ui_hr
+        printf '  %s\n' "$body"
+        ui_hr
+    else
+        UI_DIALOG_FOCUS=1
+        ui_dialog info "SCROW Update" "$body" "Cancel" "Update" || { ui_text "  Cancelled."; return 0; }
+        [[ "$UI_DIALOG_SELECTED" == "1" ]] || { ui_text "  Cancelled."; return 0; }
+    fi
 
     SCROW_FLOW_COMPS=( $(scrow_state_components) )
     scrow_backup_include_paths $(for n in "${SCROW_FLOW_COMPS[@]}"; do scrow_component_paths "$n"; done)
@@ -446,6 +509,7 @@ scrow_cmd_update() {
     else
         _scrow_failure_panel scrow_cmd_update \
             "Your previous configuration is safe in: ${SCROW_BACKUP_PATH}"
+        return $?
     fi
     return $rc
 }
@@ -535,20 +599,31 @@ scrow_cmd_reset() {
         fi
     done
 
-    ui_text "SCROW Reset"
-    ui_hr
-    ui_text "The following SCROW-managed files have local modifications:"
+    local body="The following SCROW-managed files have local modifications:"
+    local rel2
     for rel in "${changed[@]}"; do
-        ui_text "  ${C_WARN}!${C_RESET}  ~/$rel"
+        body+="
+  !  ~/$rel"
     done
     for rel in "${removed[@]}"; do
-        ui_text "  ${C_DIM}·${C_RESET}  ~/$rel  (no longer in the repository — will be untracked)"
+        body+="
+  ·  ~/$rel  (no longer in the repository — will be untracked)"
     done
-    ui_text ""
-    ui_text "Reset replaces ONLY SCROW-owned files with the official repository"
-    ui_text "versions. Nothing else is touched. A safety backup is created first."
-    ui_hr
-    [[ "$SCROW_DRY_RUN" == "1" ]] || ui_confirm "Reset SCROW to the official state?" "n" || { ui_text "  Cancelled."; return 0; }
+    body+="
+
+Reset replaces ONLY SCROW-owned files with the official repository
+versions. Nothing else is touched. A safety backup is created first."
+
+    if [[ "$SCROW_DRY_RUN" == "1" ]]; then
+        ui_text "SCROW Reset"
+        ui_hr
+        printf '  %s\n' "$body"
+        ui_hr
+    else
+        UI_DIALOG_FOCUS=1
+        ui_dialog warn "SCROW Reset" "$body" "Cancel" "Reset" || { ui_text "  Cancelled."; return 0; }
+        [[ "$UI_DIALOG_SELECTED" == "1" ]] || { ui_text "  Cancelled."; return 0; }
+    fi
 
     SCROW_FLOW_COMPS=( $(scrow_state_components) )
     scrow_backup_include_paths $(for n in "${SCROW_FLOW_COMPS[@]}"; do scrow_component_paths "$n"; done)
@@ -569,6 +644,7 @@ scrow_cmd_reset() {
     else
         _scrow_failure_panel scrow_cmd_reset \
             "The previous state is safe in: ${SCROW_BACKUP_PATH}"
+        return $?
     fi
     return $rc
 }
@@ -603,7 +679,7 @@ scrow_cmd_restore() {
         items+=("$date::$reason")
     done
     UI_MENU_ITEMS=( "${items[@]}" )
-    ui_menu "SCROW Restore" "Select the backup to restore" "Back"
+    ui_menu "SCROW Restore" "Select the backup to restore" "" "Back"
     local idx="$UI_MENU_SELECTED"
     if (( idx < 0 )); then
         return 0
@@ -616,19 +692,27 @@ scrow_cmd_restore() {
         return 1
     fi
 
-    ui_clear
-    ui_text "SCROW Restore"
-    ui_hr
-    ui_text "  Backup:  ${target}"
-    scrow_backup_summary "$target" | while IFS= read -r line; do
-        ui_text "  $line"
-    done
-    ui_text ""
-    ui_text "  This restores SCROW-managed files, symlinks and state."
-    ui_text "  A backup of the CURRENT state is created first, so this"
-    ui_text "  restore is itself reversible."
-    ui_hr
-    [[ "$SCROW_DRY_RUN" == "1" ]] || ui_confirm "Restore from this backup?" "n" || { ui_text "  Cancelled."; return 0; }
+    local body="Backup:  $target"
+    while IFS= read -r line; do
+        body+="
+  $line"
+    done < <(scrow_backup_summary "$target")
+    body+="
+
+This restores SCROW-managed files, symlinks and state.
+A backup of the CURRENT state is created first, so this
+restore is itself reversible."
+
+    if [[ "$SCROW_DRY_RUN" == "1" ]]; then
+        ui_text "SCROW Restore"
+        ui_hr
+        printf '  %s\n' "$body"
+        ui_hr
+    else
+        UI_DIALOG_FOCUS=1
+        ui_dialog info "SCROW Restore" "$body" "Cancel" "Restore" || { ui_text "  Cancelled."; return 0; }
+        [[ "$UI_DIALOG_SELECTED" == "1" ]] || { ui_text "  Cancelled."; return 0; }
+    fi
 
     SCROW_RESTORE_TARGET="$target"
     SCROW_FLOW_COMPS=( $(scrow_state_components) )
@@ -647,6 +731,7 @@ scrow_cmd_restore() {
     else
         _scrow_failure_panel scrow_cmd_restore \
             "The state before this restore is safe in: ${SCROW_BACKUP_PATH}"
+        return $?
     fi
     return $rc
 }
@@ -713,25 +798,32 @@ scrow_cmd_uninstall() {
         return 0
     fi
 
-    ui_clear
-    ui_text "SCROW Uninstall"
-    ui_hr
-    ui_text "  SCROW will remove:"
-    ui_text "    • SCROW-managed configuration files"
-    ui_text "    • SCROW-created symlinks"
-    ui_text "    • SCROW-enabled user services"
-    ui_text "    • the scrow command (~/.local/bin/scrow)"
-    ui_text "    • SCROW state (manifest, installer, repository, logs)"
-    ui_text ""
-    ui_text "  SCROW will NOT touch:"
-    ui_text "    • files SCROW does not own"
-    ui_text "    • installed packages (other software may use them)"
-    ui_text "    • automatic backups (kept in $SCROW_BACKUP_DIR)"
-    ui_text ""
-    ui_text "  A final safety backup is created automatically first."
-    ui_hr
-    ui_confirm "Uninstall SCROW?" "n" || { ui_text "  Cancelled."; return 0; }
-    ui_confirm "This is permanent. Really uninstall SCROW?" "n" || { ui_text "  Cancelled."; return 0; }
+    local body="SCROW will remove:
+  • SCROW-managed configuration files
+  • SCROW-created symlinks
+  • SCROW-enabled user services
+  • the scrow command (~/.local/bin/scrow)
+  • SCROW state (manifest, installer, repository, logs)
+
+SCROW will NOT touch:
+  • files SCROW does not own
+  • installed packages (other software may use them)
+  • automatic backups (kept in $SCROW_BACKUP_DIR)
+
+A final safety backup is created automatically first."
+    if [[ "$SCROW_DRY_RUN" == "1" ]]; then
+        ui_text "SCROW Uninstall"
+        ui_hr
+        printf '  %s\n' "$body"
+        ui_hr
+    else
+        UI_DIALOG_FOCUS=1
+        ui_dialog warn "Uninstall SCROW" "$body" "Cancel" "Uninstall" || { ui_text "  Cancelled."; return 0; }
+        [[ "$UI_DIALOG_SELECTED" == "1" ]] || { ui_text "  Cancelled."; return 0; }
+        UI_DIALOG_FOCUS=1
+        ui_dialog err "Uninstall SCROW" "This is permanent. Really uninstall SCROW?" "Cancel" "Uninstall" || { ui_text "  Cancelled."; return 0; }
+        [[ "$UI_DIALOG_SELECTED" == "1" ]] || { ui_text "  Cancelled."; return 0; }
+    fi
 
     SCROW_DISABLE_SERVICES=0
     ui_confirm "Also disable SCROW-enabled system services (NetworkManager, bluetooth, nftables, fail2ban)?" "n" \
@@ -748,9 +840,8 @@ scrow_cmd_uninstall() {
     if [[ "$SCROW_DRY_RUN" == "1" ]]; then
         return 0
     fi
-    ui_clear
     if (( rc == 0 )); then
-        ui_alert ok "SCROW Removed" "SCROW has been uninstalled.
+        ui_notice ok "SCROW Removed" "SCROW has been uninstalled.
 
 Your automatic backups were kept at:
   ${SCROW_BACKUP_DIR}
@@ -760,8 +851,8 @@ To restore a previous SCROW state, clone the repository and run:
     else
         _scrow_failure_panel scrow_cmd_uninstall \
             "Your previous state is safe in: ${SCROW_BACKUP_PATH}"
+        return $?
     fi
-    ui_pause
     return $rc
 }
 

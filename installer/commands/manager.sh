@@ -9,17 +9,16 @@
 scrow_cmd_manager() {
     while :; do
         UI_MENU_ITEMS=(
-            "Full Installation::RECOMMENDED"
-            "Custom Installation::select components"
-            "Components::manage individual components"
-            "Update SCROW::"
-            "Restore::return to a previous backup"
-            "Reset SCROW::restore official files"
-            "Doctor / Repair::"
-            "Uninstall SCROW::"
-            "Exit::"
+            "Full Installation::recommended setup::Installation"
+            "Custom Installation::select components::Installation"
+            "Components::manage individual components::Installation"
+            "Update SCROW::fetch the latest version::Management"
+            "Restore::return to a previous backup::Management"
+            "Reset SCROW::restore official files::Management"
+            "Doctor / Repair::check and fix the environment::Management"
+            "Uninstall SCROW::remove everything::Management"
         )
-        ui_menu "SCROW Manager" "Arch Linux • Hyprland" ""
+        ui_menu "SCROW Manager" "Arch Linux • Hyprland" "v$SCROW_VERSION"
         local idx="$UI_MENU_SELECTED"
         if (( idx < 0 )); then
             break
@@ -33,7 +32,6 @@ scrow_cmd_manager() {
             5) scrow_cmd_reset ;;
             6) scrow_cmd_doctor ;;
             7) scrow_cmd_uninstall ;;
-            8) break ;;
         esac
     done
 }
@@ -62,7 +60,7 @@ _scrow_component_actions() {
     fi
 
     UI_MENU_ITEMS=( "${items[@]}" )
-    ui_menu "SCROW — $(scrow_component_title "$name")" "$(scrow_component_desc "$name")" "Back"
+    ui_menu "SCROW — $(scrow_component_title "$name")" "$(scrow_component_desc "$name")" "" "Back"
     local action="$UI_MENU_SELECTED"
 
     case "$action" in
@@ -117,7 +115,7 @@ scrow_cmd_components() {
             UI_MENU_ITEMS+=( "$(scrow_component_title "$n")::$hint" )
         done
 
-        ui_menu "SCROW Components" "Select a component to manage" "Back"
+        ui_menu "SCROW Components" "Select a component to manage" "" "Back"
         local idx="$UI_MENU_SELECTED"
         if (( idx < 0 )); then
             return 0

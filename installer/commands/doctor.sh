@@ -6,6 +6,10 @@
 # symlinks, services, manifest, state) and offers safe, confirmed repairs.
 # Nothing is ever repaired without explicit confirmation, and any re-deploy
 # is preceded by an automatic backup.
+#
+# Findings are collected into SCROW_DOCTOR_LINES (instead of being printed)
+# and rendered on a single scrollable report screen with Repair / Log / Back
+# actions.
 # =============================================================================
 
 SCROW_DOCTOR_ERRORS=0
@@ -14,6 +18,7 @@ SCROW_DOCTOR_REPAIR_PACKAGES=()
 SCROW_DOCTOR_REPAIR_SERVICES=()
 SCROW_DOCTOR_REPAIR_FILES=0
 SCROW_DOCTOR_REPAIR_LAUNCHER=0
+SCROW_DOCTOR_LINES=()
 
 scrow_doctor_reset() {
     SCROW_DOCTOR_ERRORS=0
@@ -22,12 +27,15 @@ scrow_doctor_reset() {
     SCROW_DOCTOR_REPAIR_SERVICES=()
     SCROW_DOCTOR_REPAIR_FILES=0
     SCROW_DOCTOR_REPAIR_LAUNCHER=0
+    SCROW_DOCTOR_LINES=()
 }
 
-scrow_doctor_section() { ui_text ""; ui_text "${C_BOLD}  ${1}${C_RESET}"; }
-scrow_doctor_ok()      { ui_ok "  $1"; }
-scrow_doctor_warn()    { ui_warn "  $1"; SCROW_DOCTOR_WARNINGS=$(( SCROW_DOCTOR_WARNINGS + 1 )); }
-scrow_doctor_err()     { ui_err "  $1"; SCROW_DOCTOR_ERRORS=$(( SCROW_DOCTOR_ERRORS + 1 )); }
+# Collection API (rendered later — nothing is printed during the checks).
+scrow_doctor_section() { SCROW_DOCTOR_LINES+=( "section|$1" ); }
+scrow_doctor_ok()      { SCROW_DOCTOR_LINES+=( "ok|$1" ); }
+scrow_doctor_warn()    { SCROW_DOCTOR_LINES+=( "warn|$1" ); SCROW_DOCTOR_WARNINGS=$(( SCROW_DOCTOR_WARNINGS + 1 )); }
+scrow_doctor_err()     { SCROW_DOCTOR_LINES+=( "err|$1" ); SCROW_DOCTOR_ERRORS=$(( SCROW_DOCTOR_ERRORS + 1 )); }
+scrow_doctor_dim()     { SCROW_DOCTOR_LINES+=( "dim|$1" ); }
 
 # -----------------------------------------------------------------------------
 # Checks
@@ -44,7 +52,7 @@ scrow_doctor_check_system() {
         scrow_doctor_ok "Network reachable"
     else
         scrow_doctor_warn "Cannot reach GitHub over HTTPS (install / update / reset need the network)"
-        [[ -n "$SCROW_NET_DIAG" ]] && ui_dim "  Reason: $SCROW_NET_DIAG"
+        [[ -n "$SCROW_NET_DIAG" ]] && scrow_doctor_dim "Reason: $SCROW_NET_DIAG"
     fi
 
     local tool
@@ -67,7 +75,7 @@ scrow_doctor_check_packages() {
     local -a comps=( $(scrow_state_components) )
     scrow_doctor_section "Packages"
     if [[ ${#comps[@]} -eq 0 ]]; then
-        ui_dim "  (no components installed — run a Full or Custom Installation first)"
+        scrow_doctor_dim "(no components installed — run a Full or Custom Installation first)"
         return
     fi
 
@@ -100,7 +108,7 @@ scrow_doctor_check_config() {
     missing="$(scrow_manifest_missing)"
     if [[ -n "$missing" ]]; then
         scrow_doctor_err "Missing managed files:"
-        while IFS= read -r m; do ui_dim "      ~/$m"; done <<< "$missing"
+        while IFS= read -r m; do scrow_doctor_dim "~/$m"; done <<< "$missing"
         SCROW_DOCTOR_REPAIR_FILES=1
     else
         scrow_doctor_ok "All managed files present"
@@ -110,7 +118,7 @@ scrow_doctor_check_config() {
     broken="$(scrow_manifest_broken_symlinks)"
     if [[ -n "$broken" ]]; then
         scrow_doctor_err "Broken symlinks:"
-        while IFS= read -r m; do ui_dim "      ~/$m"; done <<< "$broken"
+        while IFS= read -r m; do scrow_doctor_dim "~/$m"; done <<< "$broken"
         SCROW_DOCTOR_REPAIR_FILES=1
     else
         scrow_doctor_ok "Symlinks healthy"
@@ -179,13 +187,53 @@ scrow_doctor_check_state() {
 }
 
 # -----------------------------------------------------------------------------
+# Report screen
+# -----------------------------------------------------------------------------
+_scrow_doctor_draw() {
+    local top="$1" avail="$2" total=${#SCROW_DOCTOR_LINES[@]}
+    local subtitle i line type text
+    ui_clear
+    if (( SCROW_DOCTOR_ERRORS == 0 && SCROW_DOCTOR_WARNINGS == 0 )); then
+        subtitle="All checks passed — SCROW is healthy"
+    else
+        subtitle="${C_ERR}${SCROW_DOCTOR_ERRORS}${C_RESET} error(s), ${C_WARN}${SCROW_DOCTOR_WARNINGS}${C_RESET} warning(s)"
+    fi
+    _ui_screen_header "SCROW Doctor" "v$SCROW_VERSION" "$subtitle"
+    for (( i = top; i < top + avail && i < total; i++ )); do
+        line="${SCROW_DOCTOR_LINES[$i]}"
+        type="${line%%|*}"; text="${line#*|}"
+        case "$type" in
+            section) printf '  %s%s%s\n' "$C_BOLD$C_ACCENT" "$text" "$C_RESET" ;;
+            ok)      printf '  %s✓%s  %s\n' "$C_OK" "$C_RESET" "$text" ;;
+            warn)    printf '  %s⚠%s  %s\n' "$C_WARN" "$C_RESET" "$text" ;;
+            err)     printf '  %s✗%s  %s\n' "$C_ERR" "$C_RESET" "$text" ;;
+            dim)     printf '  %s%s%s\n' "$C_DIM" "$text" "$C_RESET" ;;
+        esac
+    done
+    _ui_blank
+    if (( total == 0 )); then
+        _ui_hintbar "No diagnostics collected."
+    elif (( top + avail < total )); then
+        _ui_hintbar "↓ more — R Repair    V View Log    B Back"
+    else
+        _ui_hintbar "R Repair    V View Log    B Back"
+    fi
+}
+
+_scrow_doctor_checks() {
+    scrow_doctor_reset
+    scrow_detect_gpu
+    scrow_doctor_check_system
+    scrow_doctor_check_packages
+    scrow_doctor_check_config
+    scrow_doctor_check_services
+    scrow_doctor_check_state
+}
+
+# -----------------------------------------------------------------------------
 # Repair
 # -----------------------------------------------------------------------------
 _scrow_doctor_repair() {
-    ui_clear
-    ui_text "${C_BOLD}SCROW Repair${C_RESET}"
-    ui_hr
-
     if [[ ${#SCROW_DOCTOR_REPAIR_PACKAGES[@]} -gt 0 ]]; then
         if ui_confirm "Install missing packages (${SCROW_DOCTOR_REPAIR_PACKAGES[*]})?" "y"; then
             scrow_pkg_install "Doctor repair" "${SCROW_DOCTOR_REPAIR_PACKAGES[@]}"
@@ -209,46 +257,28 @@ _scrow_doctor_repair() {
     if [[ "$SCROW_DOCTOR_REPAIR_LAUNCHER" == "1" ]]; then
         ui_confirm "Reinstall the scrow command (~/.local/bin/scrow)?" "y" && scrow_install_launcher
     fi
-
-    ui_text ""
-    ui_ok "Repair finished — run Doctor again to re-check."
-    ui_pause
 }
 
 # -----------------------------------------------------------------------------
 # Entry point
 # -----------------------------------------------------------------------------
 scrow_cmd_doctor() {
-    scrow_doctor_reset
-    scrow_detect_gpu
-
-    ui_clear
-    ui_text "${C_BOLD}SCROW Doctor${C_RESET}"
-    ui_hr
-
-    scrow_doctor_check_system
-    scrow_doctor_check_packages
-    scrow_doctor_check_config
-    scrow_doctor_check_services
-    scrow_doctor_check_state
-
-    ui_hr
-    local total=$(( SCROW_DOCTOR_ERRORS + SCROW_DOCTOR_WARNINGS ))
-    if (( total == 0 )); then
-        ui_ok "All checks passed — SCROW is healthy"
-    else
-        ui_text "  ${C_ERR}${SCROW_DOCTOR_ERRORS} error(s)${C_RESET}, ${C_WARN}${SCROW_DOCTOR_WARNINGS} warning(s)${C_RESET}"
-    fi
-
-    if (( SCROW_DOCTOR_ERRORS > 0 || SCROW_DOCTOR_WARNINGS > 0 )); then
-        printf '\n  %s[R]%s Repair safe issues    %s[L]%s View log    %s[B]%s Back\n' \
-            "$C_BOLD" "$C_RESET" "$C_BOLD" "$C_RESET" "$C_BOLD" "$C_RESET"
+    _scrow_doctor_checks
+    local total top=0 avail lines key
+    while :; do
+        total=${#SCROW_DOCTOR_LINES[@]}
+        lines=$(_ui_rows)
+        avail=$(( lines - 5 ))
+        (( avail < 1 )) && avail=1
+        (( top > total - avail )) && { top=$(( total - avail )); (( top < 0 )) && top=0; }
+        _scrow_doctor_draw "$top" "$avail"
         ui_readkey
         case "$UI_KEY" in
-            r|R) _scrow_doctor_repair ;;
-            l|L) _scrow_view_log ;;
+            "up")   (( top > 0 )) && top=$(( top - 1 )) ;;
+            "down") (( top < total - avail )) && top=$(( top + 1 )) ;;
+            "r")    _scrow_doctor_repair; _scrow_doctor_checks; continue ;;
+            "v")    _scrow_view_log; continue ;;
+            "esc"|"q"|"b"|"eof") return 0 ;;
         esac
-    else
-        ui_pause
-    fi
+    done
 }

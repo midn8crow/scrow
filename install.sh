@@ -34,6 +34,8 @@ fi
 . "$INSTALLER_DIR/installer/commands/doctor.sh"
 . "$INSTALLER_DIR/installer/commands/manager.sh"
 
+ui_init
+
 scrow_parse_args "$@"
 
 scrow_log_init "$@"
