@@ -62,7 +62,8 @@ cd scrow
 
 ### After Installation
 
-Run `scrow` from any directory to open the SCROW Manager again.
+Run `scrow` from any directory to open the SCROW Manager again. The installer
+adds `~/.local/bin/scrow`; make sure `~/.local/bin` is on your PATH.
 
 ### SCROW Manager
 
@@ -98,15 +99,14 @@ Backups are never deleted automatically. Use **Restore** in the manager to retur
 ## What the Installer Does
 
 1. **Checks the system** (Arch Linux, dependencies)
-2. **Detects your hardware** (GPU, laptop/desktop)
-3. **Installs required packages** (pacman + AUR via paru)
-4. **Installs GPU drivers** (AMD/Intel/NVIDIA only as needed)
-5. **Creates a safety backup** of existing configuration
-6. **Deploys all configs** and creates symlinks
-7. **Configures your shell** (Zsh + Starship)
-8. **Enables SCROW services** (NetworkManager, Bluetooth, Audio)
-9. **Sets up theming** (GTK, Qt, Fonts)
-10. **Verifies the installation**
+2. **Installs required packages** (pacman + AUR via paru)
+3. **Creates a safety backup** of existing configuration
+4. **Deploys all configs** and creates symlinks
+5. **Configures your shell** (Zsh + Starship)
+6. **Enables the desktop service stack** (PipeWire, WirePlumber, xdg-desktop-portal-hyprland)
+7. **Sets up theming** (GTK, Qt, Fonts)
+8. **Installs the `scrow` command** (`~/.local/bin/scrow`) so you can reopen the manager anytime
+9. **Verifies the installation**
 
 ## Features
 
@@ -180,72 +180,86 @@ All scripts are in `~/.local/bin/`:
 
 ## Package List
 
-### Core Packages
+Packages are grouped by SCROW component. The authoritative list is defined in
+`installer/components.sh`.
+
+### Hyprland (core desktop)
 
 ```
-hyprland hyprlock hypridle waybar kitty rofi mako swww-daemon
-wlogout polkit-gnome network-manager-applet blueman pavucontrol
+hyprland hyprlock hypridle hyprutils uwsm xdg-desktop-portal-hyprland
+xdg-desktop-portal-gtk xdg-utils wl-clipboard cliphist grim slurp swappy
+satty hyprshot swww gnome-keyring network-manager-applet blueman
+nm-connection-editor kdeconnect fcitx5 fcitx5-configtool fcitx5-gtk
+fcitx5-qt pipewire pipewire-pulse wireplumber pipewire-alsa pipewire-jack
+pavucontrol polkit-kde-agent
 ```
 
-### Shell & Terminal
+### Waybar
+
+```
+waybar cava playerctl jq
+```
+
+### Rofi
+
+```
+rofi rofi-emoji
+```
+
+### Terminal
+
+```
+kitty
+```
+
+### Mako
+
+```
+mako
+```
+
+### Shell & Terminal Tooling
 
 ```
 zsh zsh-autosuggestions zsh-syntax-highlighting starship
 fzf zoxide eza bat fd ripgrep
 ```
 
-### System Tools
+### Theming
 
 ```
-fastfetch btop htop nvtop mpv cava brightnessctl playerctl
-ffmpeg imagemagick jq yq tree
-```
-
-### Fonts
-
-```
-ttf-jetbrains-mono-nerd noto-fonts noto-fonts-cjk noto-fonts-emoji
+adw-gtk-theme qt6ct kvantum nwg-look papirus-icon-theme
+ttf-jetbrains-mono-nerd noto-fonts noto-fonts-emoji
 ttf-font-awesome ttf-cascadia-code
 ```
 
-### Appearance
+### Utilities
 
 ```
-adw-gtk3 kvantum qt6ct nwg-look papirus-icon-theme bibata-cursor-theme
+fastfetch btop htop mpv cava yazi yt-dlp brightnessctl playerctl
+ffmpeg imagemagick jq tree p7zip wget curl git unzip xdg-user-dirs
+wtype pacman-contrib
 ```
 
-### AUR Packages
+### Security Hardening
 
 ```
-hyprlauncher wlr-randr gpu-screen-recorder zen-browser-bin
-visual-studio-code-bin matugen
+nftables fail2ban clamav rkhunter pacman-contrib bubblewrap lynis
 ```
 
-## Hardware
+### System Integration
 
-### Tested On
+```
+sddm grub efibootmgr
+```
 
-- AMD Ryzen 5 PRO 4650U
-- AMD Radeon RX Vega 6
-- 16GB DDR4 RAM
-- 512GB NVMe SSD
-- 14" 1080p IPS Display
+### AUR Packages (via paru)
 
-### GPU Support
-
-| GPU | Status | Notes |
-|-----|--------|-------|
-| AMD | ✅ | Full support, best performance |
-| NVIDIA | ✅ | Works with proprietary drivers |
-| Intel | ✅ | Works with mesa drivers |
-
-### Laptop Features
-
-- ✅ Brightness control (Fn keys)
-- ✅ Volume control (Fn keys)
-- ✅ Battery indicator
-- ✅ Power profiles
-- ✅ Touchpad gestures
+```
+hyprpolkitagent openbangla-keyboard-fcitx-git hypr-kdeconnect-fix-git
+waybar-cava-git matugen awww mpvpaper gpu-screen-recorder hyprlauncher
+wlr-randr ytdlp-gui
+```
 
 ## Customization
 

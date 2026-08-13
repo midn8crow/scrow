@@ -16,23 +16,23 @@
 set -euo pipefail
 
 HOME_DIR="$HOME"
-STATE_DIR="$HOME_DIR/.local/share/scrow"
-INSTALLER="$STATE_DIR/installer/install.sh"
-SOURCE="$STATE_DIR/repo"
 
 scrow_run() {
-    local cmd="$1"
-
-    if [[ -x "$INSTALLER" ]] && [[ -d "$SOURCE/.git" ]]; then
-        exec bash "$INSTALLER" --source "$SOURCE" --command "$cmd"
-    fi
-
-    if [[ -x "$HOME_DIR/dotfiles/install.sh" ]]; then
-        exec bash "$HOME_DIR/dotfiles/install.sh" --command "$cmd"
-    fi
+    local cmd="$1" flag
+    case "$cmd" in
+        restore) flag="--restore" ;;
+        update)  flag="--refresh" ;;
+        *)       echo "SCROW: unknown command $cmd" >&2; exit 1 ;;
+    esac
 
     if command -v scrow >/dev/null 2>&1; then
-        exec scrow --command "$cmd"
+        exec scrow "$flag"
+    fi
+    if [[ -x "$HOME_DIR/dotfiles/install.sh" ]]; then
+        exec bash "$HOME_DIR/dotfiles/install.sh" "$flag"
+    fi
+    if [[ -x "$HOME_DIR/installer/scrow" ]]; then
+        exec bash "$HOME_DIR/installer/scrow" "$flag"
     fi
 
     echo "SCROW is not installed."
