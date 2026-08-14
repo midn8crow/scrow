@@ -112,18 +112,24 @@ scrow_download() {
     host="${host%%/*}"
 
     local rc
+    # Visible status: the archive can be large and slow on virtualized
+    # networking, so say what is happening instead of sitting silent.
+    printf 'Downloading SCROW installer from %s… (can take a while)\n' "$host"
     scrow_curl_attempt "$url" "$out" ""
     rc=$?
     if (( rc == 0 )); then
+        printf 'Download complete.\n'
         return 0
     fi
 
     # DNS/connect/timeout failures (common under virtualized networking) are
     # retried over IPv4 only. IPv4 is not forced for the primary attempt.
+    printf 'Note: first attempt from %s failed; retrying over IPv4…\n' "$host" >&2
     scrow_curl_attempt "$url" "$out" "4"
     rc=$?
     if (( rc == 0 )); then
         printf 'Note: reached %s over IPv4 after the first attempt failed.\n' "$host" >&2
+        printf 'Download complete.\n'
         return 0
     fi
 
@@ -173,10 +179,19 @@ scrow_unpack() {
 
 got_repo=0
 if command -v git >/dev/null 2>&1; then
-    if git clone --depth 1 --branch "$SCROW_BOOT_BRANCH" "$SCROW_REPO_URL" "$SCROW_BOOT_DIR" 2>/dev/null; then
-        got_repo=1
+    # Bounded clone: a stalled connection (broken IPv6, slow NAT, …) must
+    # never hang the bootstrap forever. GIT_TERMINAL_PROMPT=0 stops git from
+    # blocking on a credential prompt. On failure or timeout we fall back to
+    # the tarball path below.
+    printf 'Cloning SCROW repository (max 90s)…\n'
+    scrow_clone_cmd=(git clone --depth 1 --branch "$SCROW_BOOT_BRANCH" "$SCROW_REPO_URL" "$SCROW_BOOT_DIR")
+    if command -v timeout >/dev/null 2>&1; then
+        GIT_TERMINAL_PROMPT=0 timeout 90 "${scrow_clone_cmd[@]}" 2>/dev/null && got_repo=1 || true
     else
-        scrow_boot_log "git clone failed for $SCROW_REPO_URL; falling back to tarball"
+        "${scrow_clone_cmd[@]}" 2>/dev/null && got_repo=1 || true
+    fi
+    if (( got_repo == 0 )); then
+        scrow_boot_log "git clone failed or timed out for $SCROW_REPO_URL; falling back to tarball"
         rm -rf "$SCROW_BOOT_DIR"
         mkdir -p "$SCROW_BOOT_DIR"
     fi
