@@ -3,6 +3,94 @@
 # SCROW — engine (install / refresh / upgrade / repair / reset / remove)
 # =============================================================================
 
+# --- repository (bootstrap mode) ----------------------------------------------
+# The one-line bootstrap ships only the self-contained installer core. The full
+# repository — the dotfiles, themes, cursors and binaries a component installs —
+# is fetched here, lazily, the first time an operation needs it. A clone is
+# preferred (it keeps .git, so "Update SCROW" can git pull); a tarball download
+# is the fallback. Both report real progress. After the first fetch this is a
+# no-op, and everything (SCROW_REPO, manifest, SHA, deploy) works exactly as in
+# a manual clone.
+scrow_ensure_repo() {
+    if [[ -d "$SCROW_REPO/.config" || -d "$SCROW_REPO/.git" ]]; then
+        return 0
+    fi
+    if [[ "$SCROW_DRY_RUN" == "1" ]]; then
+        echo "  [dry-run] fetch SCROW repository into $SCROW_REPO"
+        return 0
+    fi
+    echo
+    echo "  ${C_ACCENT}SCROW files${C_RESET}"
+    echo "  ${C_DIM}Fetching SCROW component files (first run only)…${C_RESET}"
+
+    local fetch="$SCROW_STATE_DIR/repo-fetch"
+    rm -rf "$fetch"
+    mkdir -p "$fetch"
+    local got=0
+
+    if command -v git >/dev/null 2>&1; then
+        export GIT_TERMINAL_PROMPT=0
+        echo "  ${C_DIM}Cloning repository…${C_RESET}"
+        local -a clone_cmd=(git clone --depth 1 --branch "$SCROW_REPO_BRANCH" --progress "$SCROW_REPO_URL" "$fetch")
+        if command -v timeout >/dev/null 2>&1; then
+            scrow_progress_run "Fetching SCROW files" timeout 90 "${clone_cmd[@]}" && got=1
+        else
+            scrow_progress_run "Fetching SCROW files" "${clone_cmd[@]}" && got=1
+        fi
+        printf '\r\033[K'
+    fi
+
+    if (( ! got )); then
+        rm -rf "$fetch"
+        mkdir -p "$fetch"
+        local archive="$SCROW_STATE_DIR/scrow-repo.tar.gz"
+        rm -f "$archive"
+        echo "  ${C_DIM}Downloading repository…${C_RESET}"
+        if ! scrow_progress_run "Fetching SCROW files" curl -fL --progress-bar --proto '=https' \
+                --connect-timeout 15 --max-time 300 --retry 3 --retry-delay 2 --retry-all-errors \
+                -o "$archive" "$SCROW_TARBALL_URL"; then
+            rm -f "$archive"
+            printf '\r\033[K'
+            echo "  ${C_ERR}Could not download SCROW component files.${C_RESET}"
+            echo "  ${C_DIM}Check the network and try again. Details: $SCROW_CURRENT_LOG${C_RESET}"
+            return 1
+        fi
+        printf '\r\033[K'
+        if ! gzip -t "$archive" 2>/dev/null; then
+            rm -f "$archive"
+            echo "  ${C_ERR}Downloaded SCROW files are incomplete or corrupt.${C_RESET}"
+            return 1
+        fi
+        echo "  ${C_DIM}Extracting SCROW files…${C_RESET}"
+        if ! tar -xzf "$archive" --strip-components=1 -C "$fetch"; then
+            rm -rf "$fetch" "$archive"
+            echo "  ${C_ERR}Could not unpack SCROW component files.${C_RESET}"
+            return 1
+        fi
+        rm -f "$archive"
+        got=1
+    fi
+
+    if (( ! got )) || [[ ! -d "$fetch/.config" ]]; then
+        rm -rf "$fetch"
+        echo "  ${C_ERR}SCROW component files could not be fetched.${C_RESET}"
+        echo "  ${C_DIM}Details: $SCROW_CURRENT_LOG${C_RESET}"
+        return 1
+    fi
+
+    # Merge the fetched repository into the installer tree so the layout is
+    # identical to a manual clone. cp -a merges directories and overwrites the
+    # (identical) installer core files.
+    if ! cp -a "$fetch"/. "$SCROW_REPO"/ 2>/dev/null; then
+        rm -rf "$fetch"
+        echo "  ${C_ERR}Could not place SCROW component files.${C_RESET}"
+        return 1
+    fi
+    rm -rf "$fetch"
+    scrow_log "repository fetched into $SCROW_REPO"
+    echo "  ${C_OK}SCROW component files ready.${C_RESET}"
+}
+
 # --- install -----------------------------------------------------------------
 # scrow_engine_install [names...]  (defaults to all uninstalled components)
 scrow_engine_install() {
@@ -22,6 +110,8 @@ scrow_engine_install() {
     echo "  ${C_ACCENT}SCROW Install${C_RESET}"
     echo "  ${C_DIM}Installing: ${wanted[*]}${C_RESET}"
     echo
+
+    scrow_ensure_repo || return 1
 
     scrow_backup_autobackup
 
@@ -149,6 +239,8 @@ scrow_engine_refresh() {
     echo "  ${C_DIM}Checking: ${names[*]}${C_RESET}"
     echo
 
+    scrow_ensure_repo || return 1
+
     scrow_backup_autobackup
 
     scrow_manifest_index_load
@@ -215,6 +307,7 @@ scrow_engine_upgrade() {
     echo
     echo "  ${C_ACCENT}SCROW Upgrade${C_RESET}"
     [[ "$SCROW_DRY_RUN" == "1" ]] && { echo "  [dry-run] pacman -Syu + paru -Sua"; return 0; }
+    scrow_ensure_repo || return 1
     scrow_need_root
     scrow_run_sudo "system upgrade" pacman -Syu --noconfirm || return 1
     if command -v paru >/dev/null 2>&1; then
@@ -232,6 +325,8 @@ scrow_engine_upgrade() {
 scrow_engine_repair() {
     echo
     echo "  ${C_ACCENT}SCROW Repair${C_RESET}"
+
+    scrow_ensure_repo || return 1
 
     scrow_backup_autobackup
 

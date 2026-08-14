@@ -2,45 +2,61 @@
 # =============================================================================
 # SCROW — one-line bootstrap
 # =============================================================================
-# Downloads the SCROW repository and launches the installer. Uses curl + tar,
-# so it works on a bare system that has no git yet (git is only needed later,
-# and the installer installs it as part of the Utilities component).
+# Downloads only the self-contained installer core (~120 KB) and launches the
+# SCROW terminal UI immediately. The ~50 MB component set is fetched by the
+# installer itself — lazily, with real progress — the first time a component
+# is actually installed. Never during startup.
+#
+# Uses curl only, so it works on a bare system that has no git yet.
 #
 #   curl -fsSL https://raw.githubusercontent.com/midn8crow/scrow/main/bootstrap.sh | bash
 #
 # Environment overrides:
-#   SCROW_BOOT_DIR       where the repository is fetched (default:
+#   SCROW_BOOT_DIR       where the installer core is fetched (default:
 #                        ~/.local/share/scrow/bootstrap)
 #   SCROW_BOOT_BRANCH    branch to fetch (default: main)
-#   SCROW_REPO_URL       git URL to clone (default: the GitHub repository)
-#   SCROW_TARBALL_URL    tarball URL to download (default: the GitHub archive)
 #   SCROW_BOOT_LOG       where bootstrap diagnostics are logged (default:
 #                        ~/.local/share/scrow/bootstrap.log)
+#
+# SCROW_REPO_URL / SCROW_TARBALL_URL are honored by the installer when it
+# fetches the component files on first install.
 # =============================================================================
 
 set -uo pipefail
 
 SCROW_BOOT_DIR="${SCROW_BOOT_DIR:-$HOME/.local/share/scrow/bootstrap}"
 SCROW_BOOT_BRANCH="${SCROW_BOOT_BRANCH:-main}"
-SCROW_REPO_URL="${SCROW_REPO_URL:-https://github.com/midn8crow/scrow.git}"
-SCROW_TARBALL_URL="${SCROW_TARBALL_URL:-https://github.com/midn8crow/scrow/archive/refs/heads/$SCROW_BOOT_BRANCH.tar.gz}"
 SCROW_BOOT_LOG="${SCROW_BOOT_LOG:-$HOME/.local/share/scrow/bootstrap.log}"
 
-printf 'SCROW — Arch Linux • Hyprland\n'
-printf 'Fetching SCROW installer…\n'
+SCROW_RAW_URL="https://raw.githubusercontent.com/midn8crow/scrow/$SCROW_BOOT_BRANCH"
+
+# Files that make up the self-contained installer. Everything else in the
+# repository — dotfiles, themes, cursors, binaries — is fetched lazily by the
+# installer when a component is actually installed.
+SCROW_CORE_FILES=(
+    install.sh
+    VERSION
+    installer/scrow
+    installer/core.sh
+    installer/state.sh
+    installer/config.sh
+    installer/backup.sh
+    installer/sysd.sh
+    installer/package.sh
+    installer/components.sh
+    installer/ownership.sh
+    installer/engine.sh
+    installer/menu.sh
+)
+
+printf 'SCROW — Arch Linux • Hyprland\n\n'
 
 if ! command -v curl >/dev/null 2>&1; then
     printf 'SCROW: curl is required to download the installer.\n' >&2
     exit 1
 fi
 
-mkdir -p "$(dirname "$SCROW_BOOT_DIR")"
-
-# Always start from a clean copy — never trust a stale/partial previous
-# download (that is what previously caused phantom "check your connection"
-# failures and broken re-installs).
-rm -rf "$SCROW_BOOT_DIR"
-mkdir -p "$SCROW_BOOT_DIR"
+mkdir -p "$SCROW_BOOT_DIR/installer"
 
 # -----------------------------------------------------------------------------
 # Diagnostics / logging helpers
@@ -55,6 +71,7 @@ scrow_die() {
     printf 'SCROW: %s\n' "$1" >&2
     printf 'Please check your network, then retry:\n' >&2
     printf '  curl -fsSL https://raw.githubusercontent.com/midn8crow/scrow/main/bootstrap.sh | bash\n' >&2
+    printf 'Details: %s\n' "$SCROW_BOOT_LOG" >&2
     exit 1
 }
 
@@ -104,124 +121,80 @@ scrow_curl_attempt() {
     return "$rc"
 }
 
-# Download with internal retries and an IPv4 fallback. Returns 0 only after a
-# complete, verified transfer; otherwise prints the reason to stderr.
-scrow_download() {
+# Fetch one installer file with an IPv4 fallback. Returns 0 on success.
+scrow_fetch() {
     local url="$1" out="$2"
     local host="${url#https://}"
     host="${host%%/*}"
-
-    local rc
-    # Visible status: the archive can be large and slow on virtualized
-    # networking, so say what is happening instead of sitting silent.
-    printf 'Downloading SCROW installer from %s… (can take a while)\n' "$host"
-    scrow_curl_attempt "$url" "$out" ""
-    rc=$?
-    if (( rc == 0 )); then
-        printf 'Download complete.\n'
+    if scrow_curl_attempt "$url" "$out" ""; then
         return 0
     fi
-
-    # DNS/connect/timeout failures (common under virtualized networking) are
-    # retried over IPv4 only. IPv4 is not forced for the primary attempt.
-    printf 'Note: first attempt from %s failed; retrying over IPv4…\n' "$host" >&2
     scrow_curl_attempt "$url" "$out" "4"
-    rc=$?
-    if (( rc == 0 )); then
-        printf 'Note: reached %s over IPv4 after the first attempt failed.\n' "$host" >&2
-        printf 'Download complete.\n'
-        return 0
-    fi
-
-    local reason
-    reason="$(scrow_curl_reason "$rc" "$host")"
-    printf 'SCROW: %s\n' "$reason" >&2
-    scrow_boot_log "download failed: $reason (curl exit $rc, url $url)"
-    return 1
 }
 
 # -----------------------------------------------------------------------------
-# Verify + unpack helper
+# Progress
 # -----------------------------------------------------------------------------
 
-# Verify the downloaded archive and unpack it. A partial/corrupt download is
-# never passed to tar, and nothing that looks like a half-written installer is
-# ever left behind.
-scrow_unpack() {
-    local archive="$1" dest="$2"
-
-    if [[ ! -s "$archive" ]]; then
-        printf 'SCROW: the downloaded installer was empty.\n' >&2
-        scrow_boot_log "archive was empty: $archive"
-        return 1
-    fi
-    if ! gzip -t "$archive" 2>/dev/null; then
-        printf 'SCROW: the downloaded installer is incomplete or corrupt.\n' >&2
-        scrow_boot_log "archive failed gzip integrity check: $archive"
-        return 1
-    fi
-    if ! tar -xzf "$archive" --strip-components=1 -C "$dest"; then
-        printf 'SCROW: could not unpack the downloaded installer.\n' >&2
-        scrow_boot_log "tar extraction failed: $archive"
-        return 1
-    fi
-    if [[ ! -f "$dest/install.sh" || ! -f "$dest/VERSION" ]]; then
-        printf 'SCROW: the downloaded archive is missing expected files.\n' >&2
-        scrow_boot_log "archive missing install.sh or VERSION: $archive"
-        return 1
-    fi
-    return 0
+# Right-aligned, real percentage of the installer files fetched so far. The
+# percentage advances only when a file has actually completed.
+scrow_prepare_status() {
+    local -i done=$1 total=$2
+    local -i pct=$(( done * 100 / total ))
+    local -i cols=80
+    local got
+    got="$(tput cols 2>/dev/null)"
+    [[ "$got" =~ ^[0-9]+$ ]] && cols=$got
+    (( cols < 40 )) && cols=40
+    local -i padn=$(( cols - 18 - 4 ))
+    local pad=""
+    (( padn > 0 )) && printf -v pad '%*s' "$padn" ''
+    printf '\rPreparing SCROW...%s%3d%%' "$pad" "$pct"
 }
 
 # -----------------------------------------------------------------------------
-# Fetch the repository
+# Fetch the installer core
 # -----------------------------------------------------------------------------
 
-got_repo=0
-if command -v git >/dev/null 2>&1; then
-    # Bounded clone: a stalled connection (broken IPv6, slow NAT, …) must
-    # never hang the bootstrap forever. GIT_TERMINAL_PROMPT=0 stops git from
-    # blocking on a credential prompt. On failure or timeout we fall back to
-    # the tarball path below.
-    printf 'Cloning SCROW repository (max 90s)…\n'
-    scrow_clone_cmd=(git clone --depth 1 --branch "$SCROW_BOOT_BRANCH" "$SCROW_REPO_URL" "$SCROW_BOOT_DIR")
-    if command -v timeout >/dev/null 2>&1; then
-        GIT_TERMINAL_PROMPT=0 timeout 90 "${scrow_clone_cmd[@]}" 2>/dev/null && got_repo=1 || true
-    else
-        "${scrow_clone_cmd[@]}" 2>/dev/null && got_repo=1 || true
+SCROW_BOOT_TOTAL=${#SCROW_CORE_FILES[@]}
+SCROW_BOOT_DONE=0
+for rel in "${SCROW_CORE_FILES[@]}"; do
+    scrow_prepare_status "$SCROW_BOOT_DONE" "$SCROW_BOOT_TOTAL"
+    SCROW_BOOT_TMP="$SCROW_BOOT_DIR/$rel.tmp"
+    rm -f "$SCROW_BOOT_TMP"
+    if ! scrow_fetch "$SCROW_RAW_URL/$rel" "$SCROW_BOOT_TMP"; then
+        SCROW_BOOT_RC=$?
+        rm -f "$SCROW_BOOT_TMP"
+        printf '\r\033[K'
+        SCROW_BOOT_HOST="${SCROW_RAW_URL#https://}"
+        SCROW_BOOT_HOST="${SCROW_BOOT_HOST%%/*}"
+        SCROW_BOOT_REASON="$(scrow_curl_reason "$SCROW_BOOT_RC" "$SCROW_BOOT_HOST")"
+        scrow_boot_log "fetch failed: $SCROW_BOOT_REASON (url $SCROW_RAW_URL/$rel, curl exit $SCROW_BOOT_RC)"
+        scrow_die "could not download installer file $rel — $SCROW_BOOT_REASON"
     fi
-    if (( got_repo == 0 )); then
-        scrow_boot_log "git clone failed or timed out for $SCROW_REPO_URL; falling back to tarball"
-        rm -rf "$SCROW_BOOT_DIR"
-        mkdir -p "$SCROW_BOOT_DIR"
+    mv -f "$SCROW_BOOT_TMP" "$SCROW_BOOT_DIR/$rel"
+    SCROW_BOOT_DONE=$(( SCROW_BOOT_DONE + 1 ))
+done
+scrow_prepare_status "$SCROW_BOOT_DONE" "$SCROW_BOOT_TOTAL"
+printf '\n'
+
+# -----------------------------------------------------------------------------
+# Verify + launch
+# -----------------------------------------------------------------------------
+
+SCROW_BOOT_OK=1
+for rel in "${SCROW_CORE_FILES[@]}"; do
+    if [[ ! -s "$SCROW_BOOT_DIR/$rel" ]]; then
+        scrow_boot_log "missing or empty after fetch: $rel"
+        SCROW_BOOT_OK=0
     fi
+done
+if (( SCROW_BOOT_OK == 0 )); then
+    printf '\r\033[K'
+    scrow_die "installer files are incomplete."
 fi
 
-if (( ! got_repo )); then
-    # No git installed (or the git clone failed): fall back to a plain
-    # tarball download, which only needs curl + tar.
-    archive="$SCROW_BOOT_DIR/.scrow-bootstrap.tar.gz"
-    if ! scrow_download "$SCROW_TARBALL_URL" "$archive"; then
-        rm -rf "$SCROW_BOOT_DIR"
-        scrow_die "could not download the SCROW installer."
-    fi
-    if ! scrow_unpack "$archive" "$SCROW_BOOT_DIR"; then
-        rm -rf "$SCROW_BOOT_DIR"
-        scrow_die "could not prepare the SCROW installer."
-    fi
-    rm -f "$archive"
-fi
-
-ver="$(cat "$SCROW_BOOT_DIR/VERSION" 2>/dev/null | tr -d '[:space:]')"
-if (( got_repo )) && [[ -n "$ver" ]] \
-    && git -C "$SCROW_BOOT_DIR" rev-parse -q --verify "refs/tags/v$ver" >/dev/null 2>&1; then
-    git -C "$SCROW_BOOT_DIR" checkout --quiet "v$ver" 2>/dev/null || true
-    printf 'Using verified release v%s\n' "$ver"
-else
-    printf 'Using branch %s\n' "$SCROW_BOOT_BRANCH"
-fi
-
-printf 'Starting the SCROW Installer…\n\n'
+printf 'Launching SCROW...\n\n'
 
 # When run via `curl ... | bash`, bash's stdin is the curl pipe, which is
 # already at EOF by the time the installer starts. The interactive TUI's

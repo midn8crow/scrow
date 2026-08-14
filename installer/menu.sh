@@ -495,6 +495,8 @@ scrow_ui_status_compute() {
     else
         SCROW_UI_STATUS_DOT="${C_ACCENT}●${C_RESET}"
     fi
+    SCROW_UI_STATUS_N=$installed
+    SCROW_UI_STATUS_TOTAL=$total
     local txt=" $installed/$total components installed"
     local -a seg=()
     local last
@@ -618,132 +620,94 @@ scrow_ui_box_row() {
     scrow_ui_put "$y" "$(scrow_ui_spaces $x)${C_FRAME}│ ${C_RESET}${content}$(scrow_ui_spaces $pad) ${C_FRAME}│${C_RESET}"
 }
 
-scrow_frame_main_panel() {
-    local -i sel=$1
-    local mode="$2"
+scrow_ui_card_top_s() {
+    local -i w=$1
+    local title="$2"
+    local -i d=$(( w - ${#title} - 5 ))
+    (( d < 1 )) && d=1
+    printf '%s' "${C_FRAME}┌─ ${C_RESET}${C_ACCENT}${C_BOLD}${title}${C_RESET}${C_FRAME} $(scrow_ui_dash $d)┐${C_RESET}"
+}
+
+scrow_ui_card_bottom_s() {
+    local -i w=$1
+    printf '%s' "${C_FRAME}└$(scrow_ui_dash $(( w - 2 )))┘${C_RESET}"
+}
+
+scrow_ui_card_row_s() {
+    local -i w=$1
+    local content="$2"
+    local -i clen
+    clen=$(scrow_ui_vislen "$content")
+    local -i pad=$(( w - 4 - clen ))
+    (( pad < 0 )) && pad=0
+    printf '%s' "${C_FRAME}│ ${C_RESET}${content}$(scrow_ui_spaces $pad) ${C_FRAME}│${C_RESET}"
+}
+
+scrow_frame_main_cards() {
+    local -i sel=$1 stack=$2
     local -i cw=$SCROW_TUI_COLS
-    local -i i k v line
-    local -i itemwA=0 itemwB=0 gap=8 itemw=0 contentW=0 descw=0
-
-    if [[ "$mode" == "two" ]]; then
-        for ((i=0; i<3; i++)); do
-            v=$(( 2 + ${#SCROW_UI_MAIN_LABELS[i]} ))
-            local bdA="${SCROW_UI_MAIN_BADGES[i]}"
-            [[ -n "$bdA" ]] && v=$(( v + ${#bdA} + 1 ))
-            (( v > itemwA )) && itemwA=$v
-        done
-        for ((i=3; i<8; i++)); do
-            v=$(( 2 + ${#SCROW_UI_MAIN_LABELS[i]} ))
-            (( v > itemwB )) && itemwB=$v
-        done
-        contentW=$(( itemwA + gap + itemwB + 2 ))
-    else
-        for ((i=0; i<8; i++)); do
-            v=$(( 2 + ${#SCROW_UI_MAIN_LABELS[i]} ))
-            local bdS="${SCROW_UI_MAIN_BADGES[i]}"
-            [[ -n "$bdS" ]] && v=$(( v + ${#bdS} + 1 ))
-            (( v > itemw )) && itemw=$v
-        done
-        contentW=$(( itemw + 2 ))
-    fi
-    descw=$(( contentW - 2 ))
-
-    local -i boxW=$(( contentW + 2 ))
-    local -i boxX=$(( (cw - boxW) / 2 ))
-    (( boxX < 1 )) && boxX=1
-
-    local -i maxLines=0 n
-    for ((n=0; n<8; n++)); do
-        scrow_ui_wrap "${SCROW_UI_MAIN_DESC[n]}" "$descw"
-        (( ${#SCROW_TUI_WRAPPED[@]} > maxLines )) && maxLines=${#SCROW_TUI_WRAPPED[@]}
+    local -i i v itemwA=0 itemwB=0
+    local bd
+    for ((i=0; i<3; i++)); do
+        v=$(( 2 + ${#SCROW_UI_MAIN_LABELS[i]} ))
+        bd="${SCROW_UI_MAIN_BADGES[i]}"
+        [[ -n "$bd" ]] && v=$(( v + ${#bd} + 1 ))
+        (( v > itemwA )) && itemwA=$v
     done
-
-    local -i panelH=16 showDesc=0
-    if [[ "$mode" == "two" ]]; then
-        showDesc=1
-    elif (( 19 + maxLines <= SCROW_TUI_ROWS - 8 )); then
-        panelH=$(( 19 + maxLines ))
-        showDesc=1
+    for ((i=3; i<8; i++)); do
+        v=$(( 2 + ${#SCROW_UI_MAIN_LABELS[i]} ))
+        (( v > itemwB )) && itemwB=$v
+    done
+    local -i cardA=$(( itemwA + 4 )) cardB=$(( itemwB + 4 ))
+    local -i gap=6
+    if (( stack )); then
+        (( cardA < cardB )) && cardA=$cardB
+        cardB=$cardA
+        gap=0
     fi
+    local -i total=$(( cardA + gap + cardB ))
+    local -i xA=$(( (cw - total) / 2 ))
+    (( xA < 1 )) && xA=1
+    local -i descw=$(( total - 2 ))
+    (( descw < 20 )) && descw=20
 
-    local -i maxH=$(( SCROW_TUI_ROWS - 5 ))
-    local -i spaceTop=$(( (maxH - panelH - 2) / 2 ))
-    (( spaceTop < 1 )) && spaceTop=1
-    local -i headingTop=$(( 4 + spaceTop ))
-    local -i hx=$(( boxX + (boxW - 8) / 2 ))
-    scrow_ui_put $headingTop "$(scrow_ui_spaces $hx)${C_ACCENT}${C_BOLD}MAIN MENU${C_RESET}"
-
-    local -i y=$(( headingTop + 2 ))
-    scrow_ui_box_top "$y" "$boxX" "$boxW" ""
+    local -i y=1
+    scrow_ui_put "$y" "$(scrow_ui_center_p "${C_ACCENT}${C_BOLD}SCROW${C_RESET}")"
     y+=1
-    if [[ "$mode" == "two" ]]; then
-        local -i hdgap=$(( itemwA + gap + 2 - 12 ))
-        local -i tail=$(( contentW - 2 - 12 - hdgap - 10 ))
-        (( tail < 0 )) && tail=0
-        scrow_ui_box_row "$y" "$boxX" "$boxW" \
-            "${C_ACCENT}${C_BOLD}INSTALLATION${C_RESET}$(scrow_ui_spaces $hdgap)${C_ACCENT}${C_BOLD}MANAGEMENT${C_RESET}$(scrow_ui_spaces $tail)"
-        y+=1
-        scrow_ui_box_row "$y" "$boxX" "$boxW" \
-            "${C_HAIR}$(scrow_ui_dash 12)$(scrow_ui_spaces $hdgap)$(scrow_ui_dash 10)$(scrow_ui_spaces $tail)${C_RESET}"
-        y+=2
-        local itemA itemB
-        for ((k=0; k<5; k++)); do
-            if (( k < 3 )); then
-                itemA="$(scrow_ui_draw_item_str "$k" "$sel" "$itemwA")"
-            else
-                itemA="$(scrow_ui_spaces $itemwA)"
-            fi
-            itemB="$(scrow_ui_draw_item_str $(( k + 3 )) "$sel" "$itemwB")"
-            scrow_ui_box_row "$y" "$boxX" "$boxW" "${itemA}$(scrow_ui_spaces $gap)${itemB}"
-            y+=1
-        done
-    else
-        scrow_ui_box_row "$y" "$boxX" "$boxW" \
-            "${C_ACCENT}${C_BOLD}INSTALLATION${C_RESET}$(scrow_ui_spaces $(( contentW - 2 - 12 )))"
-        y+=1
-        scrow_ui_box_row "$y" "$boxX" "$boxW" \
-            "${C_HAIR}$(scrow_ui_dash 12)$(scrow_ui_spaces $(( contentW - 2 - 12 )))${C_RESET}"
-        y+=1
-        for ((i=0; i<3; i++)); do
-            scrow_ui_box_row "$y" "$boxX" "$boxW" "$(scrow_ui_draw_item_str "$i" "$sel" "$itemw")"
-            y+=1
-        done
-        scrow_ui_box_row "$y" "$boxX" "$boxW" ""
-        y+=1
-        scrow_ui_box_row "$y" "$boxX" "$boxW" \
-            "${C_ACCENT}${C_BOLD}MANAGEMENT${C_RESET}$(scrow_ui_spaces $(( contentW - 2 - 10 )))"
-        y+=1
-        scrow_ui_box_row "$y" "$boxX" "$boxW" \
-            "${C_HAIR}$(scrow_ui_dash 10)$(scrow_ui_spaces $(( contentW - 2 - 10 )))${C_RESET}"
-        y+=1
-        for ((i=3; i<8; i++)); do
-            scrow_ui_box_row "$y" "$boxX" "$boxW" "$(scrow_ui_draw_item_str "$i" "$sel" "$itemw")"
-            y+=1
-        done
-    fi
-
-    scrow_ui_box_row "$y" "$boxX" "$boxW" ""
+    scrow_ui_put "$y" "$(scrow_ui_center_p "${C_DIM}Arch Linux · Hyprland${C_RESET}")"
     y+=1
-    if (( showDesc )); then
-        scrow_ui_box_row "$y" "$boxX" "$boxW" "${C_HAIR}$(scrow_ui_dash $(( contentW - 2 )))${C_RESET}"
+    scrow_ui_put "$y" "$(scrow_ui_center_p "${C_FAINT}v${SCROW_VERSION}${C_RESET}")"
+    y=5
+    scrow_ui_put "$y" "$(scrow_ui_center_p "${C_DIM}${SCROW_UI_STATUS_N} / ${SCROW_UI_STATUS_TOTAL} COMPONENTS${C_RESET}")"
+    y+=1
+    scrow_ui_put "$y" "$(scrow_ui_center_p "${SCROW_UI_STATUS_DOT} ${C_HAIR}$(scrow_ui_dash $(( cw - 8 )))${C_RESET}")"
+    y+=2
+
+    scrow_ui_put "$y" "$(scrow_ui_spaces $xA)$(scrow_ui_card_top_s "$cardA" "INSTALLATION")$(scrow_ui_spaces $gap)$(scrow_ui_card_top_s "$cardB" "MANAGEMENT")"
+    y+=1
+    local -i k
+    for ((k=0; k<5; k++)); do
+        if (( k < 3 )); then
+            scrow_ui_put "$y" "$(scrow_ui_spaces $xA)$(scrow_ui_card_row_s "$cardA" "$(scrow_ui_draw_item_str "$k" "$sel" "$itemwA")")$(scrow_ui_spaces $gap)$(scrow_ui_card_row_s "$cardB" "$(scrow_ui_draw_item_str $(( k + 3 )) "$sel" "$itemwB")")"
+        else
+            scrow_ui_put "$y" "$(scrow_ui_spaces $xA)$(scrow_ui_card_row_s "$cardA" "")$(scrow_ui_spaces $gap)$(scrow_ui_card_row_s "$cardB" "$(scrow_ui_draw_item_str $(( k + 3 )) "$sel" "$itemwB")")"
+        fi
         y+=1
-        scrow_ui_box_row "$y" "$boxX" "$boxW" ""
-        y+=1
-        scrow_ui_wrap "${SCROW_UI_MAIN_DESC[sel]}" "$descw"
-        local -a dwrap=("${SCROW_TUI_WRAPPED[@]}")
-        for ((line=0; line<maxLines; line++)); do
-            local w="${dwrap[line]:-}"
-            if [[ -n "$w" ]]; then
-                scrow_ui_box_row "$y" "$boxX" "$boxW" "${C_DIM}${w}${C_RESET}"
-            else
-                scrow_ui_box_row "$y" "$boxX" "$boxW" ""
-            fi
-            y+=1
-        done
-        scrow_ui_box_row "$y" "$boxX" "$boxW" ""
+    done
+    scrow_ui_put "$y" "$(scrow_ui_spaces $xA)$(scrow_ui_card_bottom_s "$cardA")$(scrow_ui_spaces $gap)$(scrow_ui_card_bottom_s "$cardB")"
+    y+=2
+
+    if (( sel == 0 )); then
+        scrow_ui_put "$y" "$(scrow_ui_center_p "${C_OK}${C_BOLD}RECOMMENDED${C_RESET}")"
         y+=1
     fi
-    scrow_ui_box_bottom "$y" "$boxX" "$boxW"
+    scrow_ui_wrap "${SCROW_UI_MAIN_DESC[sel]}" "$descw"
+    local -a dwrap=("${SCROW_TUI_WRAPPED[@]}")
+    local line
+    for line in "${dwrap[@]}"; do
+        scrow_ui_put "$y" "$(scrow_ui_center_p "${C_DIM}${line}${C_RESET}")"
+        y+=1
+    done
 }
 
 scrow_frame_main_slim() {
@@ -797,30 +761,26 @@ scrow_frame_main() {
     local -i sel=$1
     scrow_ui_frame
     local -i cw=$SCROW_TUI_COLS
-    local right="v${SCROW_VERSION}"
-    local -i pad=$(( cw - 7 - ${#right} ))
-    (( pad < 0 )) && pad=0
-    scrow_ui_put 0 "  ${C_ACCENT}${C_BOLD}SCROW${C_RESET}$(scrow_ui_spaces $pad)${C_DIM}${right}${C_RESET}"
-    scrow_ui_put 1 "  ${C_DIM}Arch Linux · Hyprland dotfiles manager${C_RESET}"
-    scrow_ui_hline 2 "$C_HAIR"
-    scrow_ui_put 3 "  ${SCROW_UI_STATUS_DOT}${SCROW_UI_STATUS_TEXT}${C_RESET}"
 
     local -i tiny=0
     (( SCROW_TUI_ROWS <= 14 )) && tiny=1
-    local footer="↑ ↓ navigate · Enter select · Esc / q quit"
-    (( cw < 50 )) && footer="↑ ↓ move · Enter · Esc quit"
+    local footer="↑ ↓ Navigate   Enter Select   Q Quit"
+    (( cw < 60 )) && footer="↑ ↓ Navigate   Enter Select   Q Quit"
 
-    if (( ! tiny && SCROW_TUI_ROWS >= 24 && cw >= 76 )); then
-        scrow_frame_main_panel "$sel" "two"
-    elif (( ! tiny && SCROW_TUI_ROWS >= 24 && cw >= 36 )); then
-        scrow_frame_main_panel "$sel" "one"
+    local -i stack=0 cards=0
+    if (( ! tiny && SCROW_TUI_ROWS >= 24 && cw >= 66 )); then
+        cards=1
+    elif (( ! tiny && SCROW_TUI_ROWS >= 33 && cw >= 38 )); then
+        cards=1
+        stack=1
+    fi
+
+    if (( cards )); then
+        scrow_frame_main_cards "$sel" "$stack"
     else
         scrow_frame_main_slim "$sel" "$tiny"
     fi
-
-    if (( SCROW_TUI_ROWS > 12 )); then
-        scrow_ui_put $((SCROW_TUI_ROWS - 1)) "$(scrow_ui_center_p "${C_HAIR}${footer}${C_RESET}")"
-    fi
+    scrow_ui_put $(( SCROW_TUI_ROWS - 1 )) "$(scrow_ui_center_p "${C_HAIR}${footer}${C_RESET}")"
 }
 
 # -----------------------------------------------------------------------------
@@ -1387,7 +1347,12 @@ scrow_screen_doctor() {
         y+=2
         scrow_ui_hline "$y" "$C_HAIR"
         y+=1
-        if (( issues > 0 )); then
+        if (( SCROW_AN_REPO_MISSING == 1 )); then
+            scrow_ui_put "$y" "  ${C_DIM}SCROW component files are not downloaded yet — install or repair a${C_RESET}"
+            y+=1
+            scrow_ui_put "$y" "  ${C_DIM}component first, and SCROW will fetch them automatically.${C_RESET}"
+            y+=1
+        elif (( issues > 0 )); then
             scrow_ui_put "$y" "  ${C_FAINT}Repair restores the official files — an automatic backup is created first.${C_RESET}"
             y+=1
             (( modified > 0 )) && scrow_ui_put "$y" "  ${C_WARN}Your $modified modified $(scrow_ui_plural file $modified) are kept in that backup.${C_RESET}"
@@ -1556,6 +1521,12 @@ declare -a SCROW_AN_MODIFIED=() SCROW_AN_MISSING=() SCROW_AN_SYNC=() SCROW_AN_BR
 
 scrow_analyze() {
     SCROW_AN_MODIFIED=(); SCROW_AN_MISSING=(); SCROW_AN_SYNC=(); SCROW_AN_BROKEN=(); SCROW_AN_REMOVED=()
+    SCROW_AN_REPO_MISSING=0
+    if [[ ! -d "$SCROW_REPO/.config" ]]; then
+        SCROW_AN_REPO_MISSING=1
+        SCROW_AN_MODIFIED_N=0; SCROW_AN_MISSING_N=0; SCROW_AN_SYNC_N=0; SCROW_AN_BROKEN_N=0; SCROW_AN_REMOVED_N=0
+        return 0
+    fi
     scrow_manifest_index_load
     scrow_sha_cache_load
     scrow_target_sha_load
@@ -1612,6 +1583,7 @@ scrow_engine_update() {
         echo "  [dry-run] git pull --rebase --autostash"
         return 0
     fi
+    scrow_ensure_repo || return 1
     if ! git -C "$SCROW_REPO" rev-parse --git-dir >/dev/null 2>&1; then
         echo "  ${C_WARN}SCROW repo is not a git clone — nothing to update.${C_RESET}"
         return 1
