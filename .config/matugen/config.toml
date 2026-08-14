@@ -1,4 +1,6 @@
 [config]
+# Note: the wallpaper scripts call matugen with --source-color-index 0 so the
+# source color is always the image's most dominant color (deterministic).
 prefer = "lightness"
 caching = false
 fallback_color = "#1e1e2e"

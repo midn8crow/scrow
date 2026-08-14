@@ -4,7 +4,7 @@ PATH="/usr/bin:$HOME/.local/bin:$PATH"
 WALL_DIR="$HOME/Pictures/Wallpapers"
 
 apply_colors() {
-    matugen image "$1" --mode dark 2>/dev/null || { echo "matugen failed for $1" >&2; exit 1; }
+    matugen image "$1" --mode dark --source-color-index 0 2>/dev/null || { echo "matugen failed for $1" >&2; exit 1; }
     "$HOME/.config/matugen/post-apply.sh"
 }
 

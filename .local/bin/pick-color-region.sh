@@ -3,7 +3,7 @@ WALL_DIR="$HOME/Pictures/Wallpapers"
 HISTORY_FILE="$HOME/.cache/wallpaper-history"
 
 apply_colors() {
-    matugen image "$1" --mode dark 2>/dev/null || { notify-send "Color Pick" "matugen failed"; exit 1; }
+    matugen image "$1" --mode dark --source-color-index 0 2>/dev/null || { notify-send "Color Pick" "matugen failed"; exit 1; }
     "$HOME/.config/matugen/post-apply.sh"
 }
 
