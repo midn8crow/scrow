@@ -11,23 +11,30 @@ SCROW_TUI_ROWS=24
 SCROW_TUI_COLS=80
 SCROW_TUI_KEY=""
 SCROW_TUI_RESIZED=0
+SCROW_TUI_SIZE_SET=0
 
 # -----------------------------------------------------------------------------
 # Terminal
 # -----------------------------------------------------------------------------
+# Terminal dimensions are probed only when the TUI starts and on SIGWINCH.
+# scrow_ui_size() is a no-op otherwise (navigation never forks a subprocess).
 scrow_ui_size() {
+    (( SCROW_TUI_SIZE_SET == 1 && SCROW_TUI_RESIZED == 0 )) && return
+    SCROW_TUI_SIZE_SET=1
+    SCROW_TUI_RESIZED=0
     local sz rows cols
     SCROW_TUI_ROWS=24; SCROW_TUI_COLS=80
     if sz="$(stty size 2>/dev/null </dev/tty)" && [[ -n "$sz" ]]; then
         rows="${sz%% *}"; cols="${sz##* }"
         [[ "$rows" =~ ^[0-9]+$ && "$cols" =~ ^[0-9]+$ ]] && { SCROW_TUI_ROWS=$rows; SCROW_TUI_COLS=$cols; }
     fi
-    (( SCROW_TUI_ROWS < 10 )) && SCROW_TUI_ROWS=10
-    (( SCROW_TUI_COLS < 30 )) && SCROW_TUI_COLS=30
+    (( SCROW_TUI_ROWS < 5 )) && SCROW_TUI_ROWS=5
+    (( SCROW_TUI_COLS < 20 )) && SCROW_TUI_COLS=20
 }
 
 scrow_ui_enter() {
     trap 'SCROW_TUI_RESIZED=1' WINCH
+    SCROW_TUI_RESIZED=1
     printf '\033[?1049h\033[?25l'
     scrow_ui_size
 }
@@ -42,7 +49,6 @@ scrow_ui_key() {
     local c rest
     if ! IFS= read -rsn1 c; then
         if [[ "${SCROW_TUI_RESIZED:-0}" == "1" ]]; then
-            SCROW_TUI_RESIZED=0
             SCROW_TUI_KEY="none"
         else
             SCROW_TUI_KEY="eof"
@@ -189,22 +195,35 @@ scrow_ui_buttons() {
     local -i y=$1 sel=$2
     shift 2
     local -a labs=("$@")
-    local -i n=${#labs[@]} total=0 i
+    local -i n=${#labs[@]} total=0 i gap=2
     for ((i=0; i<n; i++)); do total+=$(( ${#labs[i]} + 2 )); done
-    (( n > 1 )) && total+=$(( 2 * (n - 1) ))
+    (( n > 1 )) && total+=$(( gap * (n - 1) ))
+    # Adapt spacing to the terminal width: shrink gaps, then padding, then labels.
+    while (( total > SCROW_TUI_COLS && gap > 1 )); do
+        gap=$(( gap - 1 ))
+        total=$(( total - (n - 1) ))
+    done
+    if (( total > SCROW_TUI_COLS )); then
+        total=$(( total - 2 * n ))
+        for ((i=0; i<n; i++)); do total+=$(( ${#labs[i]} )); done
+    fi
     local -i pad=$(( (SCROW_TUI_COLS - total) / 2 ))
     (( pad < 0 )) && pad=0
     local row
     row="$(scrow_ui_spaces $pad)"
     local content
     for ((i=0; i<n; i++)); do
-        content=" ${labs[i]} "
+        if (( total > SCROW_TUI_COLS )); then
+            content="${labs[i]}"
+        else
+            content=" ${labs[i]} "
+        fi
         if (( i == sel )); then
             row+="${C_BTN_BG}${C_BTN_FG}${content}${C_RESET}"
         else
             row+="${C_DIM}${content}${C_RESET}"
         fi
-        (( i < n - 1 )) && row+="  "
+        (( i < n - 1 )) && row+="$(scrow_ui_spaces $gap)"
     done
     scrow_ui_put "$y" "$row"
 }
@@ -328,7 +347,7 @@ scrow_ui_pager() {
         scrow_ui_render
         scrow_ui_key
         case "$SCROW_TUI_KEY" in
-            up)   (( cur > 0 )) && cur-=1 ;;
+            up)   (( cur > 0 )) && (( cur -= 1 )) ;;
             down) (( cur + 1 < ${#lines[@]} )) && cur+=1 ;;
             q|esc|enter|eof|none) return ;;
             *) : ;;
@@ -430,6 +449,9 @@ scrow_ui_health_cell() {
     local -i numw=${#n}
     (( numw < 6 )) && numw=6
     printf -v n '%*s' "$numw" "$n"
+    local -i labelmax=$(( width - 4 - numw ))
+    (( labelmax < 0 )) && labelmax=0
+    label="${label:0:$labelmax}"
     local head=" ${color}${icon}${C_RESET} ${color}${C_BOLD}${n}${C_RESET} ${C_DIM}${label}${C_RESET}"
     local -i pad=$(( width - $(scrow_ui_vislen "$head") ))
     (( pad < 1 )) && pad=1
@@ -512,29 +534,36 @@ SCROW_UI_MAIN_ACTIONS=(
     uninstall
 )
 
-scrow_ui_draw_item() {
-    local -i y=$1 item=$2 sel=$3 xoff=$4 blockw=$5
+scrow_ui_draw_item_str() {
+    local -i item=$1 sel=$2 blockw=$3
     local lb="${SCROW_UI_MAIN_LABELS[item]}" bd="${SCROW_UI_MAIN_BADGES[item]}"
     local indent="  "
     (( item == sel )) && indent="› "
     local content="${indent}${lb}"
-    local -i gap=$(( blockw - ${#content} ))
-    if [[ -n "$bd" ]]; then
-        gap=$(( blockw - ${#content} - ${#bd} - 1 ))
-        (( gap < 1 )) && gap=1
-    fi
     local row
-    row="$(scrow_ui_spaces $xoff)"
-    if (( item == sel )); then
-        row+="${C_SELBG}${C_ACCENT}${C_BOLD}${content}$(scrow_ui_spaces $gap)"
-        [[ -n "$bd" ]] && row+="${C_OK}${bd}"
-        row+="${C_RESET}"
+    if [[ -n "$bd" ]] && (( blockw - ${#content} - ${#bd} - 1 >= 0 )); then
+        local -i gap=$(( blockw - ${#content} - ${#bd} - 1 ))
+        (( gap < 1 )) && gap=1
+        if (( item == sel )); then
+            row="${C_SELBG}${C_ACCENT}${C_BOLD}${content}$(scrow_ui_spaces $gap)${C_OK}${bd}${C_RESET}"
+        else
+            row="${C_DIM}${content}$(scrow_ui_spaces $gap)${C_HAIR}${bd}${C_RESET}"
+        fi
     else
-        row+="${C_DIM}${content}$(scrow_ui_spaces $gap)"
-        [[ -n "$bd" ]] && row+="${C_HAIR}${bd}"
-        row+="${C_RESET}"
+        local -i gap=$(( blockw - ${#content} ))
+        (( gap < 1 )) && gap=1
+        if (( item == sel )); then
+            row="${C_SELBG}${C_ACCENT}${C_BOLD}${content}$(scrow_ui_spaces $gap)${C_RESET}"
+        else
+            row="${C_DIM}${content}$(scrow_ui_spaces $gap)${C_RESET}"
+        fi
     fi
-    scrow_ui_put "$y" "$row"
+    printf '%s' "$row"
+}
+
+scrow_ui_draw_item() {
+    local -i y=$1 item=$2 sel=$3 xoff=$4 blockw=$5
+    scrow_ui_put "$y" "$(scrow_ui_spaces $xoff)$(scrow_ui_draw_item_str "$item" "$sel" "$blockw")"
 }
 
 scrow_frame_main() {
@@ -549,6 +578,77 @@ scrow_frame_main() {
     scrow_ui_hline 2 "$C_HAIR"
     scrow_ui_put 3 "  ${SCROW_UI_STATUS_DOT}${SCROW_UI_STATUS_TEXT}${C_RESET}"
 
+    local -i compact=0
+    (( SCROW_TUI_ROWS < 18 || cw < 48 )) && compact=1
+
+    # --- wide terminals: two adaptive columns with description panel ----------
+    if (( cw >= 110 )); then
+        local -i colA=0 colB=0 i v
+        for ((i=0; i<3; i++)); do
+            v=$(( 2 + ${#SCROW_UI_MAIN_LABELS[i]} ))
+            local bd="${SCROW_UI_MAIN_BADGES[i]}"
+            [[ -n "$bd" ]] && v=$(( v + ${#bd} + 1 ))
+            (( v > colA )) && colA=$v
+        done
+        for ((i=3; i<8; i++)); do
+            v=$(( 2 + ${#SCROW_UI_MAIN_LABELS[i]} ))
+            (( v > colB )) && colB=$v
+        done
+        local -i avail=$(( cw - 8 ))
+        local -i maxW=$(( avail * 3 / 5 ))
+        (( colA > maxW )) && colA=$maxW
+        (( colB > maxW )) && colB=$maxW
+        local -i gap=4
+        local -i blockw=$(( colA + gap + colB ))
+        local -i descw=$(( cw - blockw - 8 ))
+        (( descw < 10 )) && descw=10
+        local -i xoff=$(( (cw - blockw - descw) / 2 ))
+        (( xoff < 2 )) && xoff=2
+        local -i menuH=6
+        local -i top=$(( (SCROW_TUI_ROWS - menuH) / 2 - 1 ))
+        (( top < 4 )) && top=4
+        if (( top + menuH > SCROW_TUI_ROWS - 1 )); then
+            top=$(( SCROW_TUI_ROWS - 1 - menuH ))
+            (( top < 4 )) && top=4
+        fi
+        local -i y=$top
+        local -i bx=$(( xoff + colA + gap ))
+        local -i spA=$(( xoff + (colA - 12) / 2 ))
+        (( spA < 0 )) && spA=0
+        local -i spB=$(( bx + (colB - 10) / 2 ))
+        (( spB < 0 )) && spB=0
+        local hdrA="${C_ACCENT}${C_BOLD}INSTALLATION${C_RESET}"
+        local hdrB="${C_ACCENT}${C_BOLD}MANAGEMENT${C_RESET}"
+        local -i hdrgap=$(( spB - spA - 12 ))
+        (( hdrgap < 2 )) && hdrgap=2
+        scrow_ui_put "$y" "$(scrow_ui_spaces $spA)${hdrA}$(scrow_ui_spaces $hdrgap)${hdrB}"
+        y+=1
+        local -i k
+        local item_rowA item_rowB
+        local -a desc_lines=()
+        scrow_ui_wrap "${SCROW_UI_MAIN_DESC[sel]}" "$descw"
+        desc_lines=("${SCROW_TUI_WRAPPED[@]}")
+        for ((k=0; k<5; k++)); do
+            if (( k < 3 )); then
+                item_rowA="$(scrow_ui_draw_item_str "$k" "$sel" "$colA")"
+            else
+                item_rowA="$(scrow_ui_spaces $colA)"
+            fi
+            item_rowB="$(scrow_ui_draw_item_str $(( k + 3 )) "$sel" "$colB")"
+            local line="${SCROW_UI_MAIN_DESC[sel]}"
+            if (( k < ${#desc_lines[@]} )); then
+                line="${desc_lines[k]}"
+            else
+                line=""
+            fi
+            scrow_ui_put "$y" "$(scrow_ui_spaces $xoff)${item_rowA}$(scrow_ui_spaces $gap)${item_rowB}$(scrow_ui_spaces 2)${C_FAINT}${line}${C_RESET}"
+            y+=1
+        done
+        scrow_ui_put $((SCROW_TUI_ROWS - 1)) "$(scrow_ui_center_p "${C_HAIR}↑ ↓ navigate · Enter select · Esc / q quit${C_RESET}")"
+        return
+    fi
+
+    # --- single centered column -------------------------------------------------
     local -i blockw=0 i v
     for ((i=0; i<8; i++)); do
         v=$(( 2 + ${#SCROW_UI_MAIN_LABELS[i]} ))
@@ -556,23 +656,34 @@ scrow_frame_main() {
         [[ -n "$bd" ]] && v=$(( v + ${#bd} + 1 ))
         (( v > blockw )) && blockw=$v
     done
+    local -i maxw=$(( cw - 4 ))
+    (( blockw > maxw )) && blockw=$maxw
     local -i xoff=$(( (cw - blockw) / 2 ))
     (( xoff < 2 )) && xoff=2
     local -i menuH=11
+    (( compact )) && menuH=10
     local -i top=$(( (SCROW_TUI_ROWS - menuH) / 2 - 1 ))
-    (( top < 5 )) && top=5
+    (( top < 4 )) && top=4
+    if (( top + menuH >= SCROW_TUI_ROWS - 1 )); then
+        top=$(( SCROW_TUI_ROWS - 1 - menuH ))
+    fi
+    (( top < 4 )) && top=4
     local -i y=$top
     local sect="INSTALLATION"
     local -i sp=$(( xoff + (blockw - ${#sect}) / 2 ))
+    (( sp < 0 )) && sp=0
     scrow_ui_put "$y" "$(scrow_ui_spaces $sp)${C_ACCENT}${C_BOLD}${sect}${C_RESET}"
     y+=1
     for ((i=0; i<3; i++)); do
         scrow_ui_draw_item "$y" "$i" "$sel" "$xoff" "$blockw"
         y+=1
     done
-    y+=1
+    if (( ! compact )); then
+        y+=1
+    fi
     sect="MANAGEMENT"
     sp=$(( xoff + (blockw - ${#sect}) / 2 ))
+    (( sp < 0 )) && sp=0
     scrow_ui_put "$y" "$(scrow_ui_spaces $sp)${C_ACCENT}${C_BOLD}${sect}${C_RESET}"
     y+=1
     for ((i=3; i<8; i++)); do
@@ -581,7 +692,7 @@ scrow_frame_main() {
     done
 
     local -i descTop=$(( top + menuH + 1 ))
-    if (( descTop + 5 <= SCROW_TUI_ROWS )); then
+    if (( ! compact && descTop + 2 <= SCROW_TUI_ROWS - 1 )); then
         scrow_ui_hline "$descTop" "$C_HAIR"
         scrow_ui_wrap "${SCROW_UI_MAIN_DESC[sel]}" $(( cw - 8 ))
         local -i dy=$(( descTop + 1 ))
@@ -710,11 +821,11 @@ scrow_screen_install_custom() {
         scrow_ui_render
         scrow_ui_key
         case "$SCROW_TUI_KEY" in
-            up)   (( cur > 0 )) && cur-=1 ;;
+            up)   (( cur > 0 )) && (( cur -= 1 )) ;;
             down) (( cur + 1 < n )) && cur+=1 ;;
             space)
                 sel[cur]=$(( 1 - sel[cur] ))
-                if (( sel[cur] == 1 )); then chosen+=1; else chosen-=1; fi
+                if (( sel[cur] == 1 )); then chosen+=1; else (( chosen -= 1 )); fi
                 ;;
             enter) break ;;
             esc|q|eof|none) return ;;
@@ -837,7 +948,7 @@ scrow_screen_components() {
         scrow_ui_render
         scrow_ui_key
         case "$SCROW_TUI_KEY" in
-            up)   (( cur > 0 )) && cur-=1 ;;
+            up)   (( cur > 0 )) && (( cur -= 1 )) ;;
             down) (( cur + 1 < n )) && cur+=1 ;;
             enter)
                 scrow_screen_component_detail "${names[cur]}"
@@ -993,7 +1104,7 @@ scrow_screen_update() {
         scrow_ui_render
         scrow_ui_key
         case "$SCROW_TUI_KEY" in
-            up)   (( cur > 0 )) && cur-=1 ;;
+            up)   (( cur > 0 )) && (( cur -= 1 )) ;;
             down) (( cur + 1 < n )) && cur+=1 ;;
             enter)
                 case "$cur" in
@@ -1081,7 +1192,7 @@ scrow_screen_restore() {
         scrow_ui_render
         scrow_ui_key
         case "$SCROW_TUI_KEY" in
-            up)   (( cur > 0 )) && cur-=1 ;;
+            up)   (( cur > 0 )) && (( cur -= 1 )) ;;
             down) (( cur + 1 < n )) && cur+=1 ;;
             enter)
                 ts="${backups[cur]}"
@@ -1147,11 +1258,15 @@ scrow_screen_doctor() {
         scrow_ui_put 2 "  ${C_FAINT}Every SCROW-managed file is verified for integrity.${C_RESET}"
         scrow_ui_hline 3 "$C_HAIR"
         y=5
-        scrow_ui_put "$y" "  $(scrow_ui_health_cell ✓ "$C_OK" $sync "in sync" 35)$(scrow_ui_health_cell ✗ "$C_ERR" $missing "missing on system" 35)"
+        local -i cellw=$(( (SCROW_TUI_COLS - 4) / 2 ))
+        (( cellw < 10 )) && cellw=10
+        local -i cellw_full=$(( SCROW_TUI_COLS - 4 ))
+        (( cellw_full < 10 )) && cellw_full=10
+        scrow_ui_put "$y" "  $(scrow_ui_health_cell ✓ "$C_OK" $sync "in sync" $cellw)$(scrow_ui_health_cell ✗ "$C_ERR" $missing "missing on system" $cellw)"
         y+=1
-        scrow_ui_put "$y" "  $(scrow_ui_health_cell ! "$C_WARN" $modified "modified by you" 35)$(scrow_ui_health_cell ✗ "$C_ERR" $broken "broken symlinks" 35)"
+        scrow_ui_put "$y" "  $(scrow_ui_health_cell ! "$C_WARN" $modified "modified by you" $cellw)$(scrow_ui_health_cell ✗ "$C_ERR" $broken "broken symlinks" $cellw)"
         y+=1
-        scrow_ui_put "$y" "  $(scrow_ui_health_cell ◇ "$C_ACCENT" $removed "removed from repo" 35)"
+        scrow_ui_put "$y" "  $(scrow_ui_health_cell ◇ "$C_ACCENT" $removed "removed from repo" $cellw_full)"
         y+=2
         scrow_ui_hline "$y" "$C_HAIR"
         y+=1
@@ -1252,7 +1367,7 @@ scrow_screen_doctor_details() {
         scrow_ui_render
         scrow_ui_key
         case "$SCROW_TUI_KEY" in
-            up)   (( cur > 0 )) && cur-=1 ;;
+            up)   (( cur > 0 )) && (( cur -= 1 )) ;;
             down) (( cur + 1 < n )) && cur+=1 ;;
             enter|esc|q|eof|none) return ;;
         esac
@@ -1291,7 +1406,7 @@ scrow_menu() {
         scrow_ui_render
         scrow_ui_key
         case "$SCROW_TUI_KEY" in
-            up)   (( sel > 0 )) && sel-=1 ;;
+            up)   (( sel > 0 )) && (( sel -= 1 )) ;;
             down) (( sel < 7 )) && sel+=1 ;;
             home) sel=0 ;;
             end)  sel=7 ;;
