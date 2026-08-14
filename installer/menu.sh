@@ -195,7 +195,7 @@ scrow_ui_wrap() {
     for word in $text; do
         if [[ -z "$out" ]]; then
             out="$word"
-        elif (( ${#out} + 1 + ${#word} <= maxlen )); then
+        elif (( $(scrow_ui_vislen "$out") + 1 + $(scrow_ui_vislen "$word") <= maxlen )); then
             out="$out $word"
         else
             SCROW_TUI_WRAPPED+=("$out")
@@ -583,6 +583,246 @@ scrow_ui_draw_item() {
     scrow_ui_put "$y" "$(scrow_ui_spaces $xoff)$(scrow_ui_draw_item_str "$item" "$sel" "$blockw")"
 }
 
+# -----------------------------------------------------------------------------
+# Framed panel (main menu component)
+# -----------------------------------------------------------------------------
+# The menu is drawn as a single cohesive teal-framed panel: border, embedded
+# title, section headers with underlines, options, an inner divider and a
+# description footer. All helpers are pure arithmetic/printf — no subprocesses.
+scrow_ui_box_top() {
+    local -i y=$1 x=$2 w=$3
+    local title="$4"
+    if [[ -n "$title" ]]; then
+        local -i d=$(( w - ${#title} - 5 ))
+        (( d < 1 )) && d=1
+        scrow_ui_put "$y" "$(scrow_ui_spaces $x)${C_FRAME}┌─ ${C_RESET}${C_ACCENT}${C_BOLD}${title}${C_RESET}${C_FRAME} $(scrow_ui_dash $d)┐${C_RESET}"
+    else
+        scrow_ui_put "$y" "$(scrow_ui_spaces $x)${C_FRAME}┌$(scrow_ui_dash $(( w - 2 )))┐${C_RESET}"
+    fi
+}
+
+scrow_ui_box_bottom() {
+    local -i y=$1 x=$2 w=$3
+    scrow_ui_put "$y" "$(scrow_ui_spaces $x)${C_FRAME}└$(scrow_ui_dash $(( w - 2 )))┘${C_RESET}"
+}
+
+scrow_ui_box_divider() {
+    local -i y=$1 x=$2 w=$3
+    scrow_ui_put "$y" "$(scrow_ui_spaces $x)${C_FRAME}│${C_RESET}${C_HAIR}$(scrow_ui_dash $(( w - 2 )))${C_RESET}${C_FRAME}│${C_RESET}"
+}
+
+scrow_ui_box_row() {
+    local -i y=$1 x=$2 w=$3
+    local content="$4"
+    local -i clen
+    clen=$(scrow_ui_vislen "$content")
+    local -i pad=$(( w - 4 - clen ))
+    (( pad < 0 )) && pad=0
+    scrow_ui_put "$y" "$(scrow_ui_spaces $x)${C_FRAME}│ ${C_RESET}${content}$(scrow_ui_spaces $pad) ${C_FRAME}│${C_RESET}"
+}
+
+scrow_frame_main_panel() {
+    local -i sel=$1
+    local mode="$2"
+    local -i cw=$SCROW_TUI_COLS
+    local -i i k v line
+    local -i colA=0 colB=0 gap=4 contentW=0
+
+    if [[ "$mode" == "two" ]]; then
+        for ((i=0; i<3; i++)); do
+            v=$(( 2 + ${#SCROW_UI_MAIN_LABELS[i]} ))
+            local bdA="${SCROW_UI_MAIN_BADGES[i]}"
+            [[ -n "$bdA" ]] && v=$(( v + ${#bdA} + 1 ))
+            (( v > colA )) && colA=$v
+        done
+        for ((i=3; i<8; i++)); do
+            v=$(( 2 + ${#SCROW_UI_MAIN_LABELS[i]} ))
+            (( v > colB )) && colB=$v
+        done
+        gap=$(( 8 + (cw - 76) / 6 ))
+        (( gap > 12 )) && gap=12
+        (( gap < 8 )) && gap=8
+        contentW=$(( colA + gap + colB ))
+    else
+        for ((i=0; i<8; i++)); do
+            v=$(( 2 + ${#SCROW_UI_MAIN_LABELS[i]} ))
+            local bdS="${SCROW_UI_MAIN_BADGES[i]}"
+            [[ -n "$bdS" ]] && v=$(( v + ${#bdS} + 1 ))
+            (( v > contentW )) && contentW=$v
+        done
+        (( contentW > cw - 6 )) && contentW=$(( cw - 6 ))
+    fi
+
+    local -i grow=$(( (SCROW_TUI_ROWS - 24) / 6 ))
+    if [[ "$mode" == "two" ]]; then
+        (( grow > 5 )) && grow=5
+    else
+        (( grow > 3 )) && grow=3
+    fi
+
+    local -i boxW=$(( contentW + 4 ))
+    local -i boxX=$(( (cw - boxW) / 2 ))
+    (( boxX < 1 )) && boxX=1
+
+    local -i padTop=$(( 1 + grow ))
+    local -i padH=$grow
+    local -i padB=$grow
+    local -i padD=$grow
+    local -i padFoot=$grow
+    local -i gapAbove=$(( 1 + grow ))
+    local -i top=$(( 5 + gapAbove ))
+
+    local -i descw=$(( contentW - 2 ))
+    (( descw < 20 )) && descw=20
+    local -i maxLines=0 n
+    for ((n=0; n<8; n++)); do
+        scrow_ui_wrap "${SCROW_UI_MAIN_DESC[n]}" "$descw"
+        (( ${#SCROW_TUI_WRAPPED[@]} > maxLines )) && maxLines=${#SCROW_TUI_WRAPPED[@]}
+    done
+
+    local -i noDescH panelH showDesc=0
+    if [[ "$mode" == "two" ]]; then
+        noDescH=$(( 10 + padTop + padH + padB ))
+        panelH=$(( 11 + padTop + padH + padB + padD + padFoot + maxLines ))
+    else
+        noDescH=$(( 14 + padTop + padH + padFoot ))
+        panelH=$(( 15 + padTop + padH + 2 * padFoot + padD + maxLines ))
+    fi
+    if (( panelH <= SCROW_TUI_ROWS - 4 - top )); then
+        showDesc=1
+    else
+        panelH=$noDescH
+    fi
+
+    local -i y=$top
+    scrow_ui_box_top "$y" "$boxX" "$boxW" "MAIN MENU"
+    y+=1
+    y+=padTop
+
+    if [[ "$mode" == "two" ]]; then
+        local -i hdgap=$(( colA + gap - 12 ))
+        local -i hdrtail=$(( contentW - 12 - hdgap - 10 ))
+        (( hdrtail < 0 )) && hdrtail=0
+        scrow_ui_box_row "$y" "$boxX" "$boxW" \
+            "${C_ACCENT}${C_BOLD}INSTALLATION${C_RESET}$(scrow_ui_spaces $hdgap)${C_ACCENT}${C_BOLD}MANAGEMENT${C_RESET}$(scrow_ui_spaces $hdrtail)"
+        y+=1
+        scrow_ui_box_row "$y" "$boxX" "$boxW" \
+            "${C_HAIR}$(scrow_ui_dash 12)$(scrow_ui_spaces $hdgap)$(scrow_ui_dash 10)$(scrow_ui_spaces $hdrtail)${C_RESET}"
+        y+=1
+        y+=padH
+        local itemA itemB
+        for ((k=0; k<5; k++)); do
+            if (( k < 3 )); then
+                itemA="$(scrow_ui_draw_item_str "$k" "$sel" "$colA")"
+            else
+                itemA="$(scrow_ui_spaces $colA)"
+            fi
+            itemB="$(scrow_ui_draw_item_str $(( k + 3 )) "$sel" "$colB")"
+            scrow_ui_box_row "$y" "$boxX" "$boxW" "${itemA}$(scrow_ui_spaces $gap)${itemB}"
+            y+=1
+        done
+    else
+        scrow_ui_box_row "$y" "$boxX" "$boxW" \
+            "${C_ACCENT}${C_BOLD}INSTALLATION${C_RESET}$(scrow_ui_spaces $(( contentW - 12 )))"
+        y+=1
+        scrow_ui_box_row "$y" "$boxX" "$boxW" \
+            "${C_HAIR}$(scrow_ui_dash 12)$(scrow_ui_spaces $(( contentW - 12 )))${C_RESET}"
+        y+=1
+        for ((i=0; i<3; i++)); do
+            scrow_ui_box_row "$y" "$boxX" "$boxW" "$(scrow_ui_draw_item_str "$i" "$sel" "$contentW")"
+            y+=1
+        done
+        y+=padH
+        scrow_ui_box_row "$y" "$boxX" "$boxW" \
+            "${C_ACCENT}${C_BOLD}MANAGEMENT${C_RESET}$(scrow_ui_spaces $(( contentW - 10 )))"
+        y+=1
+        scrow_ui_box_row "$y" "$boxX" "$boxW" \
+            "${C_HAIR}$(scrow_ui_dash 10)$(scrow_ui_spaces $(( contentW - 10 )))${C_RESET}"
+        y+=1
+        for ((i=3; i<8; i++)); do
+            scrow_ui_box_row "$y" "$boxX" "$boxW" "$(scrow_ui_draw_item_str "$i" "$sel" "$contentW")"
+            y+=1
+        done
+    fi
+
+    y+=padB
+    if (( showDesc )); then
+        scrow_ui_box_divider "$y" "$boxX" "$boxW"
+        y+=1
+        y+=padD
+        scrow_ui_wrap "${SCROW_UI_MAIN_DESC[sel]}" "$descw"
+        local -a dwrap=("${SCROW_TUI_WRAPPED[@]}")
+        for ((line=0; line<maxLines; line++)); do
+            local w="${dwrap[line]:-}"
+            if [[ -n "$w" ]]; then
+                scrow_ui_box_row "$y" "$boxX" "$boxW" "${C_DIM}${w}${C_RESET}"
+            else
+                scrow_ui_box_row "$y" "$boxX" "$boxW" ""
+            fi
+            y+=1
+        done
+        y+=padFoot
+    fi
+    scrow_ui_box_bottom "$y" "$boxX" "$boxW"
+
+    local -i hairY=$(( SCROW_TUI_ROWS - 3 ))
+    if (( hairY > y + 1 && hairY >= 5 )); then
+        scrow_ui_hline "$hairY" "$C_FRAME"
+    fi
+}
+
+scrow_frame_main_slim() {
+    local -i sel=$1 tiny=$2
+    local -i cw=$SCROW_TUI_COLS
+    local -i blockw=0 i v
+    for ((i=0; i<8; i++)); do
+        v=$(( 2 + ${#SCROW_UI_MAIN_LABELS[i]} ))
+        local bd="${SCROW_UI_MAIN_BADGES[i]}"
+        [[ -n "$bd" ]] && v=$(( v + ${#bd} + 1 ))
+        (( v > blockw )) && blockw=$v
+    done
+    local -i maxw=$(( cw - 4 ))
+    (( blockw > maxw )) && blockw=$maxw
+    local -i xoff=$(( (cw - blockw) / 2 ))
+    (( xoff < 2 )) && xoff=2
+    local -i sp=$(( xoff + 2 ))
+    local -i menuH=10
+    local -i y=4
+    if (( tiny )); then
+        for ((i=0; i<8; i++)); do
+            scrow_ui_draw_item "$y" "$i" "$sel" "$xoff" "$blockw"
+            y+=1
+        done
+        return
+    fi
+    local -i space2=$(( (SCROW_TUI_ROWS - 24) / 8 ))
+    (( space2 > 2 )) && space2=2
+    local -i top=$(( 5 + 1 + space2 ))
+    (( top < 4 )) && top=4
+    local -i maxTop=$(( SCROW_TUI_ROWS - 1 - menuH ))
+    (( top > maxTop )) && top=$maxTop
+    (( top < 4 )) && top=4
+    y=$top
+    scrow_ui_put "$y" "$(scrow_ui_spaces $sp)${C_ACCENT}${C_BOLD}INSTALLATION${C_RESET}"
+    y+=1
+    for ((i=0; i<3; i++)); do
+        scrow_ui_draw_item "$y" "$i" "$sel" "$xoff" "$blockw"
+        y+=1
+    done
+    y+=1
+    scrow_ui_put "$y" "$(scrow_ui_spaces $sp)${C_ACCENT}${C_BOLD}MANAGEMENT${C_RESET}"
+    y+=1
+    for ((i=3; i<8; i++)); do
+        scrow_ui_draw_item "$y" "$i" "$sel" "$xoff" "$blockw"
+        y+=1
+    done
+    local -i lastY=$(( y - 1 ))
+    local -i hairY=$(( SCROW_TUI_ROWS - 3 ))
+    if (( hairY > lastY + 1 && hairY >= 5 )); then
+        scrow_ui_hline "$hairY" "$C_FRAME"
+    fi
+}
+
 scrow_frame_main() {
     local -i sel=$1
     scrow_ui_frame
@@ -595,188 +835,19 @@ scrow_frame_main() {
     scrow_ui_hline 2 "$C_HAIR"
     scrow_ui_put 3 "  ${SCROW_UI_STATUS_DOT}${SCROW_UI_STATUS_TEXT}${C_RESET}"
 
-    local -i compact=0 tiny=0
-    (( SCROW_TUI_ROWS < 18 || cw < 48 )) && compact=1
+    local -i tiny=0
     (( SCROW_TUI_ROWS <= 14 )) && tiny=1
     local footer="↑ ↓ navigate · Enter select · Esc / q quit"
     (( cw < 50 )) && footer="↑ ↓ move · Enter · Esc quit"
 
-    # --- wide terminals: balanced two columns, no enclosing box ---------------
-    if (( cw >= 76 && ! compact )); then
-        local -i colA=0 colB=0 i v
-        for ((i=0; i<3; i++)); do
-            v=$(( 2 + ${#SCROW_UI_MAIN_LABELS[i]} ))
-            local bd="${SCROW_UI_MAIN_BADGES[i]}"
-            [[ -n "$bd" ]] && v=$(( v + ${#bd} + 1 ))
-            (( v > colA )) && colA=$v
-        done
-        for ((i=3; i<8; i++)); do
-            v=$(( 2 + ${#SCROW_UI_MAIN_LABELS[i]} ))
-            (( v > colB )) && colB=$v
-        done
-        local -i maxW=$(( (cw - 8) * 3 / 5 ))
-        (( colA > maxW )) && colA=$maxW
-        (( colB > maxW )) && colB=$maxW
-        local -i minCol=28
-        (( colA < minCol )) && colA=$minCol
-        (( colB < minCol )) && colB=$minCol
-        local -i gap=8
-        local -i blockw=$(( colA + gap + colB ))
-        local -i contentW=$(( cw - 24 ))
-        (( contentW > 96 )) && contentW=96
-        (( contentW < blockw + 12 )) && contentW=$(( blockw + 12 ))
-        (( contentW > cw - 8 )) && contentW=$(( cw - 8 ))
-        local -i contentX=$(( (cw - contentW) / 2 ))
-        (( contentX < 2 )) && contentX=2
-        local -i colX=$(( contentX + (contentW - blockw) / 2 ))
-        local -i colBx=$(( colX + colA + gap ))
-        local -i descw=$(( cw - colX - 6 ))
-        (( descw > 74 )) && descw=74
-        (( descw < 30 )) && descw=30
-        local -i maxLines=0 n
-        for ((n=0; n<8; n++)); do
-            scrow_ui_wrap "${SCROW_UI_MAIN_DESC[n]}" "$descw"
-            (( ${#SCROW_TUI_WRAPPED[@]} > maxLines )) && maxLines=${#SCROW_TUI_WRAPPED[@]}
-        done
-        local -i space=$(( (SCROW_TUI_ROWS - 24) / 8 ))
-        (( space > 4 )) && space=4
-        local -i gapTop=$(( 2 + space / 2 ))
-        local -i gapT=1
-        local -i gapB=$(( 1 + space / 2 ))
-        local -i gapDesc=$(( 1 + space ))
-        local -i budget=$(( SCROW_TUI_ROWS - 19 - maxLines ))
-        local -i total=$(( gapTop + gapT + gapB + gapDesc ))
-        if (( total > budget )); then
-            if (( gapDesc > 0 )); then gapDesc=$(( gapDesc - 1 )); total=$(( total - 1 )); fi
-            if (( total > budget && gapB > 1 )); then gapB=$(( gapB - 1 )); total=$(( total - 1 )); fi
-            if (( total > budget && gapT > 1 )); then gapT=$(( gapT - 1 )); total=$(( total - 1 )); fi
-            if (( total > budget && gapTop > 1 )); then gapTop=$(( gapTop - 1 )); total=$(( total - 1 )); fi
-            if (( total > budget )); then gapTop=0; gapT=0; gapB=0; gapDesc=0; fi
-        fi
-        local -i y=$(( 5 + gapTop ))
-        local -i contentR=$(( contentX + contentW - 1 ))
-        local -i tPad=$(( contentX + (contentW - 9) / 2 ))
-        scrow_ui_put "$y" "$(scrow_ui_center_in $contentX $contentR "${C_FAINT}MAIN MENU${C_RESET}")"
-        y+=1
-        scrow_ui_put "$y" "$(scrow_ui_spaces $tPad)${C_HAIR}$(scrow_ui_dash 9)${C_RESET}"
-        y+=gapT
-        local -i hdA=$(( colX + 2 ))
-        local -i hdB=$(( colBx + 2 ))
-        local -i hdrgap=$(( hdB - hdA - 12 ))
-        (( hdrgap < 2 )) && hdrgap=2
-        scrow_ui_put "$y" "$(scrow_ui_spaces $hdA)${C_ACCENT}${C_BOLD}INSTALLATION${C_RESET}$(scrow_ui_spaces $hdrgap)${C_ACCENT}${C_BOLD}MANAGEMENT${C_RESET}"
-        y+=1
-        scrow_ui_put "$y" "$(scrow_ui_spaces $hdA)${C_HAIR}$(scrow_ui_dash 12)${C_RESET}$(scrow_ui_spaces $hdrgap)${C_HAIR}$(scrow_ui_dash 10)${C_RESET}"
-        y+=gapB
-        local -i k
-        local item_rowA item_rowB
-        for ((k=0; k<5; k++)); do
-            if (( k < 3 )); then
-                item_rowA="$(scrow_ui_draw_item_str "$k" "$sel" "$colA")"
-            else
-                item_rowA="$(scrow_ui_spaces $colA)"
-            fi
-            item_rowB="$(scrow_ui_draw_item_str $(( k + 3 )) "$sel" "$colB")"
-            scrow_ui_put "$y" "$(scrow_ui_spaces $colX)${item_rowA}$(scrow_ui_spaces $gap)${item_rowB}"
-            y+=1
-        done
-        y+=gapDesc
-        scrow_ui_wrap "${SCROW_UI_MAIN_DESC[sel]}" "$descw"
-        local -i descPad=$(( colX + 2 ))
-        local w
-        for w in "${SCROW_TUI_WRAPPED[@]}"; do
-            scrow_ui_put "$y" "$(scrow_ui_spaces $descPad)${C_DIM}${w}${C_RESET}"
-            y+=1
-        done
-        local -i hairY=$(( SCROW_TUI_ROWS - 3 ))
-        if (( hairY > y + 1 && hairY >= 5 )); then
-            scrow_ui_hline "$hairY" "$C_HAIR"
-        fi
-        if (( SCROW_TUI_ROWS > 12 )); then
-            scrow_ui_put $((SCROW_TUI_ROWS - 1)) "$(scrow_ui_center_p "${C_HAIR}${footer}${C_RESET}")"
-        fi
-        return
+    if (( ! tiny && SCROW_TUI_ROWS >= 24 && cw >= 76 )); then
+        scrow_frame_main_panel "$sel" "two"
+    elif (( ! tiny && SCROW_TUI_ROWS >= 24 && cw >= 48 )); then
+        scrow_frame_main_panel "$sel" "one"
+    else
+        scrow_frame_main_slim "$sel" "$tiny"
     fi
 
-    # --- single column, section headers aligned with content --------------------
-    local -i blockw=0 i v
-    for ((i=0; i<8; i++)); do
-        v=$(( 2 + ${#SCROW_UI_MAIN_LABELS[i]} ))
-        local bd="${SCROW_UI_MAIN_BADGES[i]}"
-        [[ -n "$bd" ]] && v=$(( v + ${#bd} + 1 ))
-        (( v > blockw )) && blockw=$v
-    done
-    local -i maxw=$(( cw - 4 ))
-    (( blockw > maxw )) && blockw=$maxw
-    local -i xoff=$(( (cw - blockw) / 2 ))
-    (( xoff < 2 )) && xoff=2
-    local -i showTitle=0
-    (( ! compact && ! tiny )) && showTitle=1
-    local -i menuH=11
-    if (( tiny )); then
-        menuH=8
-    elif (( compact )); then
-        menuH=10
-    elif (( showTitle )); then
-        menuH=14
-    fi
-    local -i space2=$(( (SCROW_TUI_ROWS - 24) / 8 ))
-    (( space2 > 2 )) && space2=2
-    local -i top=$(( 5 + 1 + space2 ))
-    (( top < 4 )) && top=4
-    local -i maxTop=$(( SCROW_TUI_ROWS - 1 - menuH ))
-    (( top > maxTop )) && top=$maxTop
-    (( top < 4 )) && top=4
-    local -i y=$top
-    local -i sp=$(( xoff + 2 ))
-    (( sp < 0 )) && sp=0
-    if (( tiny )); then
-        for ((i=0; i<8; i++)); do
-            scrow_ui_draw_item "$y" "$i" "$sel" "$xoff" "$blockw"
-            y+=1
-        done
-    else
-        if (( showTitle )); then
-            scrow_ui_put "$y" "$(scrow_ui_center_p "${C_FAINT}MAIN MENU${C_RESET}")"
-            y+=1
-            scrow_ui_put "$y" "$(scrow_ui_center_p "${C_HAIR}$(scrow_ui_dash 9)${C_RESET}")"
-            y+=2
-        fi
-        scrow_ui_put "$y" "$(scrow_ui_spaces $sp)${C_ACCENT}${C_BOLD}INSTALLATION${C_RESET}"
-        y+=1
-        for ((i=0; i<3; i++)); do
-            scrow_ui_draw_item "$y" "$i" "$sel" "$xoff" "$blockw"
-            y+=1
-        done
-        if (( ! compact )); then
-            y+=1
-        fi
-        scrow_ui_put "$y" "$(scrow_ui_spaces $sp)${C_ACCENT}${C_BOLD}MANAGEMENT${C_RESET}"
-        y+=1
-        for ((i=3; i<8; i++)); do
-            scrow_ui_draw_item "$y" "$i" "$sel" "$xoff" "$blockw"
-            y+=1
-        done
-    fi
-    local -i lastY=$(( y - 1 ))
-    if (( ! compact && ! tiny )); then
-        local -i descw=$(( cw - 8 ))
-        (( descw > 60 )) && descw=60
-        (( descw < 20 )) && descw=20
-        scrow_ui_wrap "${SCROW_UI_MAIN_DESC[sel]}" "$descw"
-        local -i dy=$(( y + 1 ))
-        local w
-        for w in "${SCROW_TUI_WRAPPED[@]}"; do
-            (( dy < SCROW_TUI_ROWS - 2 )) || break
-            scrow_ui_put "$dy" "$(scrow_ui_spaces $sp)${C_DIM}${w}${C_RESET}"
-            lastY=$dy
-            dy+=1
-        done
-    fi
-    local -i hairY=$(( SCROW_TUI_ROWS - 3 ))
-    if (( hairY > lastY + 1 && hairY >= 5 )); then
-        scrow_ui_hline "$hairY" "$C_HAIR"
-    fi
     if (( SCROW_TUI_ROWS > 12 )); then
         scrow_ui_put $((SCROW_TUI_ROWS - 1)) "$(scrow_ui_center_p "${C_HAIR}${footer}${C_RESET}")"
     fi

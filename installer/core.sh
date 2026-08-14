@@ -46,6 +46,7 @@ C_WARN=$'\033[38;5;222m'     # amber — warning
 C_ERR=$'\033[38;5;203m'      # red   — error / destructive
 C_DIM=$'\033[38;5;245m'      # muted secondary text
 C_HAIR=$'\033[38;5;239m'     # hairlines, rules
+C_FRAME=$'\033[38;5;73m'     # teal — outer frames, panels
 C_SELBG=$'\033[48;5;238m'    # selected-row background
 C_BTN_BG=$'\033[48;5;141m'   # focused button fill
 C_BTN_FG=$'\033[38;5;16m'    # focused button text
