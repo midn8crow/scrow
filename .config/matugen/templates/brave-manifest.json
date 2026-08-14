@@ -1,0 +1,18 @@
+{
+  "manifest_version": 2,
+  "name": "Matugen Theme",
+  "version": "1.0",
+  "description": "Auto-generated matugen theme",
+  "theme": {
+    "colors": {
+      "frame": [{{ colors.background.dark.red }}, {{ colors.background.dark.green }}, {{ colors.background.dark.blue }}],
+      "toolbar": [{{ colors.surface_container.dark.red }}, {{ colors.surface_container.dark.green }}, {{ colors.surface_container.dark.blue }}],
+      "tab_text": [{{ colors.on_surface.dark.red }}, {{ colors.on_surface.dark.green }}, {{ colors.on_surface.dark.blue }}],
+      "toolbar_text": [{{ colors.on_surface.dark.red }}, {{ colors.on_surface.dark.green }}, {{ colors.on_surface.dark.blue }}],
+      "bookmark_text": [{{ colors.on_surface.dark.red }}, {{ colors.on_surface.dark.green }}, {{ colors.on_surface.dark.blue }}],
+      "ntp_background": [{{ colors.background.dark.red }}, {{ colors.background.dark.green }}, {{ colors.background.dark.blue }}],
+      "ntp_text": [{{ colors.on_background.dark.red }}, {{ colors.on_background.dark.green }}, {{ colors.on_background.dark.blue }}],
+      "button_background": [{{ colors.surface_container.dark.red }}, {{ colors.surface_container.dark.green }}, {{ colors.surface_container.dark.blue }}]
+    }
+  }
+}

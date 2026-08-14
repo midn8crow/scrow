@@ -1,0 +1,15 @@
+* {
+    bg0: {{ colors.background.dark.hex }}66;
+    bg1: {{ colors.surface_container.dark.hex }}66;
+    bg2: {{ colors.surface_container_low.dark.hex }}66;
+    fg0: {{ colors.on_background.dark.hex }};
+    fg1: {{ colors.on_surface_variant.dark.hex }};
+
+    red: {{ colors.error.dark.hex }};
+    green: {{ colors.secondary.dark.hex }};
+    yellow: {{ colors.tertiary.dark.hex }};
+    blue: {{ colors.primary.dark.hex }};
+    purple: {{ colors.primary.dark.hex }};
+    aqua: {{ colors.primary_container.dark.hex }};
+    highlight: {{ colors.primary.dark.hex }}33;
+}

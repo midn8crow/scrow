@@ -1,9 +1,55 @@
 [config]
+prefer = "lightness"
+caching = false
+fallback_color = "#1e1e2e"
+contrast = 0.0
+color_scheme = "scheme-expressive"
 
-[templates.firefox]
-input_path  = '~/.config/matugen/templates/firefox-colors.css'
-output_path = '~/.config/firefox/colors.css'
+[config.wallpaper]
+# Wallpaper is set by the wallpaper scripts (awww/mpvpaper), not by matugen.
+command = "true"
+set = false
+
+[templates.waybar]
+input_path = '~/.config/matugen/templates/waybar-colors.css'
+output_path = '~/.config/waybar/colors/colors.css'
+post_hook = 'killall -SIGUSR2 waybar 2>/dev/null || ~/.config/waybar/launch.sh'
+
+[templates.borders]
+input_path = '~/.config/matugen/templates/borders.lua'
+output_path = '~/.config/hypr/modules/borders.lua'
+post_hook = 'hyprctl eval "hl.config({ general = { col = { active_border = \"rgba({{ colors.primary.dark.hex_stripped }}ee)\", inactive_border = \"rgba({{ colors.on_surface_variant.dark.hex_stripped }}aa)\" } } })"'
 
 [templates.scrowmenu]
-input_path  = '~/.config/matugen/templates/scrowmenu-colors.conf'
+input_path = '~/.config/matugen/templates/scrowmenu-colors.conf'
 output_path = '~/.config/scrowmenu/colors.conf'
+
+[templates.rofi]
+input_path = '~/.config/matugen/templates/rofi-colors.rasi'
+output_path = '~/.config/rofi/colors.rasi'
+
+[templates.mako]
+input_path = '~/.config/matugen/templates/mako-colors.ini'
+output_path = '~/.config/mako/mako-colors.ini'
+post_hook = 'killall mako 2>/dev/null; sleep 0.3; nohup mako >/dev/null 2>&1 &'
+
+[templates.kitty]
+input_path = '~/.config/matugen/templates/kitty-colors.conf'
+output_path = '~/.config/kitty/kitty-colors.conf'
+
+[templates.firefox]
+input_path = '~/.config/matugen/templates/firefox-colors.css'
+output_path = '~/.mozilla/firefox/efypgmxk.default-release/chrome/colors.css'
+
+[templates.zen]
+input_path = '~/.config/matugen/templates/firefox-colors.css'
+output_path = '~/.config/zen/7q5m3w73.Default (release)/chrome/colors.css'
+
+[templates.brave]
+input_path = '~/.config/matugen/templates/brave-manifest.json'
+output_path = '~/.config/brave-theme/manifest.json'
+
+[templates.cava]
+input_path = '~/.config/matugen/templates/cava-placeholder'
+output_path = '/dev/null'
+post_hook = '~/.config/matugen/apply-cava.sh "{{ colors.on_surface.dark.hex }}" "{{ colors.surface_container.dark.hex }}" "{{ colors.primary_container.dark.hex }}" "{{ colors.tertiary.dark.hex }}" "{{ colors.secondary.dark.hex }}" "{{ colors.primary.dark.hex }}" "{{ colors.on_surface.dark.hex }}"'

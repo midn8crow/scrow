@@ -45,3 +45,8 @@ mpvpaper -o "no-audio --loop" --no-config --hwdec=auto-safe HDMI-A-1 "$FULL" >/d
 # Save live wallpaper state for restore on reboot
 echo "live" > "$HOME/.cache/wallpaper-type"
 echo "$FULL" > "$HOME/.cache/wallpaper-live-path"
+
+# Generate colors from the first-frame thumbnail of the live wallpaper
+thumb="$THUMB_DIR/$(basename "$FULL").jpg"
+matugen image "$thumb" --mode dark 2>/dev/null || true
+"$HOME/.config/matugen/post-apply.sh"
