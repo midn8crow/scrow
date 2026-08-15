@@ -1,4 +1,4 @@
-
+the installer is broke so dont try this dots now .it will take 1 week iam fixing it
 
 
 
