@@ -14,8 +14,8 @@ set -uo pipefail
 # Paths
 # -----------------------------------------------------------------------------
 # Root of the current installer tree (the repository root when run from a
-# clone, or the self-contained copy at ~/.local/share/scrow/installer when run
-# via the `scrow` command).
+# clone, or the self-contained copy at ~/.local/share/scrow/bootstrap when run
+# via the one-line bootstrap).
 SCROW_INSTALLER_SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SCROW_REPO="${SCROW_REPO:-$SCROW_INSTALLER_SRC}"
 

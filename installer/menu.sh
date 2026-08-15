@@ -531,7 +531,6 @@ SCROW_UI_MAIN_LABELS=(
     "Doctor / Repair"
     "Uninstall"
 )
-SCROW_UI_MAIN_BADGES=( "RECOMMENDED" "" "" "" "" "" "" "" )
 SCROW_UI_MAIN_DESC=(
     "Recommended setup — installs every SCROW component, package and service for a complete Hyprland desktop."
     "Choose exactly which components to install. Dependencies are resolved automatically."
@@ -553,206 +552,187 @@ SCROW_UI_MAIN_ACTIONS=(
     uninstall
 )
 
-scrow_ui_draw_item_str() {
+# One menu item line. The selected item is a compact pill: the "› Label" text
+# sits on the selection background while the rest of the row stays untouched.
+scrow_ui_main_item_str() {
+    local -i item=$1 sel=$2
+    local lb="${SCROW_UI_MAIN_LABELS[item]}"
+    if (( item == sel )); then
+        printf '%s' "${C_SELBG}${C_ACCENT}${C_BOLD}› ${lb}${C_RESET}"
+    else
+        printf '%s' "${C_DIM}  ${lb}${C_RESET}"
+    fi
+}
+
+# Item line padded to a fixed column width so left/right columns stay aligned.
+scrow_ui_main_item_pad() {
     local -i item=$1 sel=$2 blockw=$3
-    local lb="${SCROW_UI_MAIN_LABELS[item]}" bd="${SCROW_UI_MAIN_BADGES[item]}"
-    local indent="  "
-    (( item == sel )) && indent="› "
-    local content="${indent}${lb}"
-    local row
-    if [[ -n "$bd" ]] && (( blockw - ${#content} - ${#bd} - 1 >= 0 )); then
-        local -i gap=$(( blockw - ${#content} - ${#bd} - 1 ))
-        (( gap < 1 )) && gap=1
-        if (( item == sel )); then
-            row="${C_SELBG}${C_ACCENT}${C_BOLD}${content}${C_RESET}$(scrow_ui_spaces $gap)${C_OK}${bd}${C_RESET}"
-        else
-            row="${C_DIM}${content}$(scrow_ui_spaces $gap)${C_HAIR}${bd}${C_RESET}"
-        fi
-    else
-        local -i gap=$(( blockw - ${#content} ))
-        (( gap < 1 )) && gap=1
-        if (( item == sel )); then
-            row="${C_SELBG}${C_ACCENT}${C_BOLD}${content}${C_RESET}$(scrow_ui_spaces $gap)"
-        else
-            row="${C_DIM}${content}$(scrow_ui_spaces $gap)${C_RESET}"
-        fi
-    fi
-    printf '%s' "$row"
-}
-
-scrow_ui_draw_item() {
-    local -i y=$1 item=$2 sel=$3 xoff=$4 blockw=$5
-    scrow_ui_put "$y" "$(scrow_ui_spaces $xoff)$(scrow_ui_draw_item_str "$item" "$sel" "$blockw")"
-}
-
-# -----------------------------------------------------------------------------
-# Framed panel (main menu component)
-# -----------------------------------------------------------------------------
-# The menu is a single compact card: a standalone MAIN MENU heading directly
-# above a teal border that tightly wraps the content (section headers with
-# underlines, options, one divider, and the description). Its size is driven
-# purely by the content — it never grows with terminal height; empty space
-# stays outside the component. All helpers are pure arithmetic/printf.
-scrow_ui_box_top() {
-    local -i y=$1 x=$2 w=$3
-    local title="$4"
-    if [[ -n "$title" ]]; then
-        local -i d=$(( w - ${#title} - 5 ))
-        (( d < 1 )) && d=1
-        scrow_ui_put "$y" "$(scrow_ui_spaces $x)${C_FRAME}┌─ ${C_RESET}${C_ACCENT}${C_BOLD}${title}${C_RESET}${C_FRAME} $(scrow_ui_dash $d)┐${C_RESET}"
-    else
-        scrow_ui_put "$y" "$(scrow_ui_spaces $x)${C_FRAME}┌$(scrow_ui_dash $(( w - 2 )))┐${C_RESET}"
-    fi
-}
-
-scrow_ui_box_bottom() {
-    local -i y=$1 x=$2 w=$3
-    scrow_ui_put "$y" "$(scrow_ui_spaces $x)${C_FRAME}└$(scrow_ui_dash $(( w - 2 )))┘${C_RESET}"
-}
-
-scrow_ui_box_row() {
-    local -i y=$1 x=$2 w=$3
-    local content="$4"
-    local -i clen
-    clen=$(scrow_ui_vislen "$content")
-    local -i pad=$(( w - 4 - clen ))
+    local s
+    s="$(scrow_ui_main_item_str "$item" "$sel")"
+    local -i pad=$(( blockw - $(scrow_ui_vislen "$s") ))
     (( pad < 0 )) && pad=0
-    scrow_ui_put "$y" "$(scrow_ui_spaces $x)${C_FRAME}│ ${C_RESET}${content}$(scrow_ui_spaces $pad) ${C_FRAME}│${C_RESET}"
+    printf '%s%s' "$s" "$(scrow_ui_spaces $pad)"
 }
 
-scrow_ui_card_top_s() {
-    local -i w=$1
-    local title="$2"
-    local -i d=$(( w - ${#title} - 5 ))
-    (( d < 1 )) && d=1
-    printf '%s' "${C_FRAME}┌─ ${C_RESET}${C_ACCENT}${C_BOLD}${title}${C_RESET}${C_FRAME} $(scrow_ui_dash $d)┐${C_RESET}"
-}
-
-scrow_ui_card_bottom_s() {
-    local -i w=$1
-    printf '%s' "${C_FRAME}└$(scrow_ui_dash $(( w - 2 )))┘${C_RESET}"
-}
-
-scrow_ui_card_row_s() {
-    local -i w=$1
-    local content="$2"
-    local -i clen
-    clen=$(scrow_ui_vislen "$content")
-    local -i pad=$(( w - 4 - clen ))
-    (( pad < 0 )) && pad=0
-    printf '%s' "${C_FRAME}│ ${C_RESET}${content}$(scrow_ui_spaces $pad) ${C_FRAME}│${C_RESET}"
-}
-
-scrow_frame_main_cards() {
-    local -i sel=$1 stack=$2
-    local -i cw=$SCROW_TUI_COLS
-    local -i i v itemwA=0 itemwB=0
-    local bd
-    for ((i=0; i<3; i++)); do
-        v=$(( 2 + ${#SCROW_UI_MAIN_LABELS[i]} ))
-        bd="${SCROW_UI_MAIN_BADGES[i]}"
-        [[ -n "$bd" ]] && v=$(( v + ${#bd} + 1 ))
-        (( v > itemwA )) && itemwA=$v
-    done
-    for ((i=3; i<8; i++)); do
-        v=$(( 2 + ${#SCROW_UI_MAIN_LABELS[i]} ))
-        (( v > itemwB )) && itemwB=$v
-    done
-    local -i cardA=$(( itemwA + 4 )) cardB=$(( itemwB + 4 ))
-    local -i gap=6
-    if (( stack )); then
-        (( cardA < cardB )) && cardA=$cardB
-        cardB=$cardA
-        gap=0
-    fi
-    local -i total=$(( cardA + gap + cardB ))
-    local -i xA=$(( (cw - total) / 2 ))
-    (( xA < 1 )) && xA=1
-    local -i descw=$(( total - 2 ))
-    (( descw < 20 )) && descw=20
-
-    local -i y=1
+# Brand block: SCROW / Arch Linux · Hyprland / version.
+scrow_ui_main_brand() {
+    local -i y=$1
     scrow_ui_put "$y" "$(scrow_ui_center_p "${C_ACCENT}${C_BOLD}SCROW${C_RESET}")"
     y+=1
     scrow_ui_put "$y" "$(scrow_ui_center_p "${C_DIM}Arch Linux · Hyprland${C_RESET}")"
     y+=1
     scrow_ui_put "$y" "$(scrow_ui_center_p "${C_FAINT}v${SCROW_VERSION}${C_RESET}")"
-    y=5
+}
+
+# Status line + the "● ────" divider.
+scrow_ui_main_status() {
+    local -i y=$1
     scrow_ui_put "$y" "$(scrow_ui_center_p "${C_DIM}${SCROW_UI_STATUS_N} / ${SCROW_UI_STATUS_TOTAL} COMPONENTS${C_RESET}")"
     y+=1
-    scrow_ui_put "$y" "$(scrow_ui_center_p "${SCROW_UI_STATUS_DOT} ${C_HAIR}$(scrow_ui_dash $(( cw - 8 )))${C_RESET}")"
-    y+=2
+    local -i dw=$(( SCROW_TUI_COLS - 10 ))
+    (( dw > 40 )) && dw=40
+    (( dw < 6 )) && dw=6
+    scrow_ui_put "$y" "$(scrow_ui_center_p "${SCROW_UI_STATUS_DOT} ${C_HAIR}$(scrow_ui_dash $dw)${C_RESET}")"
+}
 
-    scrow_ui_put "$y" "$(scrow_ui_spaces $xA)$(scrow_ui_card_top_s "$cardA" "INSTALLATION")$(scrow_ui_spaces $gap)$(scrow_ui_card_top_s "$cardB" "MANAGEMENT")"
-    y+=1
-    local -i k
-    for ((k=0; k<5; k++)); do
-        if (( k < 3 )); then
-            scrow_ui_put "$y" "$(scrow_ui_spaces $xA)$(scrow_ui_card_row_s "$cardA" "$(scrow_ui_draw_item_str "$k" "$sel" "$itemwA")")$(scrow_ui_spaces $gap)$(scrow_ui_card_row_s "$cardB" "$(scrow_ui_draw_item_str $(( k + 3 )) "$sel" "$itemwB")")"
-        else
-            scrow_ui_put "$y" "$(scrow_ui_spaces $xA)$(scrow_ui_card_row_s "$cardA" "")$(scrow_ui_spaces $gap)$(scrow_ui_card_row_s "$cardB" "$(scrow_ui_draw_item_str $(( k + 3 )) "$sel" "$itemwB")")"
-        fi
-        y+=1
-    done
-    scrow_ui_put "$y" "$(scrow_ui_spaces $xA)$(scrow_ui_card_bottom_s "$cardA")$(scrow_ui_spaces $gap)$(scrow_ui_card_bottom_s "$cardB")"
-    y+=2
-
+# Description block for the selected item: an optional RECOMMENDED line on a
+# fixed reserved row (so nothing shifts) followed by the wrapped description.
+# Rows are only filled while they stay above the footer.
+scrow_ui_main_desc() {
+    local -i y=$1 sel=$2 descw=$3
     if (( sel == 0 )); then
         scrow_ui_put "$y" "$(scrow_ui_center_p "${C_OK}${C_BOLD}RECOMMENDED${C_RESET}")"
-        y+=1
     fi
+    y+=1
     scrow_ui_wrap "${SCROW_UI_MAIN_DESC[sel]}" "$descw"
-    local -a dwrap=("${SCROW_TUI_WRAPPED[@]}")
     local line
-    for line in "${dwrap[@]}"; do
+    for line in "${SCROW_TUI_WRAPPED[@]}"; do
+        (( y >= SCROW_TUI_ROWS - 1 )) && break
         scrow_ui_put "$y" "$(scrow_ui_center_p "${C_DIM}${line}${C_RESET}")"
         y+=1
     done
 }
 
-scrow_frame_main_slim() {
-    local -i sel=$1 tiny=$2
+# Underlined section heading (INSTALLATION / MANAGEMENT).
+scrow_ui_main_heading() {
+    local -i y=$1 x=$2
+    local name="$3"
+    scrow_ui_put "$y" "$(scrow_ui_spaces $x)${C_ACCENT}${C_BOLD}${name}${C_RESET}"
+    y+=1
+    scrow_ui_put "$y" "$(scrow_ui_spaces $x)${C_HAIR}$(scrow_ui_dash ${#name})${C_RESET}"
+}
+
+# -----------------------------------------------------------------------------
+# Main menu layouts
+# -----------------------------------------------------------------------------
+# Borderless two-column layout: brand block, status + "● ──" divider, then
+# INSTALLATION / MANAGEMENT columns with underline headings and a compact pill
+# on the selected item. Fixed row budgets keep the screen still between
+# keystrokes; empty rows simply stay empty. All helpers are pure bash.
+scrow_frame_main_cards() {
+    local -i sel=$1
+    local -i cw=$SCROW_TUI_COLS
+    local -i i v lw=0 rw=0
+    for ((i=0; i<3; i++)); do
+        v=$(( 2 + ${#SCROW_UI_MAIN_LABELS[i]} ))
+        (( v > lw )) && lw=$v
+    done
+    for ((i=3; i<8; i++)); do
+        v=$(( 2 + ${#SCROW_UI_MAIN_LABELS[i]} ))
+        (( v > rw )) && rw=$v
+    done
+    local -i gap=6
+    local -i total=$(( lw + gap + rw ))
+    local -i xA=$(( (cw - total) / 2 ))
+    (( xA < 1 )) && xA=1
+    local -i xB=$(( xA + lw + gap ))
+    local -i descw=$(( total - 2 ))
+    (( descw < 20 )) && descw=20
+
+    local -i y=1
+    scrow_ui_main_brand "$y"
+    y=5
+    scrow_ui_main_status "$y"
+    y=8
+    scrow_ui_put "$y" "$(scrow_ui_spaces $xA)${C_ACCENT}${C_BOLD}INSTALLATION${C_RESET}$(scrow_ui_spaces $((xB - xA - 12)))${C_ACCENT}${C_BOLD}MANAGEMENT${C_RESET}"
+    y+=1
+    scrow_ui_put "$y" "$(scrow_ui_spaces $xA)${C_HAIR}$(scrow_ui_dash 12)${C_RESET}$(scrow_ui_spaces $((xB - xA - 12)))${C_HAIR}$(scrow_ui_dash 10)${C_RESET}"
+    y+=1
+    local -i k
+    for ((k=0; k<5; k++)); do
+        if (( k < 3 )); then
+            scrow_ui_put "$y" "$(scrow_ui_spaces $xA)$(scrow_ui_main_item_pad "$k" "$sel" "$lw")$(scrow_ui_spaces $gap)$(scrow_ui_main_item_pad $((k+3)) "$sel" "$rw")"
+        else
+            scrow_ui_put "$y" "$(scrow_ui_spaces $xA)$(scrow_ui_spaces $((lw + gap)))$(scrow_ui_main_item_pad $((k+3)) "$sel" "$rw")"
+        fi
+        y+=1
+    done
+    y+=1
+    scrow_ui_main_desc "$y" "$sel" "$descw"
+}
+
+# One-column layout for narrow/short terminals. level 0 = full (brand, status,
+# headings, items, description), 1 = compact (no brand/status), 2 = minimal
+# (headings + items only).
+scrow_frame_main_stack() {
+    local -i sel=$1 level=$2
     local -i cw=$SCROW_TUI_COLS
     local -i blockw=0 i v
     for ((i=0; i<8; i++)); do
         v=$(( 2 + ${#SCROW_UI_MAIN_LABELS[i]} ))
-        local bd="${SCROW_UI_MAIN_BADGES[i]}"
-        [[ -n "$bd" ]] && v=$(( v + ${#bd} + 1 ))
         (( v > blockw )) && blockw=$v
     done
     local -i maxw=$(( cw - 4 ))
     (( blockw > maxw )) && blockw=$maxw
     local -i xoff=$(( (cw - blockw) / 2 ))
     (( xoff < 2 )) && xoff=2
-    local -i sp=$(( xoff + 2 ))
-    local -i menuH=10
-    local -i y=4
-    if (( tiny )); then
-        for ((i=0; i<8; i++)); do
-            scrow_ui_draw_item "$y" "$i" "$sel" "$xoff" "$blockw"
-            y+=1
-        done
-        return
+    local -i descw=$(( cw - 4 ))
+    (( descw < 20 )) && descw=20
+
+    local -i y=1
+    if (( level == 0 )); then
+        scrow_ui_main_brand "$y"
+        y=5
+        scrow_ui_main_status "$y"
+        y=8
     fi
-    local -i space2=$(( (SCROW_TUI_ROWS - 24) / 8 ))
-    (( space2 > 2 )) && space2=2
-    local -i top=$(( 5 + 1 + space2 ))
-    (( top < 4 )) && top=4
-    local -i maxTop=$(( SCROW_TUI_ROWS - 1 - menuH ))
-    (( top > maxTop )) && top=$maxTop
-    (( top < 4 )) && top=4
-    y=$top
-    scrow_ui_put "$y" "$(scrow_ui_spaces $sp)${C_ACCENT}${C_BOLD}INSTALLATION${C_RESET}"
-    y+=1
+    scrow_ui_main_heading "$y" "$xoff" "INSTALLATION"
+    y+=2
     for ((i=0; i<3; i++)); do
-        scrow_ui_draw_item "$y" "$i" "$sel" "$xoff" "$blockw"
+        scrow_ui_put "$y" "$(scrow_ui_spaces $xoff)$(scrow_ui_main_item_pad "$i" "$sel" "$blockw")"
         y+=1
     done
     y+=1
-    scrow_ui_put "$y" "$(scrow_ui_spaces $sp)${C_ACCENT}${C_BOLD}MANAGEMENT${C_RESET}"
-    y+=1
+    scrow_ui_main_heading "$y" "$xoff" "MANAGEMENT"
+    y+=2
     for ((i=3; i<8; i++)); do
-        scrow_ui_draw_item "$y" "$i" "$sel" "$xoff" "$blockw"
+        scrow_ui_put "$y" "$(scrow_ui_spaces $xoff)$(scrow_ui_main_item_pad "$i" "$sel" "$blockw")"
+        y+=1
+    done
+    y+=1
+    (( level <= 1 )) && scrow_ui_main_desc "$y" "$sel" "$descw"
+}
+
+# Extremely compact list for tiny terminals: brand + count on one line, then
+# the eight items, then the footer.
+scrow_frame_main_list() {
+    local -i sel=$1
+    local -i cw=$SCROW_TUI_COLS
+    local -i blockw=0 i v
+    for ((i=0; i<8; i++)); do
+        v=$(( 2 + ${#SCROW_UI_MAIN_LABELS[i]} ))
+        (( v > blockw )) && blockw=$v
+    done
+    local -i maxw=$(( cw - 2 ))
+    (( blockw > maxw )) && blockw=$maxw
+    local -i xoff=$(( (cw - blockw) / 2 ))
+    (( xoff < 1 )) && xoff=1
+    local -i y=1
+    scrow_ui_put "$y" "$(scrow_ui_center_p "${C_ACCENT}${C_BOLD}SCROW${C_RESET}  ${C_DIM}${SCROW_UI_STATUS_N}/${SCROW_UI_STATUS_TOTAL}${C_RESET}")"
+    y+=1
+    for ((i=0; i<8; i++)); do
+        (( y >= SCROW_TUI_ROWS - 1 )) && break
+        scrow_ui_put "$y" "$(scrow_ui_spaces $xoff)$(scrow_ui_main_item_pad "$i" "$sel" "$blockw")"
         y+=1
     done
 }
@@ -760,27 +740,22 @@ scrow_frame_main_slim() {
 scrow_frame_main() {
     local -i sel=$1
     scrow_ui_frame
-    local -i cw=$SCROW_TUI_COLS
+    local -i cw=$SCROW_TUI_COLS rh=$SCROW_TUI_ROWS
 
-    local -i tiny=0
-    (( SCROW_TUI_ROWS <= 14 )) && tiny=1
-    local footer="↑ ↓ Navigate   Enter Select   Q Quit"
-    (( cw < 60 )) && footer="↑ ↓ Navigate   Enter Select   Q Quit"
-
-    local -i stack=0 cards=0
-    if (( ! tiny && SCROW_TUI_ROWS >= 24 && cw >= 66 )); then
-        cards=1
-    elif (( ! tiny && SCROW_TUI_ROWS >= 33 && cw >= 38 )); then
-        cards=1
-        stack=1
-    fi
-
-    if (( cards )); then
-        scrow_frame_main_cards "$sel" "$stack"
+    local -i level=0
+    if (( rh <= 14 || cw < 38 )); then
+        scrow_frame_main_list "$sel"
+    elif (( cw >= 66 && rh >= 24 )); then
+        scrow_frame_main_cards "$sel"
     else
-        scrow_frame_main_slim "$sel" "$tiny"
+        if (( rh < 20 )); then
+            level=2
+        elif (( rh < 26 )); then
+            level=1
+        fi
+        scrow_frame_main_stack "$sel" "$level"
     fi
-    scrow_ui_put $(( SCROW_TUI_ROWS - 1 )) "$(scrow_ui_center_p "${C_HAIR}${footer}${C_RESET}")"
+    scrow_ui_put $(( rh - 1 )) "$(scrow_ui_center_p "${C_HAIR}↑ ↓ Navigate   Enter Select   Q Quit${C_RESET}")"
 }
 
 # -----------------------------------------------------------------------------
@@ -1584,11 +1559,13 @@ scrow_engine_update() {
         return 0
     fi
     scrow_ensure_repo || return 1
-    if ! git -C "$SCROW_REPO" rev-parse --git-dir >/dev/null 2>&1; then
-        echo "  ${C_WARN}SCROW repo is not a git clone — nothing to update.${C_RESET}"
-        return 1
+    if git -C "$SCROW_REPO" rev-parse --git-dir >/dev/null 2>&1; then
+        git -C "$SCROW_REPO" pull --rebase --autostash || { echo "  ${C_WARN}Could not pull. Local changes may conflict — see the log.${C_RESET}"; return 1; }
+    else
+        # Bootstrap installs are plain directories (no .git): re-fetch the
+        # repository tarball and merge it over the existing tree.
+        scrow_repo_fetch || return 1
     fi
-    git -C "$SCROW_REPO" pull --rebase --autostash || { echo "  ${C_WARN}Could not pull. Local changes may conflict — see the log.${C_RESET}"; return 1; }
     echo
     echo "  ${C_OK}SCROW repository is up to date.${C_RESET}"
 }
