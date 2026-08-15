@@ -14,7 +14,7 @@
 # =============================================================================
 
 SCROW_COMPONENTS=(
-    "hyprland|Hyprland|Wayland compositor, lockscreen, idle & session stack||hyprland hyprlock hypridle hyprutils uwsm xdg-desktop-portal-hyprland xdg-desktop-portal-gtk xdg-utils wl-clipboard cliphist grim slurp swappy satty hyprshot swww gnome-keyring network-manager-applet blueman nm-connection-editor kdeconnect fcitx5 fcitx5-configtool fcitx5-gtk fcitx5-qt pipewire pipewire-pulse wireplumber pipewire-alsa pipewire-jack pavucontrol polkit-kde-agent|hyprpolkitagent openbangla-keyboard-fcitx-git hypr-kdeconnect-fix-git|.config/hypr"
+    "hyprland|Hyprland|Wayland compositor, lockscreen, idle & session stack||hyprland hyprlock hypridle hyprutils uwsm xdg-desktop-portal-hyprland xdg-desktop-portal-gtk xdg-utils wl-clipboard cliphist grim slurp swappy satty hyprshot swww gnome-keyring network-manager-applet blueman nm-connection-editor kdeconnect fcitx5 fcitx5-configtool fcitx5-gtk fcitx5-qt pipewire pipewire-pulse wireplumber pipewire-alsa pipewire-jack pavucontrol polkit-kde-agent|hyprpolkitagent openbangla-keyboard-fcitx-git hypr-kdeconnect-fix-git|.config/hypr .config/fcitx5 .config/kdeconnect"
 
     "waybar|Waybar|Status bar with multiple switchable themes|theming utilities|waybar cava playerctl jq|waybar-cava-git|.config/waybar"
 
@@ -28,7 +28,7 @@ SCROW_COMPONENTS=(
 
     "theming|Theming|GTK/Qt themes, cursors, icons, fonts & default wallpaper||adw-gtk-theme qt6ct kvantum nwg-look papirus-icon-theme ttf-jetbrains-mono-nerd noto-fonts noto-fonts-emoji ttf-font-awesome ttf-cascadia-code|matugen|.config/gtk-3.0 .config/gtk-4.0 .config/qt6ct .config/matugen .config/dconf .icons .local/share/icons .local/share/fonts Pictures/Wallpapers"
 
-    "utilities|Utilities|SCROW scripts, tools, user scripts & app configs||fastfetch btop htop mpv cava yazi yt-dlp brightnessctl playerctl ffmpeg imagemagick jq tree p7zip wget curl git unzip xdg-user-dirs wtype pacman-contrib|awww mpvpaper gpu-screen-recorder hyprlauncher wlr-randr ytdlp-gui|.local/bin user_scripts .config/scrow .config/systemd .config/fastfetch .config/mpv .config/btop .config/cava .config/yazi .config/yt-dlp .config/ytdlp-gui .config/moviebox-tui .config/pacseek .config/songrec .config/scrow-keysound .config/wayclick .config/qalculate .config/velo .config/viewnior .config/geeqie .config/Thunar .config/nemo .config/Mousepad .config/xdg-desktop-portal .config/user-dirs.conf .config/user-dirs.dirs .config/user-dirs.disable .config/user-dirs.locale .config/mimeapps.list .config/pavucontrol.ini .mozilla"
+    "utilities|Utilities|SCROW scripts, tools, user scripts & app configs||fastfetch btop htop mpv cava yazi yt-dlp brightnessctl playerctl ffmpeg imagemagick jq tree p7zip wget curl git unzip xdg-user-dirs wtype pacman-contrib|awww mpvpaper gpu-screen-recorder hyprlauncher wlr-randr ytdlp-gui|.local/bin user_scripts .config/scrow .config/systemd .config/fastfetch .config/mpv .config/btop .config/cava .config/yazi .config/yt-dlp .config/ytdlp-gui .config/moviebox-tui .config/pacseek .config/songrec .config/scrow-keysound .config/wayclick .config/qalculate .config/velo .config/viewnior .config/geeqie .config/Thunar .config/nemo .config/Mousepad .config/xdg-desktop-portal .config/user-dirs.conf .config/user-dirs.dirs .config/user-dirs.disable .config/user-dirs.locale .config/mimeapps.list .config/pavucontrol.ini .mozilla .config/ibus .config/ambervideoeditor.org .config/chess-tui .config/gpu-recorder.conf .config/gpu-screen-recorder .config/Kitware .config/Meltytech .config/omarchy .config/QtProject.conf .config/xfce4"
 
     "security|Security Hardening|Firewall, AUR scanner & system hardening||nftables fail2ban clamav rkhunter pacman-contrib bubblewrap lynis||security-hardening"
 
@@ -231,8 +231,10 @@ scrow_post_security() {
         if [[ -d /etc/ssh ]] && command -v sshd >/dev/null 2>&1; then
             scrow_service_enable sshd || { echo "  ${C_ERR}      required: could not enable sshd${C_RESET}"; rc=1; }
         fi
-        scrow_service_disable avahi-daemon 2>/dev/null || true
-        scrow_service_disable cups 2>/dev/null || true
+        scrow_service_disable avahi-daemon 2>/dev/null \
+            || echo "  ${C_WARN}      (optional) could not disable avahi-daemon — disable it manually if unused${C_RESET}"
+        scrow_service_disable cups 2>/dev/null \
+            || echo "  ${C_WARN}      (optional) could not disable cups — disable it manually if unused${C_RESET}"
         if (( rc == 0 )); then
             SCROW_POST_SERVICES=1
         fi

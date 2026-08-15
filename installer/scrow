@@ -71,6 +71,12 @@ scrow_log_init "scrow ${SCROW_CLI_ARGS[*]}"
 scrow_state_init
 scrow_config_load
 
+# The repository is a temporary clone (scrow_repo_acquire); it must never
+# outlive this process. Cleanup is idempotent and is also chained onto INT/TERM
+# so an interrupted operation cannot leak /tmp/scrow-*.
+trap 'scrow_repo_cleanup; exit 130' INT
+trap 'scrow_repo_cleanup; exit 143' TERM
+
 # --- dispatch ------------------------------------------------------------------
 if [[ ${#SCROW_CLI_ARGS[@]} -gt 0 ]]; then
     _scrow_rc=0
@@ -87,7 +93,9 @@ if [[ ${#SCROW_CLI_ARGS[@]} -gt 0 ]]; then
         *)            scrow_usage; exit 1 ;;
     esac
     _scrow_rc=$?
+    scrow_repo_cleanup
     exit $_scrow_rc
 fi
 
 scrow_menu
+scrow_repo_cleanup

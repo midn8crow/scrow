@@ -1241,10 +1241,9 @@ scrow_screen_component_detail() {
 }
 
 scrow_ui_update_all() {
-    scrow_engine_update || return 1
-    echo
-    echo "  ${C_DIM}Applying updated files…${C_RESET}"
-    scrow_engine_refresh
+    # scrow_engine_update already converges every installed component to the
+    # newly fetched repository state, so no separate refresh pass is needed.
+    scrow_engine_update
 }
 
 scrow_screen_update() {
@@ -1474,9 +1473,9 @@ scrow_screen_doctor() {
         scrow_ui_hline "$y" "$C_HAIR"
         y+=1
         if (( SCROW_AN_REPO_MISSING == 1 )); then
-            scrow_ui_put "$y" "  ${C_DIM}SCROW component files are not downloaded yet — install or repair a${C_RESET}"
+            scrow_ui_put "$y" "  ${C_DIM}The SCROW repository could not be fetched — check the network,${C_RESET}"
             y+=1
-            scrow_ui_put "$y" "  ${C_DIM}component first, and SCROW will fetch them automatically.${C_RESET}"
+            scrow_ui_put "$y" "  ${C_DIM}then run Doctor again.${C_RESET}"
             y+=1
         elif (( issues > 0 )); then
             scrow_ui_put "$y" "  ${C_FAINT}Repair restores the official files — an automatic backup is created first.${C_RESET}"
@@ -1670,7 +1669,18 @@ scrow_analyze() {
     SCROW_AN_MODIFIED=(); SCROW_AN_MISSING=(); SCROW_AN_SYNC=(); SCROW_AN_BROKEN=(); SCROW_AN_REMOVED=()
     SCROW_AN_NEW=(); SCROW_AN_MISSING_DIRS=(); SCROW_AN_MISSING_PKGS=(); SCROW_AN_DISABLED_SVC=()
     SCROW_AN_REPO_MISSING=0
-    if [[ ! -d "$SCROW_REPO/.config" ]]; then
+
+    # Nothing installed → nothing to verify; no repository needed.
+    if [[ ! -s "$SCROW_MANIFEST" ]] && [[ -z "$(scrow_state_components)" ]]; then
+        SCROW_AN_MODIFIED_N=0; SCROW_AN_MISSING_N=0; SCROW_AN_SYNC_N=0; SCROW_AN_BROKEN_N=0; SCROW_AN_REMOVED_N=0
+        SCROW_AN_NEW_N=0; SCROW_AN_MISSING_DIRS_N=0; SCROW_AN_MISSING_PKGS_N=0; SCROW_AN_DISABLED_SVC_N=0
+        return 0
+    fi
+
+    # Doctor compares against the CURRENT repository state, so a fresh clone is
+    # acquired — expected files, missing packages and disabled services all
+    # come from it.
+    if ! scrow_repo_guard; then
         SCROW_AN_REPO_MISSING=1
         SCROW_AN_MODIFIED_N=0; SCROW_AN_MISSING_N=0; SCROW_AN_SYNC_N=0; SCROW_AN_BROKEN_N=0; SCROW_AN_REMOVED_N=0
         SCROW_AN_NEW_N=0; SCROW_AN_MISSING_DIRS_N=0; SCROW_AN_MISSING_PKGS_N=0; SCROW_AN_DISABLED_SVC_N=0
@@ -1770,23 +1780,23 @@ scrow_analyze() {
     SCROW_AN_REMOVED_N=$removed
 }
 
-# --- SCROW update (pull latest repository + converge deployment) -------------
+# --- SCROW update (fresh repository + converge deployment) -------------------
 scrow_engine_update() {
     echo
     echo "  ${C_ACCENT}SCROW Update${C_RESET}"
     if [[ "$SCROW_DRY_RUN" == "1" ]]; then
-        echo "  [dry-run] git pull --rebase --autostash"
+        echo "  [dry-run] update SCROW repository"
         return 0
     fi
-    scrow_ensure_repo || return 1
-    if git -C "$SCROW_REPO" rev-parse --git-dir >/dev/null 2>&1; then
-        git -C "$SCROW_REPO" pull --rebase --autostash || { echo "  ${C_WARN}Could not pull. Local changes may conflict — see the log.${C_RESET}"; return 1; }
-    else
-        # Bootstrap installs are plain directories (no .git): re-fetch the
-        # repository tarball and merge it over the existing tree.
-        scrow_repo_fetch || return 1
-    fi
+
+    # The repository is acquired fresh from the network — the newest state by
+    # construction — so there is no in-place pull or merge of a persistent copy.
+    scrow_repo_guard || return 1
     echo "  ${C_OK}SCROW repository is up to date.${C_RESET}"
+
+    # Refresh the installed engine bundle so future `scrow` runs use the new code.
+    scrow_engine_install_bundle \
+        || { echo "  ${C_ERR}✗ could not update the installed engine${C_RESET}"; return 1; }
 
     # Converge the installed components to the updated repository state:
     # deploy newly-added/changed files and re-apply post-install for the

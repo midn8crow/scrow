@@ -34,7 +34,11 @@ scrow_backup_existing() {
     [[ ! -e "$dest" && ! -L "$dest" ]] && return 0
     src="$(scrow_backup_dir)/$SCROW_PACKAGE_DATE/$label"
     mkdir -p "$(dirname "$src/$rel")"
-    cp -a "$dest" "$src/$rel" 2>/dev/null || true
+    # Best-effort safety copy — a failed backup must never abort the operation,
+    # but it is reported so it is not silently lost.
+    if ! cp -a "$dest" "$src/$rel" 2>/dev/null; then
+        echo "  ${C_WARN}  ! could not back up $rel (continuing)${C_RESET}"
+    fi
 }
 
 # Full-manifest backup before an install/update/reset run.
@@ -48,7 +52,8 @@ scrow_backup_autobackup() {
         return 0
     fi
     mkdir -p "$dest"
-    cp -a "$SCROW_MANIFEST" "$dest/manifest" 2>/dev/null || true
+    local -i failed=0
+    cp -a "$SCROW_MANIFEST" "$dest/manifest" 2>/dev/null || failed+=1
     local line rel dest_path
     while IFS= read -r line; do
         [[ -z "$line" ]] && continue
@@ -58,14 +63,17 @@ scrow_backup_autobackup() {
         [[ ! -e "$dest_path" && ! -L "$dest_path" ]] && continue
         mkdir -p "$(dirname "$dest/$rel")"
         if [[ -L "$dest_path" ]]; then
-            cp -aP "$dest_path" "$dest/$rel" 2>/dev/null || true
+            cp -aP "$dest_path" "$dest/$rel" 2>/dev/null || failed+=1
         elif [[ -d "$dest_path" ]]; then
-            cp -a "$dest_path" "$dest/$rel" 2>/dev/null || true
+            cp -a "$dest_path" "$dest/$rel" 2>/dev/null || failed+=1
         else
-            cp -a "$dest_path" "$dest/$rel" 2>/dev/null || true
+            cp -a "$dest_path" "$dest/$rel" 2>/dev/null || failed+=1
         fi
     done < <(scrow_manifest_lines)
     scrow_log "auto-backup complete ($dest)"
+    if (( failed > 0 )); then
+        echo "  ${C_WARN}  ${failed} file(s) could not be backed up (continuing)${C_RESET}"
+    fi
 }
 
 # List available automatic backups, newest first.

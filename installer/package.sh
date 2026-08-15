@@ -25,6 +25,14 @@ scrow_pm_installed() {
     grep -qx "$1" "$SCROW_PM_QUERY_CACHE" 2>/dev/null
 }
 
+# Record a package that was just installed so queries reflect reality
+# immediately — the one-hour cache would otherwise hide it until it expires.
+scrow_pm_cache_install() {
+    [[ "$SCROW_DRY_RUN" == "1" ]] && return 0
+    mkdir -p "$SCROW_PM_CACHE_DIR"
+    grep -qx "$1" "$SCROW_PM_QUERY_CACHE" 2>/dev/null || echo "$1" >> "$SCROW_PM_QUERY_CACHE" 2>/dev/null
+}
+
 # Install a single package, deciding official vs AUR automatically.
 scrow_pm_install() {
     local pkg="$1"
@@ -43,6 +51,7 @@ scrow_pm_install() {
         scrow_run_sudo "install $pkg" pacman -S --needed --noconfirm "$pkg" || return 1
     fi
     scrow_pm_cache
+    scrow_pm_cache_install "$pkg"
 }
 
 scrow_pm_is_aur() {

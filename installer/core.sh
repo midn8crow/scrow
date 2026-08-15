@@ -14,9 +14,18 @@ set -uo pipefail
 # Paths
 # -----------------------------------------------------------------------------
 # Root of the current installer tree (the repository root when run from a
-# clone, or the self-contained copy at ~/.local/share/scrow/bootstrap when run
-# via the one-line bootstrap).
+# clone via the one-line bootstrap, or the engine bundle at
+# ~/.local/share/scrow/installer for later `scrow` runs).
 SCROW_INSTALLER_SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# Where the installed `scrow` command and the installer engine (code only,
+# never payload) live. Refreshed by Update.
+SCROW_ENGINE_DIR="${SCROW_ENGINE_DIR:-$HOME/.local/share/scrow/installer}"
+
+# The repository the current operation deploys FROM. When the installer runs
+# from inside a clone (bootstrap) this is that clone; otherwise the engine
+# acquires a fresh temporary clone via scrow_repo_acquire before any operation
+# that needs the repository. There is no persistent local copy.
 SCROW_REPO="${SCROW_REPO:-$SCROW_INSTALLER_SRC}"
 
 SCROW_STATE_DIR="${SCROW_STATE_DIR:-$HOME/.local/share/scrow}"
@@ -31,7 +40,12 @@ SCROW_REPO_BRANCH="${SCROW_REPO_BRANCH:-main}"
 SCROW_TARBALL_URL="${SCROW_TARBALL_URL:-https://github.com/midn8crow/scrow/archive/refs/heads/$SCROW_REPO_BRANCH.tar.gz}"
 
 SCROW_DRY_RUN="${SCROW_DRY_RUN:-0}"
+# VERSION is read from the active repository when present, falling back to the
+# engine bundle's copy so `scrow` still reports its version before any clone.
 SCROW_VERSION="$(cat "$SCROW_REPO/VERSION" 2>/dev/null | tr -d '[:space:]')"
+if [[ -z "$SCROW_VERSION" && -f "$(dirname "${BASH_SOURCE[0]}")/VERSION" ]]; then
+    SCROW_VERSION="$(cat "$(dirname "${BASH_SOURCE[0]}")/VERSION" 2>/dev/null | tr -d '[:space:]')"
+fi
 SCROW_VERSION="${SCROW_VERSION:-0.0.0}"
 
 # -----------------------------------------------------------------------------

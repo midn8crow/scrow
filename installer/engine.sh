@@ -3,87 +3,117 @@
 # SCROW — engine (install / refresh / upgrade / repair / reset / remove)
 # =============================================================================
 
-# --- repository (bootstrap mode) ----------------------------------------------
-# The one-line bootstrap ships only the self-contained installer core. The full
-# repository — the dotfiles, themes, cursors and binaries a component installs —
-# is fetched here, lazily, the first time an operation needs it, as ONE tarball
-# with real progress. After the first fetch this is a no-op, and everything
-# (SCROW_REPO, manifest, SHA, deploy) works exactly as in a manual clone.
-#
-# A bootstrap install has no .git, so "Update SCROW" re-fetches the same tarball
-# and merges it over the existing tree (see scrow_repo_fetch). Manual clones are
-# left untouched: they keep .git and update with git pull.
+# --- repository ---------------------------------------------------------------
+# The repository is the single source of truth, and it is always a TEMPORARY
+# clone. The one-line bootstrap clones the repository once into /tmp and runs
+# install.sh from inside it; later `scrow` runs (from the installed engine
+# bundle) clone it freshly whenever an operation needs it. There is no
+# persistent local copy, no in-place merge and no second payload — the clone
+# is removed when the process exits.
+SCROW_REPO_TMP=""
+
 scrow_repo_present() {
-    [[ -d "$SCROW_REPO/.config" ]]
+    [[ -d "$SCROW_REPO/.config" ]] && [[ -s "$SCROW_REPO/installer/scrow" ]] && [[ -s "$SCROW_REPO/VERSION" ]]
 }
 
-# Download + verify + extract + merge the full repository tarball. Used by
-# scrow_ensure_repo (first run) and scrow_engine_update (re-fetch). Real
-# progress via scrow_progress_run, bounded timeouts, fail-fast with the log
-# path, and no duplicate download paths.
-scrow_repo_fetch() {
-    local fetch="$SCROW_STATE_DIR/repo-fetch"
-    local archive="$SCROW_STATE_DIR/scrow-repo.tar.gz"
-    rm -rf "$fetch"
-    mkdir -p "$fetch"
+# After acquiring the repository, drive the whole operation from what the
+# repository actually declares: refresh the version and the component
+# definitions, and invalidate the hash caches (they were keyed on the old path).
+scrow_repo_post_acquire() {
+    local v
+    v="$(cat "$SCROW_REPO/VERSION" 2>/dev/null | tr -d '[:space:]')"
+    [[ -n "$v" ]] && SCROW_VERSION="$v"
+    if [[ -s "$SCROW_REPO/installer/components.sh" ]]; then
+        source "$SCROW_REPO/installer/components.sh"
+    fi
+    SCROW_SHA_CACHE_LOADED=0
+    SCROW_TARGET_SHA_LOADED=0
+    scrow_log "repository acquired at $SCROW_REPO"
+}
 
-    echo "  ${C_DIM}Downloading repository…${C_RESET}"
-    # codeload does not support byte-range resumes, so a stale partial file is
-    # always cleared first and the 48 MB tarball is (re)downloaded whole, with
-    # generous timeouts and retries for slow or flaky links.
-    if ! scrow_progress_run "Fetching SCROW files" curl -fL --progress-bar --proto '=https' \
+# Acquire the repository ONCE into a temporary directory. Prefers a shallow git
+# clone (fast, small); falls back to a single archive download of the same
+# repository when git is unavailable. Real progress, bounded timeouts,
+# fail-fast with the log path.
+scrow_repo_acquire() {
+    local tmp rc
+    tmp="$(mktemp -d "${TMPDIR:-/tmp}/scrow-XXXXXXXX" 2>/dev/null)" \
+        || tmp="$(mktemp -d 2>/dev/null)" \
+        || { echo "  ${C_ERR}could not create a temporary directory for the repository.${C_RESET}"; return 1; }
+    # Track the temp dir from the START so the launcher's INT/TERM/cleanup
+    # paths remove it even when acquisition is interrupted before success.
+    SCROW_REPO_TMP="$tmp"
+
+    if command -v git >/dev/null 2>&1; then
+        echo "  ${C_DIM}Cloning SCROW repository…${C_RESET}"
+        scrow_progress_run "Cloning SCROW repository" \
+            git clone --depth 1 --branch "$SCROW_REPO_BRANCH" --progress \
+            "$SCROW_REPO_URL" "$tmp/repo"
+        rc=$?
+        if (( rc == 0 )); then
+            SCROW_REPO="$tmp/repo"
+            if scrow_repo_present; then
+                scrow_repo_post_acquire
+                return 0
+            fi
+        fi
+        scrow_log "git clone failed (exit $rc); falling back to the archive"
+        rm -rf "$tmp/repo"
+    fi
+
+    local archive="$tmp/scrow.tar.gz"
+    echo "  ${C_DIM}Downloading SCROW repository…${C_RESET}"
+    if ! scrow_progress_run "Downloading SCROW repository" curl -fL --progress-bar --proto '=https' \
             --connect-timeout 15 --max-time 600 --retry 5 --retry-delay 5 --retry-max-time 180 --retry-all-errors \
             -o "$archive" "$SCROW_TARBALL_URL"; then
-        rm -f "$archive"
-        printf '\r\033[K'
-        echo "  ${C_ERR}Could not download SCROW component files.${C_RESET}"
+        scrow_repo_cleanup
+        echo "  ${C_ERR}Could not download the SCROW repository.${C_RESET}"
         echo "  ${C_DIM}Check the network and try again. Details: $SCROW_CURRENT_LOG${C_RESET}"
         return 1
     fi
-    printf '\r\033[K'
     if ! gzip -t "$archive" 2>/dev/null; then
-        rm -f "$archive"
-        echo "  ${C_ERR}Downloaded SCROW files are incomplete or corrupt.${C_RESET}"
+        scrow_repo_cleanup
+        echo "  ${C_ERR}Downloaded SCROW repository is incomplete or corrupt.${C_RESET}"
         return 1
     fi
-    echo "  ${C_DIM}Extracting SCROW files…${C_RESET}"
-    if ! tar -xzf "$archive" --strip-components=1 -C "$fetch"; then
-        rm -rf "$fetch" "$archive"
-        echo "  ${C_ERR}Could not unpack SCROW component files.${C_RESET}"
+    mkdir -p "$tmp/repo"
+    if ! tar -xzf "$archive" --strip-components=1 -C "$tmp/repo"; then
+        scrow_repo_cleanup
+        echo "  ${C_ERR}Could not unpack the SCROW repository.${C_RESET}"
         return 1
     fi
     rm -f "$archive"
-
-    if [[ ! -d "$fetch/.config" ]]; then
-        rm -rf "$fetch"
-        echo "  ${C_ERR}SCROW component files could not be fetched.${C_RESET}"
+    SCROW_REPO="$tmp/repo"
+    if ! scrow_repo_present; then
+        scrow_repo_cleanup
+        echo "  ${C_ERR}The downloaded SCROW repository is incomplete.${C_RESET}"
         echo "  ${C_DIM}Details: $SCROW_CURRENT_LOG${C_RESET}"
         return 1
     fi
-
-    # Merge the fetched repository into the installer tree so the layout is
-    # identical to a manual clone. cp -a merges directories and overwrites the
-    # (identical) installer core files.
-    if ! cp -a "$fetch"/. "$SCROW_REPO"/ 2>/dev/null; then
-        rm -rf "$fetch"
-        echo "  ${C_ERR}Could not place SCROW component files.${C_RESET}"
-        return 1
-    fi
-    rm -rf "$fetch"
-    scrow_log "repository fetched into $SCROW_REPO"
-    echo "  ${C_OK}SCROW component files ready.${C_RESET}"
+    scrow_repo_post_acquire
+    return 0
 }
 
-scrow_ensure_repo() {
-    scrow_repo_present && return 0
-    if [[ "$SCROW_DRY_RUN" == "1" ]]; then
-        echo "  [dry-run] fetch SCROW repository into $SCROW_REPO"
-        return 0
+# Remove the temporary clone. Safe to call any number of times; the launcher
+# calls it on every exit path so the clone never outlives the process.
+scrow_repo_cleanup() {
+    if [[ -n "$SCROW_REPO_TMP" && -d "$SCROW_REPO_TMP" ]]; then
+        rm -rf "$SCROW_REPO_TMP" 2>/dev/null
     fi
-    echo
-    echo "  ${C_ACCENT}SCROW files${C_RESET}"
-    echo "  ${C_DIM}Fetching SCROW component files (first run only)…${C_RESET}"
-    scrow_repo_fetch
+    SCROW_REPO_TMP=""
+}
+
+# Defensive guard: ensure a valid repository is present, acquiring a temporary
+# clone when the installer is running from the engine bundle. Fail loudly if
+# the repository could not be obtained instead of pretending the component
+# files exist.
+scrow_repo_guard() {
+    scrow_repo_present && return 0
+    [[ -n "$SCROW_REPO_TMP" ]] && {
+        echo "  ${C_ERR}SCROW repository is missing or incomplete at $SCROW_REPO.${C_RESET}"
+        return 1
+    }
+    scrow_repo_acquire
 }
 
 # --- install -----------------------------------------------------------------
@@ -139,9 +169,20 @@ scrow_engine_install() {
     if [[ ${#wanted[@]} -eq 0 ]]; then
         local name
         for name in $(scrow_component_names); do
+            scrow_config_component_skipped "$name" && continue
             scrow_component_installed "$name" || wanted+=("$name")
         done
+        if [[ ${#wanted[@]} -eq 0 ]]; then
+            # Everything is already present — nothing needs the repository.
+            echo "  ${C_OK}Nothing to install — all components already present.${C_RESET}"
+            return 0
+        fi
     fi
+
+    # Acquire the temporary repository FIRST so the plan, the component
+    # definitions and every deployed file come from the same source of truth.
+    scrow_repo_guard || return 1
+    echo "  ${C_OK}Preparing: repository ✓${C_RESET}"
 
     scrow_plan_resolve "${wanted[@]}"
 
@@ -171,7 +212,16 @@ scrow_engine_install() {
     echo "  ${C_DIM}Installing: ${todo[*]}${C_RESET}"
     echo
 
-    scrow_ensure_repo || return 1
+    if [[ " ${todo[*]} " == *" security "* ]]; then
+        if [[ "${SCROW_APPLY_SECURITY:-0}" != "1" ]]; then
+            echo "  ${C_WARN}Security hardening is opt-in and will be SKIPPED.${C_RESET}"
+            echo "  ${C_DIM}Set APPLY_SECURITY=1 in ${SCROW_CONFIG_FILE} to apply the firewall, fail2ban and system hardening.${C_RESET}"
+        else
+            echo "  ${C_WARN}Security hardening IS enabled — firewall, fail2ban and system hardening will be applied.${C_RESET}"
+        fi
+        echo
+    fi
+
     scrow_backup_autobackup
 
     local -i failures=0
@@ -245,18 +295,39 @@ scrow_engine_install() {
     return 0
 }
 
-# Make `scrow` available from anywhere: symlink the running launcher into
-# ~/.local/bin. A symlink (not a copy) keeps the launcher's SCROW_DIR
-# resolving to the real installer tree, so the modules it sources stay
-# correct regardless of where the repository lives.
-scrow_install_command() {
-    local launcher="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/scrow"
+# Install/refresh the installer ENGINE bundle — the code the installed `scrow`
+# command runs. Code only, never payload: no configuration file is copied, so
+# the repository stays the single source of truth for everything SCROW deploys.
+scrow_engine_install_bundle() {
     if [[ "$SCROW_DRY_RUN" == "1" ]]; then
-        echo "  [dry-run] ln -sfn $launcher $HOME/.local/bin/scrow"
+        echo "  [dry-run] install engine bundle to $SCROW_ENGINE_DIR"
+        return 0
+    fi
+    mkdir -p "$SCROW_ENGINE_DIR" || return 1
+    local f
+    for f in core state config backup sysd package components ownership engine menu; do
+        cp -f "$SCROW_REPO/installer/$f.sh" "$SCROW_ENGINE_DIR/$f.sh" 2>/dev/null || return 1
+    done
+    cp -f "$SCROW_REPO/installer/scrow" "$SCROW_ENGINE_DIR/scrow" 2>/dev/null || return 1
+    cp -f "$SCROW_REPO/install.sh" "$SCROW_ENGINE_DIR/install.sh" 2>/dev/null || return 1
+    cp -f "$SCROW_REPO/bootstrap.sh" "$SCROW_ENGINE_DIR/bootstrap.sh" 2>/dev/null || return 1
+    cp -f "$SCROW_REPO/VERSION" "$SCROW_ENGINE_DIR/VERSION" 2>/dev/null || return 1
+    chmod +x "$SCROW_ENGINE_DIR/scrow"
+    echo "  ${C_OK}scrow engine installed → $SCROW_ENGINE_DIR${C_RESET}"
+}
+
+# Make `scrow` available from anywhere: install the engine bundle and symlink
+# the launcher into ~/.local/bin. The symlink points at the engine bundle (not
+# the temporary repository), so the installed command keeps working after the
+# repository clone is removed.
+scrow_install_command() {
+    scrow_engine_install_bundle || return 1
+    if [[ "$SCROW_DRY_RUN" == "1" ]]; then
+        echo "  [dry-run] ln -sfn $SCROW_ENGINE_DIR/scrow $HOME/.local/bin/scrow"
         return 0
     fi
     mkdir -p "$HOME/.local/bin" 2>/dev/null || return 1
-    ln -sfn "$launcher" "$HOME/.local/bin/scrow" || return 1
+    ln -sfn "$SCROW_ENGINE_DIR/scrow" "$HOME/.local/bin/scrow" || return 1
     echo "  ${C_OK}scrow command installed → $HOME/.local/bin/scrow${C_RESET}"
     if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
         echo "  ${C_DIM}Note: add $HOME/.local/bin to your PATH to run \`scrow\` from any directory.${C_RESET}"
@@ -268,7 +339,6 @@ scrow_install_command() {
 # recorded as configured after EVERY required stage succeeds.
 scrow_install_component() {
     local name="$1"
-    local -a steps=()
     local -i rc=0
 
     echo
@@ -279,21 +349,18 @@ scrow_install_component() {
 
     # AUR helper required for any AUR packages.
     if [[ -n "$(scrow_component_aur "$name")" ]]; then
-        echo "  ${C_DIM}  Installing packages...${C_RESET}"
         if ! scrow_pm_install_paru; then
             scrow_fail_component "$name" "paru (AUR helper) installation failed"
             return 1
         fi
     fi
 
-    echo "  ${C_DIM}  Installing packages...${C_RESET}"
     if ! scrow_install_packages "$name"; then
         scrow_fail_component "$name" "package installation failed"
         return 1
     fi
-    steps+=(packages)
+    echo "  ${C_OK}    ✓ packages${C_RESET}"
 
-    echo "  ${C_DIM}  Deploying configuration...${C_RESET}"
     if ! scrow_deploy_component "$name"; then
         scrow_fail_component "$name" "configuration deployment failed"
         return 1
@@ -302,10 +369,9 @@ scrow_install_component() {
         scrow_fail_component "$name" "ownership recording failed"
         return 1
     fi
-    steps+=(config)
+    echo "  ${C_OK}    ✓ configuration${C_RESET}"
 
     SCROW_POST_SERVICES=0
-    echo "  ${C_DIM}  Applying post-install...${C_RESET}"
     scrow_component_post "$name"
     rc=$?
     if (( rc == 2 )); then
@@ -318,22 +384,20 @@ scrow_install_component() {
         scrow_manifest_remove_component "$name"
         return 1
     fi
-    steps+=(post)
-    (( SCROW_POST_SERVICES == 1 )) && steps+=(services)
+    echo "  ${C_OK}    ✓ post-install${C_RESET}"
+    (( SCROW_POST_SERVICES == 1 )) && echo "  ${C_OK}    ✓ services${C_RESET}"
 
-    echo "  ${C_DIM}  Validating...${C_RESET}"
     if ! scrow_component_validate "$name"; then
-        scrow_fail_component "$name" "validation failed — declared files not deployed"
+        scrow_fail_component "$name" "validation failed"
         scrow_manifest_remove_component "$name"
         return 1
     fi
-    steps+=(validate)
+    echo "  ${C_OK}    ✓ validation${C_RESET}"
 
     scrow_state_add_components "$name"
     scrow_log "installed component: $name"
     SCROW_PLAN_STATUS[$name]="configured"
     SCROW_PLAN_REASON[$name]=""
-    printf '  %s %-14s %s\n' "${C_OK}✓${C_RESET}" "$name" "${steps[*]// / · }"
     return 0
 }
 
@@ -370,12 +434,23 @@ scrow_install_packages() {
     done
 }
 
-# Validate that every declared path of a component is actually present on the
-# system after deployment. Returns 1 when anything declared is missing.
+# Validate that a component is actually complete on the system after
+# deployment: every declared package installed, every declared path present,
+# executable bits preserved from the repository, and SCROW's owned services
+# enabled. Returns 1 when anything declared is missing.
 scrow_component_validate() {
-    local name="$1" p t f rel
+    local name="$1" p t f rel pkg svc
     local -i rc=0
     [[ "$SCROW_DRY_RUN" == "1" ]] && return 0
+
+    for pkg in $(scrow_component_packages "$name") $(scrow_component_aur "$name"); do
+        scrow_config_pkg_skipped "$pkg" && continue
+        if ! scrow_pm_installed "$pkg"; then
+            echo "  ${C_ERR}      missing package: $pkg${C_RESET}"
+            rc=1
+        fi
+    done
+
     for p in $(scrow_component_paths "$name"); do
         [[ ! -e "$SCROW_REPO/$p" && ! -L "$SCROW_REPO/$p" ]] && continue
         t="$(scrow_target "$p")"
@@ -388,15 +463,36 @@ scrow_component_validate() {
             while IFS= read -r f; do
                 [[ -n "$f" ]] || continue
                 rel="${f#$p/}"
-                [[ -e "$t/$rel" || -L "$t/$rel" ]] || {
+                if [[ -e "$t/$rel" || -L "$t/$rel" ]]; then
+                    if [[ -f "$SCROW_REPO/$f" && -x "$SCROW_REPO/$f" && ! -x "$t/$rel" ]]; then
+                        echo "  ${C_ERR}      missing execute bit: $p/$rel${C_RESET}"
+                        rc=1
+                    fi
+                else
                     echo "  ${C_ERR}      missing file: $p/$rel${C_RESET}"
                     rc=1
-                }
+                fi
             done < <(scrow_repo_files "$p")
         elif [[ -L "$SCROW_REPO/$p" ]]; then
             [[ -L "$t" ]] || { echo "  ${C_ERR}      missing symlink: $p${C_RESET}"; rc=1; }
         else
-            [[ -e "$t" ]] || { echo "  ${C_ERR}      missing file: $p${C_RESET}"; rc=1; }
+            if [[ -e "$t" ]]; then
+                if [[ -f "$SCROW_REPO/$p" && -x "$SCROW_REPO/$p" && ! -x "$t" ]]; then
+                    echo "  ${C_ERR}      missing execute bit: $p${C_RESET}"
+                    rc=1
+                fi
+            else
+                echo "  ${C_ERR}      missing file: $p${C_RESET}"
+                rc=1
+            fi
+        fi
+    done
+
+    for svc in $(scrow_state_services); do
+        [[ -n "$svc" ]] || continue
+        if ! scrow_service_is_enabled "$svc"; then
+            echo "  ${C_ERR}      disabled service: $svc${C_RESET}"
+            rc=1
         fi
     done
     return $rc
@@ -469,7 +565,7 @@ scrow_engine_refresh() {
     echo "  ${C_DIM}Checking: ${names[*]}${C_RESET}"
     echo
 
-    scrow_ensure_repo || return 1
+    scrow_repo_guard || return 1
 
     scrow_backup_autobackup
 
@@ -543,7 +639,7 @@ scrow_engine_upgrade() {
     echo
     echo "  ${C_ACCENT}SCROW Upgrade${C_RESET}"
     [[ "$SCROW_DRY_RUN" == "1" ]] && { echo "  [dry-run] pacman -Syu + paru -Sua"; return 0; }
-    scrow_ensure_repo || return 1
+    scrow_repo_guard || return 1
     scrow_need_root
     scrow_run_sudo "system upgrade" pacman -Syu --noconfirm || return 1
     if command -v paru >/dev/null 2>&1; then
@@ -565,7 +661,7 @@ scrow_engine_repair() {
     echo
     echo "  ${C_ACCENT}SCROW Repair${C_RESET}"
 
-    scrow_ensure_repo || return 1
+    scrow_repo_guard || return 1
     scrow_backup_autobackup
 
     local -a names=( $(scrow_state_components) )
@@ -660,6 +756,10 @@ scrow_engine_restore() {
         echo "  ${C_WARN}No automatic backups found in $(scrow_backup_dir)/AUTO_BACKUP.${C_RESET}"
         return 1
     fi
+
+    # The restored manifest is rebuilt against the repository's expected
+    # state, so a fresh clone is required.
+    scrow_repo_guard || return 1
     echo
     echo "  ${C_DIM}Available backups (newest first):${C_RESET}"
     local -i i
@@ -685,7 +785,7 @@ scrow_engine_restore() {
     fi
     [[ -f "$root/manifest" ]] || { echo "  ${C_WARN}Backup manifest missing in $root${C_RESET}"; return 1; }
     local line rel src dest
-    local -i restored=0
+    local -i restored=0 failed=0
     while IFS= read -r line; do
         [[ -z "$line" ]] && continue
         scrow_tsv "$line"
@@ -697,16 +797,35 @@ scrow_engine_restore() {
         scrow_backup_existing "$rel" "pre-restore"
         if [[ -L "$src" ]]; then
             rm -f "$dest"
-            ln -sfn "$(readlink "$src")" "$dest"
+            if ln -sfn "$(readlink "$src")" "$dest"; then
+                restored+=1
+            else
+                echo "  ${C_ERR}  ✗ could not restore: $rel${C_RESET}"
+                failed+=1
+            fi
         elif [[ -d "$src" ]]; then
-            cp -a "$src"/. "$dest"/ 2>/dev/null || true
+            if cp -a "$src"/. "$dest"/ 2>/dev/null; then
+                restored+=1
+            else
+                echo "  ${C_ERR}  ✗ could not restore: $rel${C_RESET}"
+                failed+=1
+            fi
         else
-            cp -a "$src" "$dest" 2>/dev/null || true
+            if cp -a "$src" "$dest" 2>/dev/null; then
+                restored+=1
+            else
+                echo "  ${C_ERR}  ✗ could not restore: $rel${C_RESET}"
+                failed+=1
+            fi
         fi
-        restored+=1
     done < "$root/manifest"
     scrow_manifest_rebuild
     echo "  ${C_OK}Restored $restored file(s) from $ts.${C_RESET}"
+    if (( failed > 0 )); then
+        echo "  ${C_ERR}${failed} file(s) could not be restored.${C_RESET}"
+        return 1
+    fi
+    return 0
 }
 
 # --- reset ------------------------------------------------------------------
@@ -722,6 +841,7 @@ scrow_engine_reset() {
     scrow_backup_autobackup
 
     local line rel dest
+    local -i failed=0
     while IFS= read -r line; do
         [[ -z "$line" ]] && continue
         scrow_tsv "$line"
@@ -730,18 +850,34 @@ scrow_engine_reset() {
         [[ ! -e "$dest" && ! -L "$dest" ]] && continue
         if [[ "$SCROW_DRY_RUN" == "1" ]]; then
             echo "  [dry-run] remove: $rel"
-        else
-            rm -rf "$dest" 2>/dev/null || true
+        elif rm -rf "$dest" 2>/dev/null; then
             echo "  ${C_DIM}removed: $rel${C_RESET}"
+        else
+            echo "  ${C_ERR}  ✗ could not remove: $rel${C_RESET}"
+            failed+=1
         fi
     done < <(scrow_manifest_lines)
 
     if [[ -L "$HOME/.local/bin/scrow" ]]; then
         if [[ "$SCROW_DRY_RUN" == "1" ]]; then
             echo "  [dry-run] remove: $HOME/.local/bin/scrow"
-        else
-            rm -f "$HOME/.local/bin/scrow"
+        elif rm -f "$HOME/.local/bin/scrow"; then
             echo "  ${C_DIM}removed: $HOME/.local/bin/scrow${C_RESET}"
+        else
+            echo "  ${C_ERR}  ✗ could not remove: $HOME/.local/bin/scrow${C_RESET}"
+            failed+=1
+        fi
+    fi
+
+    # The installed engine bundle (code only) is SCROW-owned state too.
+    if [[ -d "$SCROW_ENGINE_DIR" ]]; then
+        if [[ "$SCROW_DRY_RUN" == "1" ]]; then
+            echo "  [dry-run] remove: $SCROW_ENGINE_DIR"
+        elif rm -rf "$SCROW_ENGINE_DIR" 2>/dev/null; then
+            echo "  ${C_DIM}removed: $SCROW_ENGINE_DIR${C_RESET}"
+        else
+            echo "  ${C_ERR}  ✗ could not remove: $SCROW_ENGINE_DIR${C_RESET}"
+            failed+=1
         fi
     fi
 
@@ -752,7 +888,12 @@ scrow_engine_reset() {
     scrow_state_set SERVICES ""
     scrow_state_set INSTALL_DATE ""
     echo
+    if (( failed > 0 )); then
+        echo "  ${C_ERR}SCROW reset completed with ${failed} failure(s) removing files.${C_RESET}"
+        return 1
+    fi
     echo "  ${C_OK}SCROW reset complete.${C_RESET}"
+    return 0
 }
 
 # --- remove component -------------------------------------------------------
@@ -767,6 +908,7 @@ scrow_engine_remove_component() {
     scrow_backup_autobackup
 
     local line rel dest
+    local -i failed=0
     while IFS= read -r line; do
         [[ -z "$line" ]] && continue
         scrow_tsv "$line"
@@ -776,14 +918,21 @@ scrow_engine_remove_component() {
         [[ ! -e "$dest" && ! -L "$dest" ]] && continue
         if [[ "$SCROW_DRY_RUN" == "1" ]]; then
             echo "  [dry-run] remove: $rel"
-        else
-            rm -rf "$dest" 2>/dev/null || true
+        elif rm -rf "$dest" 2>/dev/null; then
             echo "  ${C_DIM}removed: $rel${C_RESET}"
+        else
+            echo "  ${C_ERR}  ✗ could not remove: $rel${C_RESET}"
+            failed+=1
         fi
     done < <(scrow_manifest_lines)
 
     scrow_manifest_rebuild
     scrow_state_remove_components "$name"
     echo
+    if (( failed > 0 )); then
+        echo "  ${C_ERR}Component '$name' removed with ${failed} failure(s).${C_RESET}"
+        return 1
+    fi
     echo "  ${C_OK}Component '$name' removed.${C_RESET}"
+    return 0
 }
