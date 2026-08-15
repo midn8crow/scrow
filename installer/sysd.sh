@@ -52,14 +52,31 @@ scrow_service_restart() {
     systemctl --user restart "$svc" 2>/dev/null || true
 }
 
-# Enable the standard user service support stack.
+# Enable the standard user service support stack. Returns 1 if any required
+# service could not be enabled (the desktop session depends on these).
 scrow_services_apply() {
     local svc
+    local -i failed=0
     for svc in "${SCROW_SERVICES_SUPPORT[@]}"; do
-        scrow_service_enable "$svc"
+        scrow_service_enable "$svc" || failed=1
     done
     scrow_service_restart pipewire
     scrow_service_restart wireplumber
+    return $failed
+}
+
+# Return 0 if a service is enabled (user or system scope), 1 otherwise.
+scrow_service_is_enabled() {
+    local svc="$1" st
+    st="$(systemctl --user is-enabled "$svc" 2>/dev/null)"
+    case "$st" in
+        enabled|static|indirect|alias) return 0 ;;
+    esac
+    st="$(systemctl is-enabled "$svc" 2>/dev/null)"
+    case "$st" in
+        enabled|static|indirect|alias) return 0 ;;
+    esac
+    return 1
 }
 
 # Disable only the services SCROW owns.

@@ -20,14 +20,14 @@
 # -----------------------------------------------------------------------------
 scrow_scope() {
     case "$1" in
-        etc/*|boot/*) echo "system" ;;
+        etc/*|boot/*|usr/*) echo "system" ;;
         *) echo "user" ;;
     esac
 }
 
 scrow_target() {
     case "$1" in
-        etc/*|boot/*) echo "/$1" ;;
+        etc/*|boot/*|usr/*) echo "/$1" ;;
         *) echo "$HOME/$1" ;;
     esac
 }
@@ -152,6 +152,32 @@ scrow_manifest_build() {
     done
 }
 
+# Remove every manifest entry owned by a component. Used to roll back the
+# manifest when a component fails to install completely, so SCROW never claims
+# ownership of files that were never actually deployed.
+scrow_manifest_remove_component() {
+    local name="$1"
+    [[ "$SCROW_DRY_RUN" == "1" ]] && return 0
+    local line tmp
+    tmp="$(mktemp)"
+    local -i removed=0
+    while IFS= read -r line; do
+        [[ -z "$line" ]] && continue
+        scrow_tsv "$line"
+        if [[ "${SCROW_MF[6]:-}" != "$name" ]]; then
+            printf '%s\n' "$line" >> "$tmp"
+        else
+            removed+=1
+        fi
+    done < <(scrow_manifest_lines)
+    if (( removed > 0 )); then
+        mv "$tmp" "$SCROW_MANIFEST"
+        scrow_log "manifest rollback for failed component: $name ($removed entries)"
+    else
+        rm -f "$tmp"
+    fi
+}
+
 # Full regeneration. Preserves deployed system entries (files copied from a
 # repo source to a different location) that are not part of any component path.
 scrow_manifest_rebuild() {
@@ -223,13 +249,17 @@ scrow_manifest_out_of_sync() {
 # -----------------------------------------------------------------------------
 # Deploy
 # -----------------------------------------------------------------------------
-# Deploy one repo path to its target (user or system scope).
+# Deploy one repo path to its target (user or system scope). Returns 0 on
+# success, 1 if the required directory creation or copy fails. System-scope
+# targets (/etc, /boot, /usr) are created and written via sudo — never as the
+# unprivileged user with the failure swallowed.
 scrow_deploy_path() {
-    local rel="$1" src dest target
+    local rel="$1" src dest target scope
     src="$SCROW_REPO/$rel"
     [[ ! -e "$src" && ! -L "$src" ]] && { scrow_log "deploy: missing source $rel"; return 1; }
     dest="$(scrow_target "$rel")"
     target="$(dirname "$dest")"
+    scope="$(scrow_scope "$rel")"
 
     if [[ "$SCROW_DRY_RUN" == "1" ]]; then
         if [[ -L "$src" ]]; then
@@ -243,30 +273,40 @@ scrow_deploy_path() {
     fi
 
     if [[ -L "$src" ]]; then
-        mkdir -p "$target"
+        if [[ "$scope" == "system" ]]; then
+            scrow_run_sudo "mkdir $rel" mkdir -p "$target" || return 1
+        else
+            mkdir -p "$target" 2>/dev/null || { scrow_log "deploy: mkdir failed $target"; return 1; }
+        fi
         rm -f "$dest"
         ln -sfn "$(readlink "$src")" "$dest"
         scrow_log "deploy: link $rel -> $(readlink "$src")"
     elif [[ -d "$src" ]]; then
-        mkdir -p "$dest"
-        if [[ "$(scrow_scope "$rel")" == "system" ]]; then
-            scrow_run_sudo "deploy $rel" cp -a "$src"/. "$dest"/
+        if [[ "$scope" == "system" ]]; then
+            scrow_run_sudo "mkdir $rel" mkdir -p "$dest" || return 1
+            scrow_run_sudo "deploy $rel" cp -a "$src"/. "$dest"/ || return 1
         else
-            scrow_run "deploy $rel" cp -a "$src"/. "$dest"/
+            mkdir -p "$dest" 2>/dev/null || { scrow_log "deploy: mkdir failed $dest"; return 1; }
+            scrow_run "deploy $rel" cp -a "$src"/. "$dest"/ || return 1
         fi
+        scrow_log "deploy: copy $rel/ → $dest/"
     else
-        mkdir -p "$target"
-        if [[ "$(scrow_scope "$rel")" == "system" ]]; then
-            scrow_run_sudo "deploy $rel" cp -a "$src" "$dest"
+        if [[ "$scope" == "system" ]]; then
+            scrow_run_sudo "mkdir $rel" mkdir -p "$target" || return 1
+            scrow_run_sudo "deploy $rel" cp -a "$src" "$dest" || return 1
         else
-            scrow_run "deploy $rel" cp -a "$src" "$dest"
+            mkdir -p "$target" 2>/dev/null || { scrow_log "deploy: mkdir failed $target"; return 1; }
+            scrow_run "deploy $rel" cp -a "$src" "$dest" || return 1
         fi
+        scrow_log "deploy: copy $rel → $dest"
     fi
 }
 
 scrow_deploy_component() {
     local name="$1" p
+    local -i failed=0
     for p in $(scrow_component_paths "$name"); do
-        scrow_deploy_path "$p"
+        scrow_deploy_path "$p" || failed=1
     done
+    return $failed
 }

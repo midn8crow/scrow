@@ -85,6 +85,14 @@ scrow_component_installed() {
 # -----------------------------------------------------------------------------
 # Per-component post-deploy hooks
 # -----------------------------------------------------------------------------
+# Each hook returns:
+#   0 = post-install succeeded (component may be marked configured)
+#   1 = a REQUIRED post-install action failed (component is incomplete)
+#   2 = post-install intentionally skipped (optional, reported as such)
+# Hooks set SCROW_POST_SERVICES=1 when they configure services so the install
+# report can show a truthful "services" stage token.
+SCROW_POST_SERVICES=0
+
 scrow_component_post() {
     local name="$1"
     case "$name" in
@@ -102,96 +110,159 @@ scrow_component_post() {
 }
 
 scrow_post_hyprland() {
+    # The desktop session's service stack is a required part of Hyprland.
+    SCROW_POST_SERVICES=1
+    local -i rc=0
     if command -v hyprpm >/dev/null 2>&1; then
-        echo "  ${C_DIM}Setting up hyprpm ScrollOverview plugin…${C_RESET}"
-        [[ "$SCROW_DRY_RUN" == "1" ]] && { echo "  [dry-run] hyprpm add/enable scroll-overview"; return 0; }
-        scrow_run "hyprpm add" hyprpm add https://github.com/yayuuu/hyprland-scroll-overview.git || true
-        scrow_run "hyprpm update" hyprpm update || true
-        scrow_run "hyprpm enable" hyprpm enable scrolloverview || true
+        echo "  ${C_DIM}(optional) hyprpm ScrollOverview plugin${C_RESET}"
+        if [[ "$SCROW_DRY_RUN" == "1" ]]; then
+            echo "  [dry-run] hyprpm add/enable scroll-overview"
+        else
+            scrow_run "hyprpm add" hyprpm add https://github.com/yayuuu/hyprland-scroll-overview.git \
+                || echo "  ${C_WARN}      optional: hyprpm add failed — scroll-overview not enabled${C_RESET}"
+            scrow_run "hyprpm update" hyprpm update \
+                || echo "  ${C_WARN}      optional: hyprpm update failed${C_RESET}"
+            scrow_run "hyprpm enable" hyprpm enable scrolloverview \
+                || echo "  ${C_WARN}      optional: hyprpm enable failed — scroll-overview not enabled${C_RESET}"
+        fi
     fi
+    scrow_services_apply || { echo "  ${C_ERR}      required: could not enable desktop services${C_RESET}"; rc=1; }
+    return $rc
 }
 
-scrow_post_waybar()    { :; }
-scrow_post_rofi()      { :; }
-scrow_post_terminal()  { :; }
-scrow_post_mako()      { :; }
+scrow_post_waybar()    { return 0; }
+scrow_post_rofi()      { return 0; }
+scrow_post_terminal()  { return 0; }
+scrow_post_mako()      { return 0; }
 
 scrow_post_shell() {
+    # Optional: switching the login shell is gated behind SET_SHELL in config.
     if command -v zsh >/dev/null 2>&1 && [[ "$(basename "${SHELL:-}")" != "zsh" ]]; then
         if [[ "${SCROW_SET_SHELL:-0}" == "1" ]]; then
+            echo "  ${C_DIM}(optional) set default shell to zsh${C_RESET}"
             if [[ "$SCROW_DRY_RUN" == "1" ]]; then
                 echo "  [dry-run] chsh -s $(command -v zsh)"
             elif chsh -s "$(command -v zsh)"; then
-                echo "  ${C_OK}Default shell set to zsh${C_RESET}"
+                echo "  ${C_OK}      default shell set to zsh${C_RESET}"
             else
-                echo "  ${C_WARN}Could not change shell — run: chsh -s \$(which zsh)${C_RESET}"
+                echo "  ${C_WARN}      optional: could not change shell — run: chsh -s \$(which zsh)${C_RESET}"
             fi
         fi
     fi
+    return 0
 }
 
 scrow_post_theming() {
-    [[ "$SCROW_DRY_RUN" == "1" ]] && { echo "  [dry-run] gsettings dark scheme + fc-cache"; return 0; }
-    gsettings set org.gnome.desktop.interface color-scheme prefer-dark 2>/dev/null || true
-    fc-cache -f >/dev/null 2>&1 || true
+    local -i rc=0
+    echo "  ${C_DIM}Refreshing font cache…${C_RESET}"
+    if [[ "$SCROW_DRY_RUN" == "1" ]]; then
+        echo "  [dry-run] gsettings dark scheme + fc-cache"
+    else
+        fc-cache -f >/dev/null 2>&1 \
+            || { echo "  ${C_ERR}      required: font cache refresh failed${C_RESET}"; rc=1; }
+        gsettings set org.gnome.desktop.interface color-scheme prefer-dark 2>/dev/null \
+            || echo "  ${C_WARN}      (optional) dark scheme not applied — no display session${C_RESET}"
+    fi
+    return $rc
 }
 
 scrow_post_utilities() {
     echo "  ${C_DIM}Making SCROW scripts executable…${C_RESET}"
+    local -i rc=0
     if [[ "$SCROW_DRY_RUN" == "1" ]]; then
         echo "  [dry-run] chmod +x ~/.local/bin, ~/user_scripts, waybar scripts"
         return 0
     fi
-    chmod +x "$HOME/.local/bin/"* 2>/dev/null || true
-    chmod +x "$HOME"/user_scripts/*/*.sh 2>/dev/null || true
-    chmod +x "$HOME/.config/waybar/"*.sh 2>/dev/null || true
-    chmod +x "$HOME/security-hardening/"*.sh 2>/dev/null || true
+    # Tolerant by design: directories that other components create later (e.g.
+    # .config/waybar) or that are optional (security-hardening) must not fail
+    # utilities when they are not present yet.
+    if [[ -d "$HOME/.local/bin" ]]; then
+        find "$HOME/.local/bin" -maxdepth 1 -type f -exec chmod +x {} + 2>/dev/null || rc=1
+    fi
+    if [[ -d "$HOME/user_scripts" ]]; then
+        find "$HOME/user_scripts" -type f -name '*.sh' -exec chmod +x {} + 2>/dev/null || rc=1
+    fi
+    if [[ -d "$HOME/.config/waybar" ]]; then
+        find "$HOME/.config/waybar" -type f -name '*.sh' -exec chmod +x {} + 2>/dev/null || rc=1
+    fi
+    if [[ -d "$HOME/security-hardening" ]]; then
+        find "$HOME/security-hardening" -type f -name '*.sh' -exec chmod +x {} + 2>/dev/null || rc=1
+    fi
+    if (( rc != 0 )); then
+        echo "  ${C_ERR}      required: could not make scripts executable${C_RESET}"
+    fi
+    return $rc
 }
 
 scrow_post_security() {
     if [[ "${SCROW_APPLY_SECURITY:-0}" != "1" ]]; then
-        echo "  ${C_DIM}Security hardening skipped${C_RESET}"
-        return 0
+        echo "  ${C_WARN}(skipped) security hardening NOT applied — optional for safety, enable with APPLY_SECURITY=1${C_RESET}"
+        echo "  ${C_WARN}          in ${SCROW_CONFIG_FILE##*/}${C_RESET}"
+        return 2
     fi
+    echo "  ${C_DIM}Applying security hardening…${C_RESET}"
     [[ "$SCROW_DRY_RUN" == "1" ]] && { echo "  [dry-run] would deploy security configs to /etc"; return 0; }
     scrow_need_root
     local sec="$SCROW_REPO/security-hardening"
-
-    scrow_run_sudo "deploy sshd hardening" install -Dm644 "$sec/sshd_hardened.conf" /etc/ssh/sshd_config.d/99-hardened.conf || true
+    local -i rc=0
+    scrow_run_sudo "deploy sshd hardening" install -Dm644 "$sec/sshd_hardened.conf" /etc/ssh/sshd_config.d/99-hardened.conf \
+        || { echo "  ${C_ERR}      required: sshd hardening deploy failed${C_RESET}"; rc=1; }
     scrow_manifest_deployed "etc/ssh/sshd_config.d/99-hardened.conf" "security-hardening/sshd_hardened.conf" "security"
-    scrow_run_sudo "deploy nftables" install -Dm644 "$sec/nftables_hardened.conf" /etc/nftables.conf || true
+    scrow_run_sudo "deploy nftables" install -Dm644 "$sec/nftables_hardened.conf" /etc/nftables.conf \
+        || { echo "  ${C_ERR}      required: nftables deploy failed${C_RESET}"; rc=1; }
     scrow_manifest_deployed "etc/nftables.conf" "security-hardening/nftables_hardened.conf" "security"
-    scrow_run_sudo "deploy sysctl" install -Dm644 "$sec/sysctl_security.conf" /etc/sysctl.d/99-security.conf || true
+    scrow_run_sudo "deploy sysctl" install -Dm644 "$sec/sysctl_security.conf" /etc/sysctl.d/99-security.conf \
+        || { echo "  ${C_ERR}      required: sysctl deploy failed${C_RESET}"; rc=1; }
     scrow_manifest_deployed "etc/sysctl.d/99-security.conf" "security-hardening/sysctl_security.conf" "security"
-    scrow_run_sudo "deploy fail2ban jail" install -Dm644 "$sec/fail2ban_jail.local" /etc/fail2ban/jail.local || true
+    scrow_run_sudo "deploy fail2ban jail" install -Dm644 "$sec/fail2ban_jail.local" /etc/fail2ban/jail.local \
+        || { echo "  ${C_ERR}      required: fail2ban deploy failed${C_RESET}"; rc=1; }
     scrow_manifest_deployed "etc/fail2ban/jail.local" "security-hardening/fail2ban_jail.local" "security"
-    scrow_run_sudo "deploy usb-scan script" install -Dm755 "$sec/usb-scan.sh" /usr/local/bin/usb-scan.sh || true
+    scrow_run_sudo "deploy usb-scan script" install -Dm755 "$sec/usb-scan.sh" /usr/local/bin/usb-scan.sh \
+        || { echo "  ${C_ERR}      required: usb-scan deploy failed${C_RESET}"; rc=1; }
     scrow_manifest_deployed "usr/local/bin/usb-scan.sh" "security-hardening/usb-scan.sh" "security"
-    scrow_run_sudo "deploy usb-scan rules" install -Dm644 "$sec/usb-scan.rules" /etc/udev/rules.d/99-usb-scan.rules || true
+    scrow_run_sudo "deploy usb-scan rules" install -Dm644 "$sec/usb-scan.rules" /etc/udev/rules.d/99-usb-scan.rules \
+        || { echo "  ${C_ERR}      required: usb-scan rules deploy failed${C_RESET}"; rc=1; }
     scrow_manifest_deployed "etc/udev/rules.d/99-usb-scan.rules" "security-hardening/usb-scan.rules" "security"
 
-    scrow_run_sudo "apply sysctl" sysctl --system >/dev/null 2>&1 || true
-    scrow_service_enable nftables
-    scrow_service_enable fail2ban
-    if [[ -d /etc/ssh ]] && command -v sshd >/dev/null 2>&1; then
-        scrow_service_enable sshd
+    if (( rc == 0 )); then
+        scrow_run_sudo "apply sysctl" sysctl --system >/dev/null 2>&1 || { echo "  ${C_ERR}      required: sysctl apply failed${C_RESET}"; rc=1; }
+        scrow_service_enable nftables || { echo "  ${C_ERR}      required: could not enable nftables${C_RESET}"; rc=1; }
+        scrow_service_enable fail2ban || { echo "  ${C_ERR}      required: could not enable fail2ban${C_RESET}"; rc=1; }
+        if [[ -d /etc/ssh ]] && command -v sshd >/dev/null 2>&1; then
+            scrow_service_enable sshd || { echo "  ${C_ERR}      required: could not enable sshd${C_RESET}"; rc=1; }
+        fi
+        scrow_service_disable avahi-daemon 2>/dev/null || true
+        scrow_service_disable cups 2>/dev/null || true
+        if (( rc == 0 )); then
+            SCROW_POST_SERVICES=1
+        fi
     fi
-    scrow_service_disable avahi-daemon
-    scrow_service_disable cups
+    return $rc
 }
 
 scrow_post_system() {
     [[ "$SCROW_DRY_RUN" == "1" ]] && { echo "  [dry-run] SDDM theme, GRUB theme, pacman hooks"; return 0; }
     scrow_need_root
-    scrow_run_sudo "chmod pacman hook" chmod +x /etc/pacman.d/hooks/hyprpm-post-update.sh || true
+    local -i rc=0
+    echo "  ${C_DIM}Configuring pacman hook, SDDM & GRUB themes…${C_RESET}"
+    scrow_run_sudo "chmod pacman hook" chmod +x /etc/pacman.d/hooks/hyprpm-post-update.sh \
+        || { echo "  ${C_ERR}      required: pacman hook chmod failed${C_RESET}"; rc=1; }
     if [[ -d /boot/grub/themes/minegrub ]] && command -v grub-mkconfig >/dev/null 2>&1; then
         if grep -q '^GRUB_THEME=' /etc/default/grub 2>/dev/null; then
-            scrow_run_sudo "set grub theme" sed -i 's|^GRUB_THEME=.*|GRUB_THEME=/boot/grub/themes/minegrub/theme.txt|' /etc/default/grub || true
+            scrow_run_sudo "set grub theme" sed -i 's|^GRUB_THEME=.*|GRUB_THEME=/boot/grub/themes/minegrub/theme.txt|' /etc/default/grub \
+                || { echo "  ${C_ERR}      required: could not set GRUB theme${C_RESET}"; rc=1; }
         else
-            echo 'GRUB_THEME=/boot/grub/themes/minegrub/theme.txt' | sudo tee -a /etc/default/grub >/dev/null 2>&1
+            echo 'GRUB_THEME=/boot/grub/themes/minegrub/theme.txt' | sudo tee -a /etc/default/grub >/dev/null 2>&1 \
+                || { echo "  ${C_ERR}      required: could not write GRUB theme config${C_RESET}"; rc=1; }
         fi
-        scrow_state_set GRUB_THEME 1
-        echo "  ${C_DIM}Regenerating GRUB configuration…${C_RESET}"
-        scrow_run_sudo "grub-mkconfig" grub-mkconfig -o /boot/grub/grub.cfg || echo "  ${C_WARN}Could not regenerate GRUB config${C_RESET}"
+        if (( rc == 0 )); then
+            scrow_state_set GRUB_THEME 1
+            echo "  ${C_DIM}Regenerating GRUB configuration…${C_RESET}"
+            scrow_run_sudo "grub-mkconfig" grub-mkconfig -o /boot/grub/grub.cfg \
+                || { echo "  ${C_ERR}      required: GRUB configuration regeneration failed${C_RESET}"; rc=1; }
+        fi
+    else
+        echo "  ${C_WARN}(optional) GRUB tooling not available — GRUB regeneration skipped${C_RESET}"
     fi
+    return $rc
 }

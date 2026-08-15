@@ -33,6 +33,7 @@ scrow_usage() {
     echo "  --dashboard   show component overview"
     echo "  --install     install all missing components"
     echo "  --refresh     re-sync files of installed components"
+    echo "  --update      pull the latest repository and converge installed files"
     echo "  --upgrade     system + AUR upgrade, then re-index manifest"
     echo "  --repair      restore user-modified managed files"
     echo "  --restore     restore files from an automatic backup"
@@ -72,10 +73,12 @@ scrow_config_load
 
 # --- dispatch ------------------------------------------------------------------
 if [[ ${#SCROW_CLI_ARGS[@]} -gt 0 ]]; then
+    _scrow_rc=0
     case "${SCROW_CLI_ARGS[0]}" in
         --dashboard)  scrow_dashboard ;;
         --install)    scrow_engine_install ;;
         --refresh)    scrow_engine_refresh ;;
+        --update)     scrow_engine_update ;;
         --upgrade)    scrow_engine_upgrade ;;
         --repair)     scrow_engine_repair ;;
         --restore)    scrow_engine_restore ;;
@@ -83,7 +86,8 @@ if [[ ${#SCROW_CLI_ARGS[@]} -gt 0 ]]; then
         --remove)     scrow_engine_remove_component "${SCROW_CLI_ARGS[1]:-}" ;;
         *)            scrow_usage; exit 1 ;;
     esac
-    exit 0
+    _scrow_rc=$?
+    exit $_scrow_rc
 fi
 
 scrow_menu

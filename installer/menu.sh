@@ -1414,7 +1414,7 @@ scrow_screen_reset() {
         "This is permanent unless you restore from a backup afterwards."
     local rc=$?
     (( rc == 2 || rc == 1 )) && return
-    scrow_ui_op "Reset" scrow_engine_repair
+    scrow_ui_op "Reset" scrow_engine_reset
     local rc=$?
     scrow_ui_result "Reset" "$([[ $rc -eq 0 ]] && echo ok || echo err)" --log "$SCROW_CURRENT_LOG" \
         "$([[ $rc -eq 0 ]] && echo "SCROW-managed files are back to the official state." || echo "Reset failed — check the log.")"
@@ -1429,9 +1429,10 @@ scrow_screen_doctor() {
     scrow_ui_render
     scrow_analyze
     local -i modified=$SCROW_AN_MODIFIED_N missing=$SCROW_AN_MISSING_N broken=$SCROW_AN_BROKEN_N removed=$SCROW_AN_REMOVED_N sync=$SCROW_AN_SYNC_N
-    local -i issues=$(( modified + missing + broken + removed ))
+    local -i missing_dirs=$SCROW_AN_MISSING_DIRS_N missing_pkgs=$SCROW_AN_MISSING_PKGS_N disabled_svc=$SCROW_AN_DISABLED_SVC_N
+    local -i issues=$(( modified + missing + broken + removed + missing_dirs + missing_pkgs + disabled_svc ))
     local color chip
-    if (( missing + broken + removed > 0 )); then
+    if (( missing + broken + removed + missing_dirs + missing_pkgs + disabled_svc > 0 )); then
         color="$C_ERR"; chip="✗  $issues $(scrow_ui_plural ISSUE $issues)"
     elif (( modified > 0 )); then
         color="$C_WARN"; chip="!  $modified MODIFIED"
@@ -1464,7 +1465,11 @@ scrow_screen_doctor() {
         y+=1
         scrow_ui_put "$y" "  $(scrow_ui_health_cell ! "$C_WARN" $modified "modified by you" $cellw)$(scrow_ui_health_cell ✗ "$C_ERR" $broken "broken symlinks" $cellw)"
         y+=1
-        scrow_ui_put "$y" "  $(scrow_ui_health_cell ◇ "$C_ACCENT" $removed "removed from repo" $cellw_full)"
+        scrow_ui_put "$y" "  $(scrow_ui_health_cell ✗ "$C_ERR" $missing_dirs "missing directories" $cellw)$(scrow_ui_health_cell ✗ "$C_ERR" $missing_pkgs "missing packages" $cellw)"
+        y+=1
+        scrow_ui_put "$y" "  $(scrow_ui_health_cell ✗ "$C_ERR" $disabled_svc "disabled services" $cellw)$(scrow_ui_health_cell ◇ "$C_ACCENT" $removed "removed from repo" $cellw)"
+        y+=1
+        scrow_ui_put "$y" "  $(scrow_ui_health_cell ◇ "$C_ACCENT" $SCROW_AN_NEW_N "new files not deployed" $cellw_full)"
         y+=2
         scrow_ui_hline "$y" "$C_HAIR"
         y+=1
@@ -1524,6 +1529,18 @@ scrow_screen_doctor_details() {
         items+=("::Missing on system (${#SCROW_AN_MISSING[@]})")
         for f in "${SCROW_AN_MISSING[@]}"; do items+=("$f"); done
     fi
+    if (( ${#SCROW_AN_MISSING_DIRS[@]} > 0 )); then
+        items+=("::Missing directories (${#SCROW_AN_MISSING_DIRS[@]})")
+        for f in "${SCROW_AN_MISSING_DIRS[@]}"; do items+=("$f/"); done
+    fi
+    if (( ${#SCROW_AN_MISSING_PKGS[@]} > 0 )); then
+        items+=("::Missing packages (${#SCROW_AN_MISSING_PKGS[@]})")
+        for f in "${SCROW_AN_MISSING_PKGS[@]}"; do items+=("$f"); done
+    fi
+    if (( ${#SCROW_AN_DISABLED_SVC[@]} > 0 )); then
+        items+=("::Disabled services (${#SCROW_AN_DISABLED_SVC[@]})")
+        for f in "${SCROW_AN_DISABLED_SVC[@]}"; do items+=("$f"); done
+    fi
     if (( ${#SCROW_AN_BROKEN[@]} > 0 )); then
         items+=("::Broken symlinks (${#SCROW_AN_BROKEN[@]})")
         for f in "${SCROW_AN_BROKEN[@]}"; do items+=("$f"); done
@@ -1532,7 +1549,13 @@ scrow_screen_doctor_details() {
         items+=("::Removed from repository (${#SCROW_AN_REMOVED[@]})")
         for f in "${SCROW_AN_REMOVED[@]}"; do items+=("$f"); done
     fi
-    local -i total=$(( ${#SCROW_AN_MODIFIED[@]} + ${#SCROW_AN_MISSING[@]} + ${#SCROW_AN_BROKEN[@]} + ${#SCROW_AN_REMOVED[@]} ))
+    if (( ${#SCROW_AN_NEW[@]} > 0 )); then
+        items+=("::New in repository (${#SCROW_AN_NEW[@]})")
+        for f in "${SCROW_AN_NEW[@]}"; do items+=("$f"); done
+    fi
+    local -i total=$(( ${#SCROW_AN_MODIFIED[@]} + ${#SCROW_AN_MISSING[@]} + ${#SCROW_AN_MISSING_DIRS[@]} \
+        + ${#SCROW_AN_MISSING_PKGS[@]} + ${#SCROW_AN_DISABLED_SVC[@]} + ${#SCROW_AN_BROKEN[@]} \
+        + ${#SCROW_AN_REMOVED[@]} + ${#SCROW_AN_NEW[@]} ))
     if (( total == 0 )); then
         scrow_ui_result "Doctor" warn \
             "No problems found." \
@@ -1641,13 +1664,16 @@ scrow_dashboard() { scrow_menu; }
 
 # --- analysis (used by the doctor screen) -------------------------------------
 declare -a SCROW_AN_MODIFIED=() SCROW_AN_MISSING=() SCROW_AN_SYNC=() SCROW_AN_BROKEN=() SCROW_AN_REMOVED=()
+declare -a SCROW_AN_NEW=() SCROW_AN_MISSING_DIRS=() SCROW_AN_MISSING_PKGS=() SCROW_AN_DISABLED_SVC=()
 
 scrow_analyze() {
     SCROW_AN_MODIFIED=(); SCROW_AN_MISSING=(); SCROW_AN_SYNC=(); SCROW_AN_BROKEN=(); SCROW_AN_REMOVED=()
+    SCROW_AN_NEW=(); SCROW_AN_MISSING_DIRS=(); SCROW_AN_MISSING_PKGS=(); SCROW_AN_DISABLED_SVC=()
     SCROW_AN_REPO_MISSING=0
     if [[ ! -d "$SCROW_REPO/.config" ]]; then
         SCROW_AN_REPO_MISSING=1
         SCROW_AN_MODIFIED_N=0; SCROW_AN_MISSING_N=0; SCROW_AN_SYNC_N=0; SCROW_AN_BROKEN_N=0; SCROW_AN_REMOVED_N=0
+        SCROW_AN_NEW_N=0; SCROW_AN_MISSING_DIRS_N=0; SCROW_AN_MISSING_PKGS_N=0; SCROW_AN_DISABLED_SVC_N=0
         return 0
     fi
     scrow_manifest_index_load
@@ -1691,6 +1717,52 @@ scrow_analyze() {
                 ;;
         esac
     done < <(scrow_manifest_lines)
+
+    # --- current-repository state for installed components -------------------
+    # Doctor inspects what the CURRENT repository declares for each installed
+    # component — not just the files an older manifest happened to record — so
+    # newly-added SCROW files, missing directories, missing packages and
+    # disabled required services are all detected.
+    local comp pkg svc st path full
+    local -i newf=0 dirs=0 pkgs=0 svcs=0
+    local -a installed=()
+    for comp in $(scrow_state_components); do
+        scrow_component_exists "$comp" || continue
+        installed+=("$comp")
+        for pkg in $(scrow_component_packages "$comp") $(scrow_component_aur "$comp"); do
+            scrow_config_pkg_skipped "$pkg" && continue
+            scrow_pm_installed "$pkg" || { SCROW_AN_MISSING_PKGS+=("$comp: $pkg"); pkgs+=1; }
+        done
+        for path in $(scrow_component_paths "$comp"); do
+            [[ ! -e "$SCROW_REPO/$path" && ! -L "$SCROW_REPO/$path" ]] && continue
+            if [[ -d "$SCROW_REPO/$path" ]]; then
+                t="$(scrow_target "$path")"
+                [[ -d "$t" ]] || { SCROW_AN_MISSING_DIRS+=("$path"); dirs+=1; }
+                while IFS= read -r full; do
+                    [[ -n "$full" ]] || continue
+                    [[ -n "${SCROW_MANIFEST_INDEX[$full]:-}" ]] && continue
+                    t="$(scrow_target "$full")"
+                    if [[ ! -e "$t" && ! -L "$t" ]]; then
+                        SCROW_AN_MISSING+=("$full (new)") ; missing+=1
+                    fi
+                    SCROW_AN_NEW+=("$full"); newf+=1
+                done < <(scrow_repo_files "$path")
+            fi
+        done
+    done
+    if [[ ${#installed[@]} -gt 0 ]]; then
+        for svc in $(scrow_state_services); do
+            [[ -n "$svc" ]] || continue
+            if ! scrow_service_is_enabled "$svc"; then
+                SCROW_AN_DISABLED_SVC+=("$svc"); svcs+=1
+            fi
+        done
+    fi
+    SCROW_AN_NEW_N=$newf
+    SCROW_AN_MISSING_DIRS_N=$dirs
+    SCROW_AN_MISSING_PKGS_N=$pkgs
+    SCROW_AN_DISABLED_SVC_N=$svcs
+
     SCROW_AN_MODIFIED_N=$modified
     SCROW_AN_MISSING_N=$missing
     SCROW_AN_SYNC_N=$in_sync
@@ -1698,7 +1770,7 @@ scrow_analyze() {
     SCROW_AN_REMOVED_N=$removed
 }
 
-# --- SCROW update (pull latest repository) ------------------------------------
+# --- SCROW update (pull latest repository + converge deployment) -------------
 scrow_engine_update() {
     echo
     echo "  ${C_ACCENT}SCROW Update${C_RESET}"
@@ -1714,6 +1786,68 @@ scrow_engine_update() {
         # repository tarball and merge it over the existing tree.
         scrow_repo_fetch || return 1
     fi
-    echo
     echo "  ${C_OK}SCROW repository is up to date.${C_RESET}"
+
+    # Converge the installed components to the updated repository state:
+    # deploy newly-added/changed files and re-apply post-install for the
+    # components whose files changed.
+    local -a comps=( $(scrow_state_components) )
+    if [[ ${#comps[@]} -eq 0 ]]; then
+        return 0
+    fi
+    echo
+    echo "  ${C_ACCENT}Converging installed components…${C_RESET}"
+    scrow_manifest_index_load
+    scrow_sha_cache_load
+    scrow_build_synced_map
+    local name path full t
+    local -i failed=0 changed=0 prc
+    declare -A updated_comps=()
+    for name in "${comps[@]}"; do
+        scrow_component_exists "$name" || continue
+        echo "  ${C_ACCENT}› ${name}${C_RESET}"
+        local -i comp_changed=0
+        for path in $(scrow_component_paths "$name"); do
+            [[ ! -e "$SCROW_REPO/$path" && ! -L "$SCROW_REPO/$path" ]] && continue
+            if [[ -d "$SCROW_REPO/$path" ]]; then
+                while IFS= read -r full; do
+                    [[ -n "$full" ]] || continue
+                    [[ -n "${SCROW_SYNCED[$full]:-}" ]] && continue
+                    scrow_backup_existing "$full" "$name"
+                    scrow_deploy_path "$full" || failed=1
+                    comp_changed=1
+                    changed=1
+                done < <(scrow_repo_files "$path")
+            else
+                [[ -n "${SCROW_SYNCED[$path]:-}" ]] && continue
+                scrow_backup_existing "$path" "$name"
+                scrow_deploy_path "$path" || failed=1
+                comp_changed=1
+                changed=1
+            fi
+        done
+        if (( comp_changed == 1 )); then
+            SCROW_POST_SERVICES=0
+            scrow_component_post "$name"
+            prc=$?
+            if (( prc == 2 )); then
+                echo "  ${C_WARN}  (skipped) optional post-install not enabled${C_RESET}"
+            elif (( prc != 0 )); then
+                echo "  ${C_ERR}  ✗ ${name} — post-install failed during update${C_RESET}"
+                failed=1
+            fi
+        fi
+    done
+    scrow_manifest_rebuild "${comps[@]}"
+    echo
+    if (( failed != 0 )); then
+        echo "  ${C_ERR}Update converged with errors — see the log.${C_RESET}"
+        return 1
+    fi
+    if (( changed == 0 )); then
+        echo "  ${C_OK}Installed configuration already matches the current SCROW state.${C_RESET}"
+    else
+        echo "  ${C_OK}Installed configuration updated to the current SCROW state.${C_RESET}"
+    fi
+    return 0
 }
