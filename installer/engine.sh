@@ -28,8 +28,11 @@ scrow_repo_fetch() {
     mkdir -p "$fetch"
 
     echo "  ${C_DIM}Downloading repository…${C_RESET}"
+    # codeload does not support byte-range resumes, so a stale partial file is
+    # always cleared first and the 48 MB tarball is (re)downloaded whole, with
+    # generous timeouts and retries for slow or flaky links.
     if ! scrow_progress_run "Fetching SCROW files" curl -fL --progress-bar --proto '=https' \
-            --connect-timeout 15 --max-time 300 --retry 3 --retry-delay 2 --retry-all-errors \
+            --connect-timeout 15 --max-time 600 --retry 5 --retry-delay 5 --retry-max-time 180 --retry-all-errors \
             -o "$archive" "$SCROW_TARBALL_URL"; then
         rm -f "$archive"
         printf '\r\033[K'
