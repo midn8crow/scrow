@@ -54,18 +54,50 @@ scrow_pm_is_aur() {
     return 0
 }
 
-# Install paru (AUR helper) if missing — uses a dedicated temporary directory.
+# Install paru (AUR helper) if missing. Ensures the build prerequisites are
+# present first — git (to clone the PKGBUILD) and base-devel (make, gcc,
+# fakeroot…, to build it) — installing each only when it is actually missing.
+# A dedicated temporary directory is used for the clone + build.
 scrow_pm_install_paru() {
     if command -v paru >/dev/null 2>&1; then
         scrow_log "pkg: paru (already installed)"
         return 0
     fi
     echo "  ${C_DIM}Installing paru (AUR helper)…${C_RESET}"
-    [[ "$SCROW_DRY_RUN" == "1" ]] && { echo "  [dry-run] git clone paru + makepkg -si"; return 0; }
+    [[ "$SCROW_DRY_RUN" == "1" ]] && {
+        echo "  [dry-run] git + base-devel (if missing), then clone paru + makepkg -si"
+        return 0
+    }
     scrow_need_root
+
+    # git is required to clone the paru PKGBUILD from the AUR.
+    if ! command -v git >/dev/null 2>&1; then
+        echo "  ${C_DIM}Installing git…${C_RESET}"
+        scrow_run_sudo "install git" pacman -S --needed --noconfirm git || return 1
+    fi
+
+    # base-devel (a group) provides the toolchain needed to build paru.
+    local -a missing=() bd
+    while IFS= read -r bd; do
+        [[ -n "$bd" ]] || continue
+        pacman -Q "$bd" >/dev/null 2>&1 || missing+=("$bd")
+    done < <(pacman -Sg base-devel 2>/dev/null)
+    if [[ ${#missing[@]} -gt 0 ]]; then
+        echo "  ${C_DIM}Installing base-devel…${C_RESET}"
+        scrow_run_sudo "install base-devel" pacman -S --needed --noconfirm base-devel || return 1
+    fi
+
     local tmp
     tmp="$(mktemp -d)"
-    scrow_run "clone paru" git clone --depth 1 https://aur.archlinux.org/paru.git "$tmp/paru" || return 1
-    scrow_run "build paru" makepkg -si --noconfirm -D "$tmp/paru" || return 1
+    scrow_run "clone paru" git clone --depth 1 https://aur.archlinux.org/paru.git "$tmp/paru" || {
+        rm -rf "$tmp"
+        echo "  ${C_ERR}      could not fetch paru from the AUR — check network, then retry${C_RESET}"
+        return 1
+    }
+    scrow_run "build paru" makepkg -si --noconfirm -D "$tmp/paru" || {
+        rm -rf "$tmp"
+        echo "  ${C_ERR}      paru build failed — see the log for the exact error${C_RESET}"
+        return 1
+    }
     rm -rf "$tmp"
 }
