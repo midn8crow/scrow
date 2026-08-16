@@ -178,6 +178,13 @@ scrow_engine_install() {
 
     # Acquire the temporary repository FIRST so the plan, the component
     # definitions and every deployed file come from the same source of truth.
+    SCROW_STAGE_SEEN=()
+    scrow_stage 1 "System prerequisites"
+    if ! command -v pacman >/dev/null 2>&1; then
+        echo "  ${C_ERR}✗ pacman not found — SCROW requires Arch Linux.${C_RESET}"
+        echo "  ${C_DIM}  Log: $SCROW_CURRENT_LOG${C_RESET}"
+        return 1
+    fi
     scrow_repo_guard || return 1
     echo "  ${C_OK}Preparing installation… repository ✓${C_RESET}"
 
@@ -188,6 +195,7 @@ scrow_engine_install() {
         scrow_state_set EXTRA "$(scrow_repo_unclaimed_units | tr '\n' ' ' | sed 's/  */ /g; s/^ *//; s/ *$//')"
     fi
 
+    scrow_stage 4 "Resolve components"
     scrow_plan_resolve "${wanted[@]}"
 
     local -a todo=()
@@ -226,6 +234,26 @@ scrow_engine_install() {
             echo "  ${C_DIM}Set APPLY_SECURITY=1 in ${SCROW_CONFIG_FILE} to apply the firewall, fail2ban and system hardening.${C_RESET}"
         else
             echo "  ${C_WARN}Security hardening IS enabled — firewall, fail2ban and system hardening will be applied.${C_RESET}"
+        fi
+        echo
+    fi
+
+    # paru is a GLOBAL prerequisite, not a per-component dependency. If any
+    # planned component needs AUR packages, initialize it ONCE up front. If
+    # that fails, the whole installation stops — never retry per component.
+    local -i plan_has_aur=0
+    local pname
+    for pname in "${todo[@]}"; do
+        [[ -n "$(scrow_component_aur "$pname")" ]] && plan_has_aur=1
+    done
+    if (( plan_has_aur == 1 )); then
+        echo
+        if ! scrow_ensure_paru; then
+            echo
+            echo "  ${C_ERR}✗ Failed to install paru${C_RESET}"
+            echo "  ${C_DIM}  Required for AUR packages.${C_RESET}"
+            echo "  ${C_DIM}  Log: $SCROW_CURRENT_LOG${C_RESET}"
+            return 1
         fi
         echo
     fi
@@ -312,6 +340,7 @@ scrow_engine_install() {
     fi
     echo
     echo "  ${C_ACCENT}Validating installation…${C_RESET}"
+    scrow_stage 11 "Validate the resulting system"
     (( SCROW_STAGE_PACKAGES == 1 )) && echo "  ${C_OK}    ✓ Packages${C_RESET}"
     (( SCROW_STAGE_CONFIG == 1 ))   && echo "  ${C_OK}    ✓ Configurations${C_RESET}"
     (( SCROW_STAGE_SCRIPTS == 1 ))  && echo "  ${C_OK}    ✓ Scripts${C_RESET}"
@@ -375,14 +404,6 @@ scrow_install_component() {
 
     scrow_need_root
 
-    # AUR helper required for any AUR packages.
-    if [[ -n "$(scrow_component_aur "$name")" ]]; then
-        if ! scrow_pm_install_paru; then
-            scrow_fail_component "$name" "paru (AUR helper) installation failed"
-            return 1
-        fi
-    fi
-
     if ! scrow_install_packages "$name"; then
         scrow_fail_component "$name" "package installation failed"
         return 1
@@ -390,6 +411,8 @@ scrow_install_component() {
     SCROW_STAGE_PACKAGES=1
     echo "  ${C_OK}    ✓ packages${C_RESET}"
 
+    # Scripts and user binaries are deployed with the utilities/default units.
+    [[ "$name" == "utilities" || "$name" == "default" ]] && scrow_stage 8 "Deploy scripts & binaries"
     if ! scrow_deploy_component "$name"; then
         scrow_fail_component "$name" "configuration deployment failed"
         return 1
@@ -403,6 +426,7 @@ scrow_install_component() {
     echo "  ${C_OK}    ✓ configuration${C_RESET}"
 
     SCROW_POST_SERVICES=0
+    scrow_stage 10 "Run post-install hooks"
     scrow_component_post "$name"
     rc=$?
     if (( rc == 2 )); then
@@ -450,12 +474,17 @@ declare -A SCROW_PLAN_PKGS=()
 
 scrow_install_packages() {
     local name="$1" pkg
+    [[ -n "$(scrow_component_packages "$name")" ]] && scrow_stage 5 "Install official packages"
+    [[ -n "$(scrow_component_aur "$name")" ]] && scrow_stage 6 "Install AUR packages (paru)"
     for pkg in $(scrow_component_packages "$name"); do
         scrow_config_pkg_skipped "$pkg" && continue
         if [[ -n "${SCROW_PLAN_PKGS[$pkg]:-}" ]]; then
             continue
         fi
-        scrow_pm_install "$pkg" || return 1
+        scrow_pm_install "$pkg" || {
+            echo "  ${C_ERR}      package installation failed: $pkg${C_RESET}"
+            return 1
+        }
         SCROW_PLAN_PKGS[$pkg]=1
     done
     for pkg in $(scrow_component_aur "$name"); do
@@ -463,7 +492,10 @@ scrow_install_packages() {
         if [[ -n "${SCROW_PLAN_PKGS[$pkg]:-}" ]]; then
             continue
         fi
-        scrow_pm_install "$pkg" || return 1
+        scrow_pm_install "$pkg" || {
+            echo "  ${C_ERR}      AUR package installation failed: $pkg${C_RESET}"
+            return 1
+        }
         SCROW_PLAN_PKGS[$pkg]=1
     done
 }
@@ -711,6 +743,21 @@ scrow_engine_repair() {
     local name path full t
     local -i failed=0
     local prc
+
+    # AUR packages need paru — ensure it ONCE up front, never per component.
+    local -i repair_has_aur=0
+    for name in "${names[@]}"; do
+        [[ "$name" == "default" ]] && continue
+        [[ -n "$(scrow_component_aur "$name")" ]] && repair_has_aur=1
+    done
+    if (( repair_has_aur == 1 )); then
+        if ! scrow_ensure_paru; then
+            echo "  ${C_ERR}✗ Failed to install paru${C_RESET}"
+            echo "  ${C_DIM}  Required for AUR packages.${C_RESET}"
+            return 1
+        fi
+    fi
+
     for name in "${names[@]}"; do
         [[ "$name" == "default" ]] || scrow_component_exists "$name" || { echo "  ${C_WARN}Unknown component: $name${C_RESET}"; continue; }
         echo "  ${C_ACCENT}› ${name}${C_RESET}"

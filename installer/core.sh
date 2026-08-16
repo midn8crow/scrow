@@ -140,6 +140,18 @@ scrow_need_root() {
 # -----------------------------------------------------------------------------
 # Small helpers
 # -----------------------------------------------------------------------------
+# Progress stage markers: make the long installation pipeline auditable by
+# printing where we are. Each stage is printed the first time it is reached,
+# so the output is a monotonic trail through the pipeline.
+declare -A SCROW_STAGE_SEEN=()
+
+scrow_stage() {
+    local n="$1" label="$2"
+    [[ -n "${SCROW_STAGE_SEEN[$n]:-}" ]] && return 0
+    SCROW_STAGE_SEEN[$n]=1
+    echo "  ${C_DIM}── STAGE $n — $label${C_RESET}"
+}
+
 scrow_sha() {
     sha256sum "$1" 2>/dev/null | cut -d' ' -f1
 }

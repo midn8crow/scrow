@@ -313,8 +313,12 @@ scrow_deploy_path() {
 scrow_deploy_component() {
     local name="$1" p
     local -i failed=0
+    scrow_stage 7 "Deploy repository configuration"
     for p in $(scrow_component_paths "$name"); do
-        scrow_deploy_path "$p" || failed=1
+        if ! scrow_deploy_path "$p"; then
+            echo "  ${C_ERR}      configuration deployment failed: $p${C_RESET}"
+            failed=1
+        fi
     done
     return $failed
 }
