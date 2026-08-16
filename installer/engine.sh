@@ -12,6 +12,11 @@
 # is removed when the process exits.
 SCROW_REPO_TMP=""
 
+# Validation-stage flags, set during an install run and summarized at the end
+# so the final report only claims the stages that actually executed.
+SCROW_STAGE_PACKAGES=0; SCROW_STAGE_CONFIG=0; SCROW_STAGE_SCRIPTS=0
+SCROW_STAGE_SERVICES=0; SCROW_STAGE_PERMS=0; SCROW_STAGE_POST=0
+
 scrow_repo_present() {
     [[ -d "$SCROW_REPO/.config" ]] && [[ -s "$SCROW_REPO/installer/scrow" ]] && [[ -s "$SCROW_REPO/VERSION" ]]
 }
@@ -31,62 +36,34 @@ scrow_repo_post_acquire() {
     scrow_log "repository acquired at $SCROW_REPO"
 }
 
-# Acquire the repository ONCE into a temporary directory. Prefers a shallow git
-# clone (fast, small); falls back to a single archive download of the same
-# repository when git is unavailable. Real progress, bounded timeouts,
-# fail-fast with the log path.
+# Acquire the repository ONCE into a temporary directory via a shallow git
+# clone. This is the single repository acquisition — there is no archive
+# fallback and no second download. Fail-fast with the log path.
 scrow_repo_acquire() {
-    local tmp rc
+    local tmp
     tmp="$(mktemp -d "${TMPDIR:-/tmp}/scrow-XXXXXXXX" 2>/dev/null)" \
-        || tmp="$(mktemp -d 2>/dev/null)" \
-        || { echo "  ${C_ERR}could not create a temporary directory for the repository.${C_RESET}"; return 1; }
+        || tmp="$(mktemp -d 2>/dev/null)"
+    if [[ -z "$tmp" || ! -d "$tmp" ]]; then
+        echo "  ${C_ERR}could not create a temporary directory for the repository.${C_RESET}"
+        return 1
+    fi
     # Track the temp dir from the START so the launcher's INT/TERM/cleanup
     # paths remove it even when acquisition is interrupted before success.
     SCROW_REPO_TMP="$tmp"
 
-    if command -v git >/dev/null 2>&1; then
-        echo "  ${C_DIM}Cloning SCROW repository…${C_RESET}"
-        scrow_progress_run "Cloning SCROW repository" \
-            git clone --depth 1 --branch "$SCROW_REPO_BRANCH" --progress \
-            "$SCROW_REPO_URL" "$tmp/repo"
-        rc=$?
-        if (( rc == 0 )); then
-            SCROW_REPO="$tmp/repo"
-            if scrow_repo_present; then
-                scrow_repo_post_acquire
-                return 0
-            fi
-        fi
-        scrow_log "git clone failed (exit $rc); falling back to the archive"
-        rm -rf "$tmp/repo"
-    fi
-
-    local archive="$tmp/scrow.tar.gz"
-    echo "  ${C_DIM}Downloading SCROW repository…${C_RESET}"
-    if ! scrow_progress_run "Downloading SCROW repository" curl -fL --progress-bar --proto '=https' \
-            --connect-timeout 15 --max-time 600 --retry 5 --retry-delay 5 --retry-max-time 180 --retry-all-errors \
-            -o "$archive" "$SCROW_TARBALL_URL"; then
+    echo "  ${C_DIM}Cloning SCROW repository…${C_RESET}"
+    if ! scrow_run "clone repository" git clone --depth 1 --branch "$SCROW_REPO_BRANCH" \
+        -- "$SCROW_REPO_URL" "$tmp/repo"; then
         scrow_repo_cleanup
-        echo "  ${C_ERR}Could not download the SCROW repository.${C_RESET}"
+        echo "  ${C_ERR}Could not clone the SCROW repository.${C_RESET}"
         echo "  ${C_DIM}Check the network and try again. Details: $SCROW_CURRENT_LOG${C_RESET}"
         return 1
     fi
-    if ! gzip -t "$archive" 2>/dev/null; then
-        scrow_repo_cleanup
-        echo "  ${C_ERR}Downloaded SCROW repository is incomplete or corrupt.${C_RESET}"
-        return 1
-    fi
-    mkdir -p "$tmp/repo"
-    if ! tar -xzf "$archive" --strip-components=1 -C "$tmp/repo"; then
-        scrow_repo_cleanup
-        echo "  ${C_ERR}Could not unpack the SCROW repository.${C_RESET}"
-        return 1
-    fi
-    rm -f "$archive"
+
     SCROW_REPO="$tmp/repo"
     if ! scrow_repo_present; then
         scrow_repo_cleanup
-        echo "  ${C_ERR}The downloaded SCROW repository is incomplete.${C_RESET}"
+        echo "  ${C_ERR}The cloned SCROW repository is incomplete.${C_RESET}"
         echo "  ${C_DIM}Details: $SCROW_CURRENT_LOG${C_RESET}"
         return 1
     fi
@@ -166,6 +143,7 @@ scrow_plan_add() {
 # scrow_engine_install [names...]  (defaults to all uninstalled components)
 scrow_engine_install() {
     local -a wanted=("$@")
+    local -i full=0
     if [[ ${#wanted[@]} -eq 0 ]]; then
         local name
         for name in $(scrow_component_names); do
@@ -177,12 +155,38 @@ scrow_engine_install() {
             echo "  ${C_OK}Nothing to install — all components already present.${C_RESET}"
             return 0
         fi
+        full=1
+    else
+        # A request is a "Full Installation" when it (together with what is
+        # already configured) covers every available component — the TUI's
+        # full-install screen only passes the uninstalled ones.
+        local -i alln=0 cov=0
+        local n2
+        for n2 in $(scrow_component_names); do
+            scrow_config_component_skipped "$n2" && continue
+            alln+=1
+            if scrow_component_installed "$n2"; then
+                cov+=1
+            else
+                case " ${wanted[*]} " in
+                    *" $n2 "*) cov+=1 ;;
+                esac
+            fi
+        done
+        (( alln > 0 && cov == alln )) && full=1
     fi
 
     # Acquire the temporary repository FIRST so the plan, the component
     # definitions and every deployed file come from the same source of truth.
     scrow_repo_guard || return 1
-    echo "  ${C_OK}Preparing: repository ✓${C_RESET}"
+    echo "  ${C_OK}Preparing installation… repository ✓${C_RESET}"
+
+    # On a Full Installation the repository IS the complete content: discover
+    # what no component claims and record it so it is deployed and owned as
+    # the "default" unit below.
+    if (( full == 1 )); then
+        scrow_state_set EXTRA "$(scrow_repo_unclaimed_units | tr '\n' ' ' | sed 's/  */ /g; s/^ *//; s/ *$//')"
+    fi
 
     scrow_plan_resolve "${wanted[@]}"
 
@@ -200,6 +204,10 @@ scrow_engine_install() {
                 any=1
             fi
         done
+        if (( full == 1 )); then
+            scrow_converge_component default || rc=1
+            any=1
+        fi
         if (( any == 0 )); then
             echo "  ${C_OK}Nothing to install — all components already present.${C_RESET}"
             return 0
@@ -224,6 +232,10 @@ scrow_engine_install() {
 
     scrow_backup_autobackup
 
+    # Stage tracking for the final validation summary.
+    SCROW_STAGE_PACKAGES=0; SCROW_STAGE_CONFIG=0; SCROW_STAGE_SCRIPTS=0
+    SCROW_STAGE_SERVICES=0; SCROW_STAGE_PERMS=0; SCROW_STAGE_POST=0
+
     local -i failures=0
     for name in "${todo[@]}"; do
         scrow_install_component "$name" || failures+=1
@@ -234,6 +246,14 @@ scrow_engine_install() {
         [[ "${SCROW_PLAN_STATUS[$name]:-}" == "configured" ]] || continue
         scrow_converge_component "$name" || failures+=1
     done
+
+    # On a Full Installation, converge the unclaimed "default" content too.
+    if (( full == 1 )); then
+        if [[ -n "$(scrow_state_get EXTRA)" ]]; then
+            scrow_converge_component default || failures+=1
+            SCROW_STAGE_SCRIPTS=1
+        fi
+    fi
 
     if ! scrow_install_command; then
         SCROW_PLAN_STATUS[scrow]="failed"
@@ -290,7 +310,15 @@ scrow_engine_install() {
             echo "    ${C_DIM}− ${n} — ${SCROW_PLAN_REASON[$n]:-}${C_RESET}"
         done
     fi
-    echo "  ${C_OK}Install complete.${C_RESET}"
+    echo
+    echo "  ${C_ACCENT}Validating installation…${C_RESET}"
+    (( SCROW_STAGE_PACKAGES == 1 )) && echo "  ${C_OK}    ✓ Packages${C_RESET}"
+    (( SCROW_STAGE_CONFIG == 1 ))   && echo "  ${C_OK}    ✓ Configurations${C_RESET}"
+    (( SCROW_STAGE_SCRIPTS == 1 ))  && echo "  ${C_OK}    ✓ Scripts${C_RESET}"
+    (( SCROW_STAGE_SERVICES == 1 )) && echo "  ${C_OK}    ✓ Services${C_RESET}"
+    (( SCROW_STAGE_PERMS == 1 ))    && echo "  ${C_OK}    ✓ Permissions${C_RESET}"
+    (( SCROW_STAGE_POST == 1 ))     && echo "  ${C_OK}    ✓ Post-install setup${C_RESET}"
+    echo "  ${C_OK}SCROW installation complete.${C_RESET}"
     echo "  ${C_DIM}Log: $SCROW_CURRENT_LOG${C_RESET}"
     return 0
 }
@@ -359,6 +387,7 @@ scrow_install_component() {
         scrow_fail_component "$name" "package installation failed"
         return 1
     fi
+    SCROW_STAGE_PACKAGES=1
     echo "  ${C_OK}    ✓ packages${C_RESET}"
 
     if ! scrow_deploy_component "$name"; then
@@ -369,6 +398,8 @@ scrow_install_component() {
         scrow_fail_component "$name" "ownership recording failed"
         return 1
     fi
+    SCROW_STAGE_CONFIG=1
+    [[ "$name" == "utilities" ]] && SCROW_STAGE_SCRIPTS=1
     echo "  ${C_OK}    ✓ configuration${C_RESET}"
 
     SCROW_POST_SERVICES=0
@@ -384,6 +415,9 @@ scrow_install_component() {
         scrow_manifest_remove_component "$name"
         return 1
     fi
+    SCROW_STAGE_POST=1
+    [[ "$name" == "utilities" ]] && SCROW_STAGE_PERMS=1
+    (( SCROW_POST_SERVICES == 1 )) && SCROW_STAGE_SERVICES=1
     echo "  ${C_OK}    ✓ post-install${C_RESET}"
     (( SCROW_POST_SERVICES == 1 )) && echo "  ${C_OK}    ✓ services${C_RESET}"
 
@@ -559,7 +593,7 @@ scrow_build_synced_map() {
 
 scrow_engine_refresh() {
     local -a names=("$@")
-    [[ ${#names[@]} -eq 0 ]] && names=( $(scrow_state_components) )
+    [[ ${#names[@]} -eq 0 ]] && names=( $(scrow_owner_units) )
     echo
     echo "  ${C_ACCENT}SCROW Refresh${C_RESET}"
     echo "  ${C_DIM}Checking: ${names[*]}${C_RESET}"
@@ -576,7 +610,7 @@ scrow_engine_refresh() {
     local name path
     local -i failed=0
     for name in "${names[@]}"; do
-        scrow_component_exists "$name" || { echo "  ${C_WARN}Unknown component: $name${C_RESET}"; continue; }
+        [[ "$name" == "default" ]] || scrow_component_exists "$name" || { echo "  ${C_WARN}Unknown component: $name${C_RESET}"; continue; }
         echo "  ${C_ACCENT}› ${name}${C_RESET}"
         for path in $(scrow_component_paths "$name"); do
             [[ ! -e "$SCROW_REPO/$path" && ! -L "$SCROW_REPO/$path" ]] && continue
@@ -664,7 +698,7 @@ scrow_engine_repair() {
     scrow_repo_guard || return 1
     scrow_backup_autobackup
 
-    local -a names=( $(scrow_state_components) )
+    local -a names=( $(scrow_owner_units) )
     if [[ ${#names[@]} -eq 0 ]]; then
         echo "  ${C_WARN}Nothing installed to repair.${C_RESET}"
         return 0
@@ -678,7 +712,7 @@ scrow_engine_repair() {
     local -i failed=0
     local prc
     for name in "${names[@]}"; do
-        scrow_component_exists "$name" || { echo "  ${C_WARN}Unknown component: $name${C_RESET}"; continue; }
+        [[ "$name" == "default" ]] || scrow_component_exists "$name" || { echo "  ${C_WARN}Unknown component: $name${C_RESET}"; continue; }
         echo "  ${C_ACCENT}› ${name}${C_RESET}"
 
         scrow_need_root
@@ -886,6 +920,7 @@ scrow_engine_reset() {
     scrow_state_set INSTALLED 0
     scrow_state_set COMPONENTS ""
     scrow_state_set SERVICES ""
+    scrow_state_set EXTRA ""
     scrow_state_set INSTALL_DATE ""
     echo
     if (( failed > 0 )); then
@@ -900,6 +935,11 @@ scrow_engine_reset() {
 scrow_engine_remove_component() {
     local name="$1"
     scrow_component_exists "$name" || { echo "  ${C_WARN}Unknown component: $name${C_RESET}"; return 1; }
+
+    # The manifest rebuild below re-derives entries from the repository, so the
+    # repository must be present — otherwise the whole manifest would be lost.
+    scrow_repo_guard || return 1
+
     if [[ "${SCROW_ASSUME_YES:-0}" != "1" ]]; then
         read -r -p "  Remove component '$name' (files, not packages)? [y/N] " answer
         [[ "$answer" =~ ^[yY]$ ]] || { echo "  ${C_DIM}Aborted.${C_RESET}"; return 1; }

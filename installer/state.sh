@@ -17,6 +17,7 @@ scrow_state_init() {
         [INSTALLED]=0
         [COMPONENTS]=""
         [SERVICES]=""
+        [EXTRA]=""
         [INSTALL_DATE]=""
     )
     if [[ -f "$SCROW_STATE_FILE" ]]; then
@@ -32,7 +33,7 @@ scrow_state_write() {
     [[ "$SCROW_DRY_RUN" == "1" ]] && return 0
     mkdir -p "$SCROW_STATE_DIR"
     local k
-    for k in SCROW_VERSION INSTALLED COMPONENTS SERVICES INSTALL_DATE; do
+    for k in SCROW_VERSION INSTALLED COMPONENTS SERVICES EXTRA INSTALL_DATE; do
         printf '%s=%s\n' "$k" "${SCROW_STATE_VARS[$k]:-}"
     done > "$SCROW_STATE_FILE.tmp"
     mv -f "$SCROW_STATE_FILE.tmp" "$SCROW_STATE_FILE"

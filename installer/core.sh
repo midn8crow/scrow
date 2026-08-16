@@ -37,7 +37,6 @@ SCROW_CURRENT_LOG="$SCROW_LOG_DIR/scrow.log"
 
 SCROW_REPO_URL="${SCROW_REPO_URL:-https://github.com/midn8crow/scrow.git}"
 SCROW_REPO_BRANCH="${SCROW_REPO_BRANCH:-main}"
-SCROW_TARBALL_URL="${SCROW_TARBALL_URL:-https://github.com/midn8crow/scrow/archive/refs/heads/$SCROW_REPO_BRANCH.tar.gz}"
 
 SCROW_DRY_RUN="${SCROW_DRY_RUN:-0}"
 # VERSION is read from the active repository when present, falling back to the
@@ -136,27 +135,6 @@ scrow_need_root() {
         echo "  ${C_DIM}SCROW needs root for this step.${C_RESET}"
         sudo -v
     fi
-}
-
-# -----------------------------------------------------------------------------
-# Progress
-# -----------------------------------------------------------------------------
-# Run a command that reports progress as "NN%" markers on stderr (git clone,
-# curl --progress-bar) and render it as a single updating status line. Returns
-# the command's exit status. Only ever blocks on the command's own output — no
-# polling, no sleeps — so a slow download/clone stays visibly alive.
-scrow_progress_run() {
-    local label="$1"
-    shift
-    local line pct
-    "$@" 2>&1 | while IFS= read -r line; do
-        if [[ "$line" == *%* ]]; then
-            pct="${line%\%*}"
-            pct="${pct##*[^0-9]}"
-            [[ "$pct" =~ ^[0-9]+$ ]] && printf '\r  %-34s %3d%%' "$label" "$pct"
-        fi
-    done
-    return "${PIPESTATUS[0]}"
 }
 
 # -----------------------------------------------------------------------------

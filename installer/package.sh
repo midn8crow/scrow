@@ -77,6 +77,13 @@ scrow_pm_install_paru() {
         echo "  [dry-run] git + base-devel (if missing), then clone paru + makepkg -si"
         return 0
     }
+
+    # makepkg refuses to run as root — AUR packages must be built by a normal
+    # user. Report this clearly instead of letting makepkg fail silently.
+    if [[ "$(id -u)" == "0" ]]; then
+        echo "  ${C_ERR}      paru cannot be built as root — run SCROW as a normal user (makepkg refuses to run as root)${C_RESET}"
+        return 1
+    fi
     scrow_need_root
 
     # git is required to clone the paru PKGBUILD from the AUR.

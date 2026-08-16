@@ -1736,8 +1736,8 @@ scrow_analyze() {
     local comp pkg svc st path full
     local -i newf=0 dirs=0 pkgs=0 svcs=0
     local -a installed=()
-    for comp in $(scrow_state_components); do
-        scrow_component_exists "$comp" || continue
+    for comp in $(scrow_owner_units); do
+        [[ "$comp" == "default" ]] || scrow_component_exists "$comp" || continue
         installed+=("$comp")
         for pkg in $(scrow_component_packages "$comp") $(scrow_component_aur "$comp"); do
             scrow_config_pkg_skipped "$pkg" && continue
@@ -1801,7 +1801,7 @@ scrow_engine_update() {
     # Converge the installed components to the updated repository state:
     # deploy newly-added/changed files and re-apply post-install for the
     # components whose files changed.
-    local -a comps=( $(scrow_state_components) )
+    local -a comps=( $(scrow_owner_units) )
     if [[ ${#comps[@]} -eq 0 ]]; then
         return 0
     fi
@@ -1814,7 +1814,7 @@ scrow_engine_update() {
     local -i failed=0 changed=0 prc
     declare -A updated_comps=()
     for name in "${comps[@]}"; do
-        scrow_component_exists "$name" || continue
+        [[ "$name" == "default" ]] || scrow_component_exists "$name" || continue
         echo "  ${C_ACCENT}› ${name}${C_RESET}"
         local -i comp_changed=0
         for path in $(scrow_component_paths "$name"); do

@@ -38,6 +38,24 @@ SCROW_COMPONENTS=(
 # -----------------------------------------------------------------------------
 # Accessors
 # -----------------------------------------------------------------------------
+
+# Repository entries that are SCROW tooling, never deployed content. Everything
+# else the repository tracks is deployable — components claim their prefixes
+# explicitly, and any remaining top-level entry is deployed as the "default"
+# owner during a Full Installation so the repository IS the complete content.
+SCROW_META_PATHS=(
+    .git
+    installer
+    install.sh
+    bootstrap.sh
+    VERSION
+    README.md
+    CHANGELOG.md
+    LICENSE
+    .gitignore
+    .git_list
+)
+
 scrow_component_field() {
     # scrow_component_field <name> <index>  (1-based across pipe fields)
     local name="$1" idx="$2" comp
@@ -56,7 +74,16 @@ scrow_component_desc()     { scrow_component_field "$1" 2; }
 scrow_component_needs()    { scrow_component_field "$1" 3; }
 scrow_component_packages() { scrow_component_field "$1" 4; }
 scrow_component_aur()      { scrow_component_field "$1" 5; }
-scrow_component_paths()    { scrow_component_field "$1" 6; }
+
+scrow_component_paths() {
+    # "default" is a synthetic owner for repository content no component
+    # claims; its paths are recorded in the install state (EXTRA).
+    if [[ "$1" == "default" ]]; then
+        scrow_state_get EXTRA
+        return 0
+    fi
+    scrow_component_field "$1" 6
+}
 
 scrow_component_exists() {
     local name="$1" comp
@@ -70,6 +97,48 @@ scrow_component_names() {
     local comp
     for comp in "${SCROW_COMPONENTS[@]}"; do
         printf '%s\n' "${comp%%|*}"
+    done
+}
+
+# The complete set of owners to operate on: every installed component plus the
+# "default" owner when the Full Installation deployed unclaimed content.
+scrow_owner_units() {
+    scrow_state_components
+    [[ -n "$(scrow_state_get EXTRA)" ]] && printf '%s\n' "default"
+}
+
+# Top-level repository entries no component claims (and not SCROW tooling).
+# Full Installations deploy these under the "default" owner so the repository
+# is always the complete source of deployed content.
+scrow_repo_unclaimed_units() {
+    local -a units=()
+    local u
+    if [[ -d "$SCROW_REPO/.git" ]]; then
+        while IFS= read -r u; do
+            [[ -n "$u" ]] && units+=("$u")
+        done < <(git -C "$SCROW_REPO" ls-files | cut -d/ -f1 | sort -u)
+    else
+        while IFS= read -r u; do
+            [[ -n "$u" ]] && units+=("$u")
+        done < <(find "$SCROW_REPO" -mindepth 1 -maxdepth 1 \( -type f -o -type d \) -printf '%f\n' 2>/dev/null | sort -u)
+    fi
+    local unit p comp cp
+    for unit in "${units[@]}"; do
+        local claimed=0
+        for p in "${SCROW_META_PATHS[@]}"; do
+            [[ "$unit" == "$p" ]] && { claimed=1; break; }
+        done
+        (( claimed == 1 )) && continue
+        for comp in $(scrow_component_names); do
+            for cp in $(scrow_component_paths "$comp"); do
+                [[ -z "$cp" ]] && continue
+                if [[ "$unit" == "$cp" || "$unit" == "$cp"/* || "$cp" == "$unit"/* ]]; then
+                    claimed=1; break
+                fi
+            done
+            (( claimed == 1 )) && break
+        done
+        (( claimed == 0 )) && printf '%s\n' "$unit"
     done
 }
 

@@ -26,10 +26,18 @@ scrow_scope() {
 }
 
 scrow_target() {
+    local t
     case "$1" in
-        etc/*|boot/*|usr/*) echo "/$1" ;;
-        *) echo "$HOME/$1" ;;
+        etc/*|boot/*|usr/*) t="/$1" ;;
+        *) t="$HOME/$1" ;;
     esac
+    # Test hook: redirect root-owned targets into a sandbox so a full
+    # installation can be exercised without touching the real system.
+    if [[ -n "${SCROW_TEST_SYSTEM_ROOT:-}" && "$t" == /* && "$t" != "$HOME"/* ]]; then
+        printf '%s%s\n' "$SCROW_TEST_SYSTEM_ROOT" "$t"
+        return 0
+    fi
+    printf '%s\n' "$t"
 }
 
 # List the files tracked by git for a repo-relative prefix (respects
@@ -182,7 +190,7 @@ scrow_manifest_remove_component() {
 # repo source to a different location) that are not part of any component path.
 scrow_manifest_rebuild() {
     local names=("$@")
-    [[ ${#names[@]} -eq 0 ]] && names=( $(scrow_state_components) )
+    [[ ${#names[@]} -eq 0 ]] && names=( $(scrow_owner_units) )
     local deployed=()
     local line src comp
     while IFS= read -r line; do
