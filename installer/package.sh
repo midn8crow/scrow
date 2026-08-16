@@ -94,12 +94,14 @@ scrow_paru_available() {
 # git (to fetch PKGBUILDs) plus the base-devel group (make, gcc, binutils,
 # pkgconf, fakeroot, debugedit, …). Installs only what is missing, then
 # VERIFIES the critical members actually exist — a missing fakeroot/debugedit
-# must never reach the paru build.
+# must never reach the paru build. Output streams live so the user sees the
+# actual pacman work instead of a frozen screen.
 scrow_ensure_build_dependencies() {
-    scrow_stage 2 "Build toolchain"
+    scrow_stage 3 "Build environment"
+    echo "  ${C_DIM}Preparing AUR build environment…${C_RESET}"
     if ! command -v git >/dev/null 2>&1; then
-        echo "  ${C_DIM}Installing git…${C_RESET}"
-        scrow_run_sudo "install git" pacman -S --needed --noconfirm git || return 1
+        echo "  ${C_DIM}    Installing git…${C_RESET}"
+        scrow_run_sudo_live "install git" pacman -S --needed --noconfirm git || return 1
     fi
 
     local -a missing=() member
@@ -108,8 +110,8 @@ scrow_ensure_build_dependencies() {
         pacman -Q "$member" >/dev/null 2>&1 || missing+=("$member")
     done < <(pacman -Sg base-devel 2>/dev/null)
     if [[ ${#missing[@]} -gt 0 ]]; then
-        echo "  ${C_DIM}Installing base-devel (missing: ${missing[*]})…${C_RESET}"
-        scrow_run_sudo "install base-devel" pacman -S --needed --noconfirm base-devel || return 1
+        echo "  ${C_DIM}    Installing base-devel (missing: ${missing[*]})…${C_RESET}"
+        scrow_run_sudo_live "install base-devel" pacman -S --needed --noconfirm base-devel || return 1
     fi
 
     # Verify the explicit toolchain members makepkg needs. Do not assume the
@@ -121,12 +123,15 @@ scrow_ensure_build_dependencies() {
             return 1
         fi
     done
+    echo "  ${C_OK}    ✓ build dependencies ready${C_RESET}"
     return 0
 }
 
 # Initialize paru ONCE for this invocation. Fail-fast: if paru cannot be
 # installed the whole installation stops — AUR packages are unavailable, and
 # building paru per-component (as previous versions did) is wrong.
+# Every long-running step (base-devel install, clone, makepkg) streams its
+# output live so the user always sees what is happening.
 scrow_ensure_paru() {
     # At most once per invocation — even if a caller forgets the guard, the
     # build path can never run twice.
@@ -136,15 +141,17 @@ scrow_ensure_paru() {
     fi
     SCROW_PARU_INITIALIZED=1
 
-    # Already installed? Zero builds, zero clones.
-    scrow_paru_available && {
+    echo "  ${C_DIM}Checking paru…${C_RESET}"
+    if scrow_paru_available; then
+        echo "  ${C_OK}    ✓ paru detected ($(command -v paru))${C_RESET}"
         scrow_log "pkg: paru (already available)"
         return 0
-    }
+    fi
+    echo "  ${C_ERR}    ✗ paru not found${C_RESET}"
 
     [[ "$SCROW_DRY_RUN" == "1" ]] && {
-        scrow_stage 2 "Build toolchain"
-        scrow_stage 3 "Initialize paru"
+        scrow_stage 3 "Build environment"
+        scrow_stage 4 "Initialize paru ONCE"
         echo "  [dry-run] build prerequisites, then clone paru + makepkg -si"
         SCROW_PARU_AVAILABLE=1
         return 0
@@ -158,36 +165,52 @@ scrow_ensure_paru() {
     fi
     scrow_need_root
 
+    echo
+    echo "  ${C_DIM}Setting up build environment…${C_RESET}"
     # Prerequisites FIRST (fakeroot, debugedit, make, gcc, …), then paru.
     scrow_ensure_build_dependencies || {
-        echo "  ${C_ERR}      Failed to install the build prerequisites.${C_RESET}"
+        echo "  ${C_ERR}      ✗ Failed to install the build prerequisites.${C_RESET}"
+        echo "  ${C_DIM}      Log: $SCROW_CURRENT_LOG${C_RESET}"
         return 1
     }
+    echo
 
-    scrow_stage 3 "Initialize paru"
-    echo "  ${C_DIM}Installing paru (AUR helper)…${C_RESET}"
-
-    local tmp
+    scrow_stage 4 "Initialize paru ONCE"
+    local tmp start
     tmp="$(mktemp -d)"
-    scrow_run "clone paru" git clone --depth 1 https://aur.archlinux.org/paru.git "$tmp/paru" || {
+    scrow_log "paru build dir: $tmp"
+
+    echo "  ${C_DIM}Cloning paru (AUR)…${C_RESET}"
+    start=$SECONDS
+    if ! scrow_run_live "clone paru" git clone --depth 1 https://aur.archlinux.org/paru.git "$tmp/paru"; then
         rm -rf "$tmp"
-        echo "  ${C_ERR}      could not fetch paru from the AUR — check network, then retry${C_RESET}"
+        echo "  ${C_ERR}      ✗ could not fetch paru from the AUR — check network, then retry${C_RESET}"
+        echo "  ${C_DIM}      Log: $SCROW_CURRENT_LOG${C_RESET}"
         return 1
-    }
-    scrow_run "build paru" makepkg -si --noconfirm -D "$tmp/paru" || {
+    fi
+    echo "  ${C_OK}    ✓ source acquired ($(scrow_duration $((SECONDS - start))))${C_RESET}"
+
+    echo
+    echo "  ${C_DIM}Building paru — resolving, compiling, packaging (makepkg -si)…${C_RESET}"
+    start=$SECONDS
+    if ! scrow_run_live "build paru" makepkg -si --noconfirm -D "$tmp/paru"; then
         rm -rf "$tmp"
-        echo "  ${C_ERR}      Failed to install paru.${C_RESET}"
+        echo "  ${C_ERR}      ✗ Failed to install paru.${C_RESET}"
         echo "  ${C_DIM}      Required for AUR packages.${C_RESET}"
+        echo "  ${C_DIM}      Log: $SCROW_CURRENT_LOG${C_RESET}"
         return 1
-    }
+    fi
+    echo "  ${C_OK}    ✓ build complete ($(scrow_duration $((SECONDS - start))))${C_RESET}"
     rm -rf "$tmp"
 
+    echo "  ${C_DIM}Verifying paru…${C_RESET}"
     # Re-verify immediately — never assume the build succeeded.
-    scrow_paru_available || {
-        echo "  ${C_ERR}      paru build finished but \`paru\` is not on PATH.${C_RESET}"
+    if ! scrow_paru_available; then
+        echo "  ${C_ERR}      ✗ paru build finished but \`paru\` is not on PATH.${C_RESET}"
+        echo "  ${C_DIM}      Log: $SCROW_CURRENT_LOG${C_RESET}"
         return 1
-    }
-    echo "  ${C_OK}    ✓ paru available${C_RESET}"
+    fi
+    echo "  ${C_OK}    ✓ paru installed ($(command -v paru))${C_RESET}"
     scrow_log "pkg: paru initialized"
     return 0
 }

@@ -179,14 +179,18 @@ scrow_engine_install() {
     # Acquire the temporary repository FIRST so the plan, the component
     # definitions and every deployed file come from the same source of truth.
     SCROW_STAGE_SEEN=()
-    scrow_stage 1 "System prerequisites"
+    scrow_stage 1 "Repository preparation"
+    scrow_repo_guard || return 1
+    scrow_log "source: $SCROW_REPO"
+    echo "  ${C_OK}Preparing installation… repository ✓${C_RESET}"
+    echo "  ${C_DIM}  source: $SCROW_REPO${C_RESET}"
+
+    scrow_stage 2 "System prerequisites"
     if ! command -v pacman >/dev/null 2>&1; then
         echo "  ${C_ERR}✗ pacman not found — SCROW requires Arch Linux.${C_RESET}"
         echo "  ${C_DIM}  Log: $SCROW_CURRENT_LOG${C_RESET}"
         return 1
     fi
-    scrow_repo_guard || return 1
-    echo "  ${C_OK}Preparing installation… repository ✓${C_RESET}"
 
     # On a Full Installation the repository IS the complete content: discover
     # what no component claims and record it so it is deployed and owned as
@@ -195,7 +199,7 @@ scrow_engine_install() {
         scrow_state_set EXTRA "$(scrow_repo_unclaimed_units | tr '\n' ' ' | sed 's/  */ /g; s/^ *//; s/ *$//')"
     fi
 
-    scrow_stage 4 "Resolve components"
+    scrow_stage 5 "Resolve selected components"
     scrow_plan_resolve "${wanted[@]}"
 
     local -a todo=()
@@ -250,6 +254,7 @@ scrow_engine_install() {
         echo
         if ! scrow_ensure_paru; then
             echo
+            echo "  ${C_ERR}✗ Full Installation FAILED${C_RESET}"
             echo "  ${C_ERR}✗ Failed to install paru${C_RESET}"
             echo "  ${C_DIM}  Required for AUR packages.${C_RESET}"
             echo "  ${C_DIM}  Log: $SCROW_CURRENT_LOG${C_RESET}"
@@ -308,8 +313,9 @@ scrow_engine_install() {
 
     echo
     if (( failed_names > 0 )); then
-        echo "  ${C_ERR}${configured}/${total} components configured${C_RESET}"
-        echo "  ${C_ERR}${failed_names} failed:${C_RESET}"
+        echo "  ${C_ERR}✗ Full Installation FAILED${C_RESET}"
+        echo "  ${C_ERR}  ${configured}/${total} components configured${C_RESET}"
+        echo "  ${C_ERR}  ${failed_names} failed:${C_RESET}"
         for n in "${all_names[@]}"; do
             [[ "${SCROW_PLAN_STATUS[$n]:-}" == "failed" ]] || continue
             echo "    ${C_ERR}✗ ${n} — ${SCROW_PLAN_REASON[$n]:-unknown reason}${C_RESET}"
@@ -338,15 +344,52 @@ scrow_engine_install() {
             echo "    ${C_DIM}− ${n} — ${SCROW_PLAN_REASON[$n]:-}${C_RESET}"
         done
     fi
+
+    # Validation must confirm the REAL result before success is reported.
     echo
     echo "  ${C_ACCENT}Validating installation…${C_RESET}"
-    scrow_stage 11 "Validate the resulting system"
+    scrow_stage 12 "Validate the resulting system"
     (( SCROW_STAGE_PACKAGES == 1 )) && echo "  ${C_OK}    ✓ Packages${C_RESET}"
     (( SCROW_STAGE_CONFIG == 1 ))   && echo "  ${C_OK}    ✓ Configurations${C_RESET}"
     (( SCROW_STAGE_SCRIPTS == 1 ))  && echo "  ${C_OK}    ✓ Scripts${C_RESET}"
     (( SCROW_STAGE_SERVICES == 1 )) && echo "  ${C_OK}    ✓ Services${C_RESET}"
     (( SCROW_STAGE_PERMS == 1 ))    && echo "  ${C_OK}    ✓ Permissions${C_RESET}"
     (( SCROW_STAGE_POST == 1 ))     && echo "  ${C_OK}    ✓ Post-install setup${C_RESET}"
+
+    local -i vrc=0
+    if (( plan_has_aur == 1 )) && ! scrow_paru_available; then
+        echo "  ${C_ERR}    ✗ paru missing after installation${C_RESET}"
+        vrc=1
+    else
+        echo "  ${C_OK}    ✓ paru present${C_RESET}"
+    fi
+    if [[ -f "$SCROW_STATE_FILE" ]]; then
+        echo "  ${C_OK}    ✓ SCROW state: $SCROW_STATE_FILE${C_RESET}"
+    else
+        echo "  ${C_ERR}    ✗ SCROW state file missing: $SCROW_STATE_FILE${C_RESET}"
+        vrc=1
+    fi
+
+    scrow_stage 13 "Cleanup temporary repository"
+    scrow_repo_cleanup
+    # The bootstrap's own clone (SCROW_REPO itself) is still live until the
+    # launcher exits — anything else under /tmp/scrow-* is a leak.
+    local leak
+    leak="$(ls -d /tmp/scrow-* 2>/dev/null | grep -v -x "$SCROW_REPO" | head -1)"
+    if [[ -n "$leak" ]]; then
+        echo "  ${C_ERR}    ✗ leaked /tmp/scrow-* directory: $leak${C_RESET}"
+        vrc=1
+    else
+        echo "  ${C_OK}    ✓ no leaked temporary repository${C_RESET}"
+    fi
+
+    if (( vrc != 0 )); then
+        echo
+        echo "  ${C_ERR}✗ Full Installation FAILED — validation${C_RESET}"
+        echo "  ${C_DIM}  Log: $SCROW_CURRENT_LOG${C_RESET}"
+        return 1
+    fi
+    echo "  ${C_OK}    ✓ installation validated${C_RESET}"
     echo "  ${C_OK}SCROW installation complete.${C_RESET}"
     echo "  ${C_DIM}Log: $SCROW_CURRENT_LOG${C_RESET}"
     return 0
@@ -412,7 +455,11 @@ scrow_install_component() {
     echo "  ${C_OK}    ✓ packages${C_RESET}"
 
     # Scripts and user binaries are deployed with the utilities/default units.
-    [[ "$name" == "utilities" || "$name" == "default" ]] && scrow_stage 8 "Deploy scripts & binaries"
+    if [[ "$name" == "utilities" || "$name" == "default" ]]; then
+        scrow_stage 9 "Deploy scripts & binaries"
+        echo "  ${C_DIM}    Deploying scripts & binaries…${C_RESET}"
+    fi
+    echo "  ${C_DIM}    Deploying repository configuration…${C_RESET}"
     if ! scrow_deploy_component "$name"; then
         scrow_fail_component "$name" "configuration deployment failed"
         return 1
@@ -426,7 +473,7 @@ scrow_install_component() {
     echo "  ${C_OK}    ✓ configuration${C_RESET}"
 
     SCROW_POST_SERVICES=0
-    scrow_stage 10 "Run post-install hooks"
+    scrow_stage 11 "Run post-install hooks"
     scrow_component_post "$name"
     rc=$?
     if (( rc == 2 )); then
@@ -474,8 +521,8 @@ declare -A SCROW_PLAN_PKGS=()
 
 scrow_install_packages() {
     local name="$1" pkg
-    [[ -n "$(scrow_component_packages "$name")" ]] && scrow_stage 5 "Install official packages"
-    [[ -n "$(scrow_component_aur "$name")" ]] && scrow_stage 6 "Install AUR packages (paru)"
+    [[ -n "$(scrow_component_packages "$name")" ]] && scrow_stage 6 "Install official packages"
+    [[ -n "$(scrow_component_aur "$name")" ]] && scrow_stage 7 "Install AUR packages using existing paru"
     for pkg in $(scrow_component_packages "$name"); do
         scrow_config_pkg_skipped "$pkg" && continue
         if [[ -n "${SCROW_PLAN_PKGS[$pkg]:-}" ]]; then
@@ -752,6 +799,7 @@ scrow_engine_repair() {
     done
     if (( repair_has_aur == 1 )); then
         if ! scrow_ensure_paru; then
+            echo "  ${C_ERR}✗ Full Installation FAILED${C_RESET}"
             echo "  ${C_ERR}✗ Failed to install paru${C_RESET}"
             echo "  ${C_DIM}  Required for AUR packages.${C_RESET}"
             return 1

@@ -57,7 +57,7 @@ scrow_service_restart() {
 scrow_services_apply() {
     local svc
     local -i failed=0
-    scrow_stage 9 "Configure services"
+    scrow_stage 10 "Configure services/system files"
     for svc in "${SCROW_SERVICES_SUPPORT[@]}"; do
         scrow_service_enable "$svc" || failed=1
     done

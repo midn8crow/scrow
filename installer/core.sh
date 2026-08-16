@@ -128,6 +128,44 @@ scrow_run_sudo() {
     return $rc
 }
 
+# Run a command streaming its output LIVE to the terminal AND appending it to
+# the log, returning its exit code. Used for long-running steps (base-devel
+# install, paru clone/build) where a silent subprocess would make the screen
+# look frozen. The full raw output stays in the log for inspection.
+scrow_run_live() {
+    local desc="$1" rc=0
+    shift
+    scrow_log "RUN $desc: $*"
+    if [[ "$SCROW_DRY_RUN" == "1" ]]; then
+        echo "  [dry-run] ${C_DIM}$*${C_RESET}"
+        return 0
+    fi
+    echo "--- $desc" >> "$SCROW_CURRENT_LOG"
+    echo "--- cmd: $*" >> "$SCROW_CURRENT_LOG"
+    "$@" 2>&1 | tee -a "$SCROW_CURRENT_LOG"
+    rc=${PIPESTATUS[0]}
+    echo "--- exit: $rc" >> "$SCROW_CURRENT_LOG"
+    return $rc
+}
+
+# Same as scrow_run_live, as root.
+scrow_run_sudo_live() {
+    local desc="$1" rc=0
+    shift
+    scrow_log "RUN(SUDO) $desc: $*"
+    if [[ "$SCROW_DRY_RUN" == "1" ]]; then
+        echo "  [dry-run] ${C_DIM}sudo $*${C_RESET}"
+        return 0
+    fi
+    scrow_need_root
+    echo "--- $desc" >> "$SCROW_CURRENT_LOG"
+    echo "--- cmd: sudo $*" >> "$SCROW_CURRENT_LOG"
+    sudo "$@" 2>&1 | tee -a "$SCROW_CURRENT_LOG"
+    rc=${PIPESTATUS[0]}
+    echo "--- exit: $rc" >> "$SCROW_CURRENT_LOG"
+    return $rc
+}
+
 # Prompt for sudo up front for the current session (only when root is needed).
 scrow_need_root() {
     [[ "$SCROW_DRY_RUN" == "1" ]] && return 0
@@ -150,6 +188,18 @@ scrow_stage() {
     [[ -n "${SCROW_STAGE_SEEN[$n]:-}" ]] && return 0
     SCROW_STAGE_SEEN[$n]=1
     echo "  ${C_DIM}── STAGE $n — $label${C_RESET}"
+}
+
+# Human-readable elapsed time for long-running steps (e.g. the paru build).
+scrow_duration() {
+    local -i s=$1
+    if (( s >= 3600 )); then
+        printf '%dh %dm %ds' $((s/3600)) $(((s%3600)/60)) $((s%60))
+    elif (( s >= 60 )); then
+        printf '%dm %ds' $((s/60)) $((s%60))
+    else
+        printf '%ds' "$s"
+    fi
 }
 
 scrow_sha() {
