@@ -10,6 +10,9 @@ if [[ -z "${PACMAN_AUTH:-}" ]]; then
     export PACMAN_AUTH="sudo"
 fi
 
+# Prompt for sudo password once, then keep alive in background
+make_sudo_keepalive
+
 # Paru bootstrap — only if not already installed
 install_paru_if_needed() {
     if command -v paru >/dev/null 2>&1; then
