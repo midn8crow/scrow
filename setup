@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+# =============================================================================
+# SCROW — setup script
+# =============================================================================
+# Main entry point for SCROW installation. Modeled after end-4/dots-hyprland.
+#
+# Usage:
+#   ./setup install          Install SCROW
+#   ./setup help             Show help
+#   curl -fsSL .../bootstrap.sh | bash   (via bootstrap)
+#
+# Subcommands:
+#   install   — Full installation (deps → setup → files)
+#   help      — Show this help message
+# =============================================================================
+
+set -uo pipefail
+
+# ── Determine repository root ─────────────────────────────────────────────────
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export REPO_ROOT
+
+# ── Source libraries ──────────────────────────────────────────────────────────
+# shellcheck source=sdata/lib/environment-variables.sh
+source "$REPO_ROOT/sdata/lib/environment-variables.sh"
+# shellcheck source=sdata/lib/functions.sh
+source "$REPO_ROOT/sdata/lib/functions.sh"
+# shellcheck source=sdata/lib/package-installers.sh
+source "$REPO_ROOT/sdata/lib/package-installers.sh"
+# shellcheck source=sdata/lib/dist-determine.sh
+source "$REPO_ROOT/sdata/lib/dist-determine.sh"
+
+# ── Help ──────────────────────────────────────────────────────────────────────
+show_help() {
+    printf "Usage: %s <subcommand>\n\n" "$0"
+    printf "Subcommands:\n"
+    printf "  install    Install SCROW (dependencies, setup, and files)\n"
+    printf "  help       Show this help message\n"
+    printf "\n"
+    printf "Quick install (from anywhere):\n"
+    printf "  curl -fsSL https://raw.githubusercontent.com/midn8crow/scrow/main/bootstrap.sh | bash\n"
+    printf "\n"
+}
+
+# ── Install ───────────────────────────────────────────────────────────────────
+do_install() {
+    prevent_sudo_or_root
+
+    # Source greeting
+    source "$REPO_ROOT/sdata/subcmd-install/0.greeting.sh"
+
+    # Source install steps (they execute on source)
+    source "$REPO_ROOT/sdata/subcmd-install/1.deps-router.sh"
+    source "$REPO_ROOT/sdata/subcmd-install/2.setups.sh"
+    source "$REPO_ROOT/sdata/subcmd-install/3.files.sh"
+
+    # ── Done ──────────────────────────────────────────────────────────────────
+    printf "${C_BOLD}${C_CYN}  ╔══════════════════════════════════════════════════╗${C_RST}\n"
+    printf "${C_BOLD}${C_CYN}  ║            Installation complete!               ║${C_RST}\n"
+    printf "${C_BOLD}${C_CYN}  ╚══════════════════════════════════════════════════╝${C_RST}\n"
+    printf "\n"
+    printf "  ${C_BOLD}Next steps:${C_RST}\n"
+    printf "  1. Log out and select Hyprland from your display manager\n"
+    printf "  2. Or reboot to ensure all services start correctly\n"
+    printf "\n"
+}
+
+# ── Main dispatch ─────────────────────────────────────────────────────────────
+case "${1:-help}" in
+    install)
+        do_install
+        ;;
+    help|--help|-h)
+        show_help
+        ;;
+    *)
+        printf "${C_ERR}Error: Unknown subcommand '%s'${C_RST}\n" "$1"
+        printf "\n"
+        show_help
+        exit 1
+        ;;
+esac

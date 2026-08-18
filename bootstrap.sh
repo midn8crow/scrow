@@ -57,14 +57,11 @@ if ! git clone --depth 1 --branch "$SCROW_REPO_BRANCH" \
 fi
 
 # When run via `curl ... | bash`, bash's stdin is the curl pipe, which is
-# already at EOF by the time the installer starts. The interactive TUI's
-# `read` would then see EOF and exit immediately. Give the installer the
-# user's actual terminal instead. The subshell probe actually tries to open
-# /dev/tty, so headless/CI runs (no controlling terminal) fall through and
-# keep their current stdin unchanged.
+# already at EOF by the time the installer starts. Give the installer the
+# user's actual terminal instead.
 if [[ ! -t 0 ]] && ( : < /dev/tty ) 2>/dev/null; then
-    bash "$SCROW_TMP_DIR/install.sh" "$@" < /dev/tty
+    bash "$SCROW_TMP_DIR/setup" install "$@" < /dev/tty
 else
-    bash "$SCROW_TMP_DIR/install.sh" "$@"
+    bash "$SCROW_TMP_DIR/setup" install "$@"
 fi
 exit $?
