@@ -2,16 +2,12 @@
 # =============================================================================
 # SCROW — setup script
 # =============================================================================
-# Main entry point for SCROW installation. Modeled after end-4/dots-hyprland.
+# Main entry point for SCROW installation.
 #
 # Usage:
 #   ./setup install          Install SCROW
 #   ./setup help             Show help
 #   curl -fsSL .../bootstrap.sh | bash   (via bootstrap)
-#
-# Subcommands:
-#   install   — Full installation (deps → setup → files)
-#   help      — Show this help message
 # =============================================================================
 
 set -uo pipefail
@@ -29,6 +25,16 @@ source "$REPO_ROOT/sdata/lib/functions.sh"
 source "$REPO_ROOT/sdata/lib/package-installers.sh"
 # shellcheck source=sdata/lib/dist-determine.sh
 source "$REPO_ROOT/sdata/lib/dist-determine.sh"
+
+# ── Cleanup on exit ───────────────────────────────────────────────────────────
+cleanup_on_exit() {
+    local rc=$?
+    stop_sudo_keepalive
+    if (( rc != 0 )); then
+        printf "\n  ${C_DIM}Installation log saved to: %s${C_RST}\n" "$SCROW_LOG_FILE"
+    fi
+}
+trap cleanup_on_exit EXIT
 
 # ── Help ──────────────────────────────────────────────────────────────────────
 show_help() {
@@ -49,10 +55,17 @@ do_install() {
     # Source greeting
     source "$REPO_ROOT/sdata/subcmd-install/0.greeting.sh"
 
+    _log "=== SCROW installation started ==="
+    _log "REPO_ROOT=$REPO_ROOT"
+    _log "DISTRO=$SCROW_DISTRO_ID ($SCROW_DISTRO_FAMILY)"
+    _log "VERSION=$SCROW_VERSION"
+
     # Source install steps (they execute on source)
     source "$REPO_ROOT/sdata/subcmd-install/1.deps-router.sh"
     source "$REPO_ROOT/sdata/subcmd-install/2.setups.sh"
     source "$REPO_ROOT/sdata/subcmd-install/3.files.sh"
+
+    _log "=== SCROW installation completed successfully ==="
 
     # ── Done ──────────────────────────────────────────────────────────────────
     printf "${C_BOLD}${C_CYN}  ╔══════════════════════════════════════════════════╗${C_RST}\n"
@@ -62,6 +75,8 @@ do_install() {
     printf "  ${C_BOLD}Next steps:${C_RST}\n"
     printf "  1. Log out and select Hyprland from your display manager\n"
     printf "  2. Or reboot to ensure all services start correctly\n"
+    printf "\n"
+    printf "  ${C_DIM}Log saved to: %s${C_RST}\n" "$SCROW_LOG_FILE"
     printf "\n"
 }
 

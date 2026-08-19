@@ -4,38 +4,73 @@
 # =============================================================================
 # Installs all packages needed for SCROW on Arch Linux.
 # Uses pacman for official repos, paru for AUR.
+#
+# Order of operations:
+#   1. Prompt for sudo (once)
+#   2. System update (pacman -Syu) with diagnostics
+#   3. Paru bootstrap (if not already installed)
+#   4. Install official packages
+#   5. Install AUR packages
 
 # Ensure makepkg doesn't reset sudo credentials
 if [[ -z "${PACMAN_AUTH:-}" ]]; then
     export PACMAN_AUTH="sudo"
 fi
 
-# Prompt for sudo password once, then keep alive in background
+# ── Step 1: Prompt for sudo password once, keep alive ────────────────────────
+printf "\n"
+printf "  ${C_BOLD}Authenticating…${C_RST}\n"
 make_sudo_keepalive
+printf "${C_OK}  [ OK ]${C_RST} sudo authenticated\n"
 
-# Paru bootstrap — only if not already installed
+# ── Step 2: System update (BEFORE paru) ───────────────────────────────────────
+printf "\n"
+printf "  ${C_BOLD}System prerequisite update…${C_RST}\n"
+pacman_update
+
+# ── Step 3: Paru bootstrap ────────────────────────────────────────────────────
+# Only runs if paru is not already installed. Never rebuilds.
+printf "\n"
+printf "  ${C_BOLD}Paru initialization…${C_RST}\n"
+
 install_paru_if_needed() {
     if command -v paru >/dev/null 2>&1; then
-        printf "${C_OK}  [ OK ]${C_RST} paru already installed\n"
+        printf "${C_OK}  [ OK ]${C_RST} paru already installed: $(paru --version 2>/dev/null | head -1)\n"
+        _log "paru already installed: $(command -v paru)"
         return 0
     fi
 
-    printf "${C_WARN}  paru not found — installing paru from AUR…${C_RST}\n"
+    printf "${C_WARN}  paru not found — installing from AUR…${C_RST}\n"
+    _log "Installing paru from AUR"
 
-    # Install build dependencies
+    # Install build prerequisites (system is already updated)
     x "install base-devel" sudo pacman -S --needed --noconfirm base-devel
 
     local builddir
     builddir="$(mktemp -d)"
+    _log "Building paru in $builddir"
 
     # Clone paru-bin (binary package, faster than building from source)
-    x "clone paru" git clone https://aur.archlinux.org/paru-bin.git "$builddir/paru-bin"
-    x "build paru" bash -c "cd '$builddir/paru-bin' && makepkg -si --noconfirm"
+    x "clone paru-bin" git clone https://aur.archlinux.org/paru-bin.git "$builddir/paru-bin"
+    x "build & install paru" bash -c "cd '$builddir/paru-bin' && makepkg -si --noconfirm"
 
     rm -rf "$builddir"
+
+    # Verify paru is available
+    if command -v paru >/dev/null 2>&1; then
+        printf "${C_OK}  [ OK ]${C_RST} paru installed: $(paru --version 2>/dev/null | head -1)\n"
+        _log "paru installed successfully"
+    else
+        printf "${C_ERR}  Error: paru installation completed but paru is not in PATH.${C_RST}\n"
+        printf "${C_ERR}  Try opening a new terminal or running: source ~/.bashrc${C_RST}\n"
+        exit 1
+    fi
 }
 
-# ── Pacman packages (official repos) ─────────────────────────────────────────
+showfun install_paru_if_needed
+v install_paru_if_needed
+
+# ── Package lists ─────────────────────────────────────────────────────────────
 # Deduplicated list from SCROW component definitions.
 PACMAN_PACKAGES=(
     # Core Hyprland
@@ -79,7 +114,6 @@ PACMAN_PACKAGES=(
     nftables fail2ban clamav rkhunter bubblewrap lynis
 )
 
-# ── AUR packages ──────────────────────────────────────────────────────────────
 AUR_PACKAGES=(
     hyprpolkitagent
     openbangla-keyboard-fcitx-git
@@ -94,19 +128,12 @@ AUR_PACKAGES=(
     ytdlp-gui
 )
 
-# ── Execute installation ──────────────────────────────────────────────────────
-printf "  ${C_BOLD}Installing paru…${C_RST}\n"
-showfun install_paru_if_needed
-v install_paru_if_needed
-
+# ── Step 4: Install official packages ─────────────────────────────────────────
 printf "\n"
-printf "  ${C_BOLD}Updating system…${C_RST}\n"
-x "pacman -Syu" sudo pacman -Syu --noconfirm
-
-printf "\n"
-printf "  ${C_BOLD}Installing official packages (${#PACMAN_PACKAGES[@]} packages)…${C_RST}\n"
+printf "  ${C_BOLD}Installing official packages (%d packages)…${C_RST}\n" "${#PACMAN_PACKAGES[@]}"
 install_pacman "${PACMAN_PACKAGES[@]}"
 
+# ── Step 5: Install AUR packages ──────────────────────────────────────────────
 printf "\n"
-printf "  ${C_BOLD}Installing AUR packages (${#AUR_PACKAGES[@]} packages)…${C_RST}\n"
+printf "  ${C_BOLD}Installing AUR packages (%d packages)…${C_RST}\n" "${#AUR_PACKAGES[@]}"
 install_paru "${AUR_PACKAGES[@]}"
