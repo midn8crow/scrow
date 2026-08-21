@@ -1,96 +1,131 @@
 #!/usr/bin/env bash
 # =============================================================================
-# SCROW — setup script
+# SCROW — setup dispatcher
 # =============================================================================
-# Main entry point for SCROW installation.
+# Entry point: dispatches to actions or shows interactive menu.
 #
 # Usage:
-#   ./setup install          Install SCROW
-#   ./setup help             Show help
-#   curl -fsSL .../bootstrap.sh | bash   (via bootstrap)
-# =============================================================================
+#   ./setup full            Full installation
+#   ./setup components      Component selection
+#   ./setup update          Update packages + redeploy
+#   ./setup repair          Fix missing/broken files
+#   ./setup restore         Restore from backup
+#   ./setup doctor          Environment checks
+#   ./setup uninstall       Remove SCROW files
+#   ./setup                 Interactive menu
+#   ./setup help            Show help
 
 set -uo pipefail
 
-# ── Determine repository root ─────────────────────────────────────────────────
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export REPO_ROOT
 
-# ── Source libraries ──────────────────────────────────────────────────────────
-# shellcheck source=sdata/lib/environment-variables.sh
-source "$REPO_ROOT/sdata/lib/environment-variables.sh"
-# shellcheck source=sdata/lib/functions.sh
-source "$REPO_ROOT/sdata/lib/functions.sh"
-# shellcheck source=sdata/lib/package-installers.sh
-source "$REPO_ROOT/sdata/lib/package-installers.sh"
-# shellcheck source=sdata/lib/dist-determine.sh
-source "$REPO_ROOT/sdata/lib/dist-determine.sh"
+# Source all libraries
+source "$REPO_ROOT/installer/lib/common.sh"
+source "$REPO_ROOT/installer/lib/packages.sh"
+source "$REPO_ROOT/installer/lib/deploy.sh"
+source "$REPO_ROOT/installer/lib/services.sh"
+source "$REPO_ROOT/installer/lib/validate.sh"
 
 # ── Cleanup on exit ───────────────────────────────────────────────────────────
 cleanup_on_exit() {
     local rc=$?
     stop_sudo_keepalive
+    cleanup_tmpfiles
     if (( rc != 0 )); then
         printf "\n  ${C_DIM}Installation log saved to: %s${C_RST}\n" "$SCROW_LOG_FILE"
     fi
 }
 trap cleanup_on_exit EXIT
 
+# ── Greeting ──────────────────────────────────────────────────────────────────
+show_greeting() {
+    printf "\n"
+    printf "${C_BOLD}${C_CYN}  ╔══════════════════════════════════════════════════╗${C_RST}\n"
+    printf "${C_BOLD}${C_CYN}  ║   ███████╗████████╗██╗   ██╗████████╗██╗  ██╗   ║${C_RST}\n"
+    printf "${C_BOLD}${C_CYN}  ║   ██╔════╝╚══██╔══╝██║   ██║╚══██╔══╝██║  ██║   ║${C_RST}\n"
+    printf "${C_BOLD}${C_CYN}  ║   ███████╗   ██║   ██║   ██║   ██║   ███████║   ║${C_RST}\n"
+    printf "${C_BOLD}${C_CYN}  ║   ╚════██║   ██║   ██║   ██║   ██║   ██╔══██║   ║${C_RST}\n"
+    printf "${C_BOLD}${C_CYN}  ║   ███████║   ██║   ╚██████╔╝   ██║   ██║  ██║   ║${C_RST}\n"
+    printf "${C_BOLD}${C_CYN}  ║   ╚══════╝   ╚═╝    ╚═════╝    ╚═╝   ╚═╝  ╚═╝   ║${C_RST}\n"
+    printf "${C_BOLD}${C_CYN}  ║                                                  ║${C_RST}\n"
+    printf "${C_BOLD}${C_CYN}  ║          Arch Linux · Hyprland · v%s${C_RST}            ${C_BOLD}${C_CYN}║${C_RST}\n" "$SCROW_VERSION"
+    printf "${C_BOLD}${C_CYN}  ║                                                  ║${C_RST}\n"
+    printf "${C_BOLD}${C_CYN}  ╚══════════════════════════════════════════════════╝${C_RST}\n"
+    printf "\n"
+}
+
 # ── Help ──────────────────────────────────────────────────────────────────────
 show_help() {
-    printf "Usage: %s <subcommand>\n\n" "$0"
-    printf "Subcommands:\n"
-    printf "  install    Install SCROW (dependencies, setup, and files)\n"
-    printf "  help       Show this help message\n"
+    printf "Usage: %s [command]\n\n" "$0"
+    printf "Commands:\n"
+    printf "  full          Full installation (packages + configs + services)\n"
+    printf "  components    Select individual components to install\n"
+    printf "  update        Update packages and redeploy configuration\n"
+    printf "  repair        Fix missing or broken files\n"
+    printf "  restore       Restore from backup\n"
+    printf "  doctor        Run environment checks\n"
+    printf "  uninstall     Remove SCROW-deployed files\n"
+    printf "  help          Show this help message\n"
     printf "\n"
-    printf "Quick install (from anywhere):\n"
+    printf "  (no args)     Interactive menu\n"
+    printf "\n"
+    printf "Quick install:\n"
     printf "  curl -fsSL https://raw.githubusercontent.com/midn8crow/scrow/main/bootstrap.sh | bash\n"
     printf "\n"
 }
 
-# ── Install ───────────────────────────────────────────────────────────────────
-do_install() {
-    prevent_sudo_or_root
-
-    # Source greeting
-    source "$REPO_ROOT/sdata/subcmd-install/0.greeting.sh"
-
-    _log "=== SCROW installation started ==="
-    _log "REPO_ROOT=$REPO_ROOT"
-    _log "DISTRO=$SCROW_DISTRO_ID ($SCROW_DISTRO_FAMILY)"
-    _log "VERSION=$SCROW_VERSION"
-
-    # Source install steps (they execute on source)
-    source "$REPO_ROOT/sdata/subcmd-install/1.deps-router.sh"
-    source "$REPO_ROOT/sdata/subcmd-install/2.setups.sh"
-    source "$REPO_ROOT/sdata/subcmd-install/3.files.sh"
-
-    _log "=== SCROW installation completed successfully ==="
-
-    # ── Done ──────────────────────────────────────────────────────────────────
-    printf "${C_BOLD}${C_CYN}  ╔══════════════════════════════════════════════════╗${C_RST}\n"
-    printf "${C_BOLD}${C_CYN}  ║            Installation complete!               ║${C_RST}\n"
-    printf "${C_BOLD}${C_CYN}  ╚══════════════════════════════════════════════════╝${C_RST}\n"
+# ── Interactive menu ──────────────────────────────────────────────────────────
+run_menu() {
+    show_greeting
+    printf "  Distro: %s | Repo: %s\n" "$SCROW_DISTRO_ID" "$REPO_ROOT"
     printf "\n"
-    printf "  ${C_BOLD}Next steps:${C_RST}\n"
-    printf "  1. Log out and select Hyprland from your display manager\n"
-    printf "  2. Or reboot to ensure all services start correctly\n"
-    printf "\n"
-    printf "  ${C_DIM}Log saved to: %s${C_RST}\n" "$SCROW_LOG_FILE"
-    printf "\n"
+
+    while true; do
+        printf "${C_BOLD}  SCROW — %s — Hyprland${C_RST}\n\n" "$SCROW_DISTRO_ID"
+        printf "    1) Full Installation\n"
+        printf "    2) Components\n"
+        printf "    3) Update\n"
+        printf "    4) Repair\n"
+        printf "    5) Restore Backup\n"
+        printf "    6) Doctor\n"
+        printf "    7) Uninstall\n"
+        printf "    8) Exit\n"
+        printf "\n"
+        printf "  Choice [1-8]: "
+        read -rn1 choice
+        printf "\n"
+
+        case "$choice" in
+            1) source "$REPO_ROOT/installer/actions/full.sh";      action_full;      return ;;
+            2) source "$REPO_ROOT/installer/actions/components.sh"; action_components; return ;;
+            3) source "$REPO_ROOT/installer/actions/update.sh";    action_update;    return ;;
+            4) source "$REPO_ROOT/installer/actions/repair.sh";    action_repair;    return ;;
+            5) source "$REPO_ROOT/installer/actions/restore.sh";   action_restore;   return ;;
+            6) source "$REPO_ROOT/installer/actions/doctor.sh";    action_doctor;    return ;;
+            7) source "$REPO_ROOT/installer/actions/uninstall.sh"; action_uninstall; return ;;
+            8|q|Q) printf "  Goodbye.\n"; return ;;
+            *)
+                printf "${C_WARN}  Invalid choice.${C_RST}\n\n"
+                ;;
+        esac
+    done
 }
 
 # ── Main dispatch ─────────────────────────────────────────────────────────────
-case "${1:-help}" in
-    install)
-        do_install
+case "${1:-}" in
+    full|components|update|repair|restore|doctor|uninstall)
+        source "$REPO_ROOT/installer/actions/$1.sh"
+        "action_$1" "${@:2}"
         ;;
     help|--help|-h)
         show_help
         ;;
+    "")
+        run_menu
+        ;;
     *)
-        printf "${C_ERR}Error: Unknown subcommand '%s'${C_RST}\n" "$1"
-        printf "\n"
+        printf "${C_ERR}Error: Unknown command '%s'${C_RST}\n\n" "$1"
         show_help
         exit 1
         ;;

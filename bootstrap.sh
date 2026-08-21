@@ -2,9 +2,8 @@
 # =============================================================================
 # SCROW — one-line bootstrap
 # =============================================================================
-# Tiny by design: clone the repository ONCE into a temporary directory, launch
-# the installer from inside it, then remove the clone. All package, config and
-# component logic lives in the repository itself — nothing is duplicated here.
+# Tiny by design: clone the repository into a temporary directory, launch
+# the installer from inside it, then remove the clone.
 #
 #   curl -fsSL https://raw.githubusercontent.com/midn8crow/scrow/main/bootstrap.sh | bash
 #
@@ -27,8 +26,6 @@ for cmd in git mktemp; do
     fi
 done
 
-# The repository lives in a TEMPORARY directory; it is removed on every exit
-# path (success, failure, interrupt), so nothing is left behind.
 SCROW_TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/scrow-XXXXXX" 2>/dev/null)" \
     || SCROW_TMP_DIR="$(mktemp -d 2>/dev/null)"
 if [[ -z "$SCROW_TMP_DIR" || ! -d "$SCROW_TMP_DIR" ]]; then
@@ -46,22 +43,26 @@ scrow_boot_exit() {
 trap scrow_boot_cleanup EXIT
 trap 'scrow_boot_exit 130' INT
 trap 'scrow_boot_exit 143' TERM
+trap 'scrow_boot_exit 129' HUP
 
 printf 'Downloading SCROW…\n'
 if ! git clone --depth 1 --branch "$SCROW_REPO_BRANCH" \
     -- "$SCROW_REPO_URL" "$SCROW_TMP_DIR"; then
     printf 'SCROW: could not clone the SCROW repository.\n' >&2
-    printf 'Please check your network, then retry:\n' >&2
+    printf 'Check your network, then retry:\n' >&2
     printf '  curl -fsSL https://raw.githubusercontent.com/midn8crow/scrow/main/bootstrap.sh | bash\n' >&2
     exit 1
 fi
 
-# When run via `curl ... | bash`, bash's stdin is the curl pipe, which is
-# already at EOF by the time the installer starts. Give the installer the
-# user's actual terminal instead.
+if [[ ! -f "$SCROW_TMP_DIR/setup" ]]; then
+    printf 'SCROW: clone succeeded but setup not found in %s.\n' "$SCROW_TMP_DIR" >&2
+    exit 1
+fi
+
+# When piped, give the installer the user's actual terminal
 if [[ ! -t 0 ]] && ( : < /dev/tty ) 2>/dev/null; then
-    bash "$SCROW_TMP_DIR/setup" install "$@" < /dev/tty
+    bash "$SCROW_TMP_DIR/setup" "${@:-full}" < /dev/tty
 else
-    bash "$SCROW_TMP_DIR/setup" install "$@"
+    bash "$SCROW_TMP_DIR/setup" "${@:-full}"
 fi
 exit $?

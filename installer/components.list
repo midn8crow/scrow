@@ -1,0 +1,20 @@
+# SCROW — Component definitions
+# name|description|space-separated repo paths
+# Components gate DEPLOYMENT only; packages are always installed in full.
+
+hypr|Hyprland desktop|.config/hypr
+waybar|Status bar|.config/waybar
+rofi|Application launcher|.config/rofi
+mako|Notifications|.config/mako
+terminal|Shell & terminal|.config/kitty .zshrc .starship-init.zsh .fzf-init.zsh .zoxide-init.zsh
+theming|GTK Qt icons fonts|.config/gtk-3.0 .config/gtk-4.0 .config/qt6ct .icons .local/share/fonts .local/share/icons
+input|Input methods|.config/fcitx5 .config/ibus
+apps|Media & monitoring|.config/mpv .config/btop .config/cava .config/yazi .config/fastfetch .config/pacseek .config/moviebox-tui .config/songrec .config/chess-tui
+theming-extra|Extra themes|.config/matugen .config/scrow-keysound .config/wayclick
+system|Portals units mime|.config/systemd .config/xdg-desktop-portal .config/mimeapps.list .config/user-dirs.* .config/dconf
+scripts|Binaries & user scripts|.local/bin user_scripts
+security|Hardening configs|security-hardening
+firefox|Firefox userChrome|.mozilla
+wallpapers|Wallpapers|Pictures/Wallpapers
+kdeconnect|KDE Connect|.config/kdeconnect
+misc|Other configs|.config/starship.toml .config/pavucontrol.ini .config/gpu-recorder.conf .config/gpu-screen-recorder .config/QtProject.conf .config/xfce4 .config/Thunar .config/nemo .config/Mousepad .config/viewnior .config/geeqie .config/qalculate .config/velo .config/ambervideoeditor.org .config/omarchy .config/scrow .config/ytdlp-gui .config/yt-dlp .config/procps .config/go

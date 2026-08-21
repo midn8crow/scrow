@@ -1,0 +1,128 @@
+# SCROW — Official (pacman) package manifest
+# One package per line. Comments and blank lines are ignored.
+# This is the SINGLE SOURCE OF TRUTH for official packages.
+
+# Core Hyprland
+hyprland
+hyprlock
+hypridle
+hyprutils
+uwsm
+xdg-desktop-portal-hyprland
+xdg-desktop-portal-gtk
+xdg-utils
+wl-clipboard
+cliphist
+grim
+slurp
+swappy
+satty
+hyprshot
+swww
+
+# Networking & Bluetooth
+networkmanager
+network-manager-applet
+blueman
+nm-connection-editor
+gnome-keyring
+kdeconnect
+
+# Input
+fcitx5
+fcitx5-configtool
+fcitx5-gtk
+fcitx5-qt
+
+# Audio
+pipewire
+pipewire-pulse
+wireplumber
+pipewire-alsa
+pipewire-jack
+pavucontrol
+
+# Polkit
+polkit-kde-agent
+
+# Status bar
+waybar
+cava
+playerctl
+jq
+
+# Launcher
+rofi
+rofi-emoji
+
+# Terminal
+kitty
+
+# Notifications
+mako
+
+# Shell
+zsh
+zsh-autosuggestions
+zsh-syntax-highlighting
+starship
+fzf
+zoxide
+eza
+bat
+fd
+ripgrep
+
+# Theming
+adw-gtk-theme
+qt6ct
+kvantum
+nwg-look
+papirus-icon-theme
+
+# Fonts
+ttf-jetbrains-mono-nerd
+noto-fonts
+noto-fonts-emoji
+ttf-font-awesome
+ttf-cascadia-code
+
+# File manager
+thunar
+gvfs
+file-roller
+ffmpegthumbnailer
+
+# Utilities
+fastfetch
+btop
+htop
+mpv
+yazi
+brightnessctl
+ffmpeg
+imagemagick
+tree
+p7zip
+unzip
+wget
+curl
+git
+xdg-user-dirs
+wtype
+pacman-contrib
+reflector
+
+# System
+sddm
+grub
+efibootmgr
+networkmanager
+
+# Security
+nftables
+fail2ban
+clamav
+rkhunter
+bubblewrap
+lynis

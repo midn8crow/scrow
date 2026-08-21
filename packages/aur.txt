@@ -1,0 +1,15 @@
+# SCROW — AUR package manifest
+# One package per line. Comments and blank lines are ignored.
+# These require paru (auto-bootstrapped if missing).
+
+hyprpolkitagent
+openbangla-keyboard-fcitx-git
+hypr-kdeconnect-fix-git
+waybar-cava-git
+matugen
+awww
+mpvpaper
+gpu-screen-recorder
+hyprlauncher
+wlr-randr
+ytdlp-gui

@@ -135,6 +135,21 @@ mkcd() {
   mkdir -p "$1" && cd "$1"
 }
 
+# VM launcher: `vm arch` opens the Arch test VM (scrow-test)
+vm() {
+  local dom="scrow-test"
+  case "${1:-}" in
+    arch|test|scrow) dom="scrow-test" ;;
+    start|stop|kill|reboot|console|status|delete) /home/shadhin/VMs/scrow-test/vm.sh "$1"; return ;;
+    *) dom="${1:-scrow-test}" ;;
+  esac
+  if virsh -c qemu:///session start "$dom" 2>/dev/null; then
+    echo "VM '$dom' started."
+  else
+    virsh -c qemu:///session domstate "$dom" 2>/dev/null || echo "VM '$dom' not found."
+  fi
+}
+
 # -----------------------------------------------------------------------------
 # PROMPT (Starship)
 # -----------------------------------------------------------------------------
