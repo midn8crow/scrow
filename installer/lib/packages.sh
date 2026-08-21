@@ -12,15 +12,21 @@ read_manifest() {
     mapfile -t out < <(grep -Ev '^[[:space:]]*(#|$)' "$1" 2>/dev/null | sort -u)
 }
 
-# ── Ensure paru is installed (ONCE per invocation) ────────────────────────────
+# ── Ensure paru is installed and functional (ONCE per invocation) ──────────────
 ensure_paru() {
     (( SCROW_PARU_READY )) && return 0
 
     if command -v paru >/dev/null 2>&1; then
-        printf "${C_OK}  [ OK ]${C_RST} paru found: %s\n" "$(command -v paru)"
-        _log "paru already installed: $(command -v paru)"
-        SCROW_PARU_READY=1
-        return 0
+        # Verify paru actually works (handles broken libalpm after pacman update)
+        if paru --version >/dev/null 2>&1; then
+            printf "${C_OK}  [ OK ]${C_RST} paru found: %s\n" "$(command -v paru)"
+            _log "paru already installed: $(command -v paru)"
+            SCROW_PARU_READY=1
+            return 0
+        else
+            printf "${C_WARN}  paru found but broken — rebuilding…${C_RST}\n"
+            _log "paru found but broken, rebuilding"
+        fi
     fi
 
     printf "${C_WARN}  paru not found — building from AUR…${C_RST}\n"
