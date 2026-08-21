@@ -128,12 +128,23 @@ AUR_PACKAGES=(
     ytdlp-gui
 )
 
-# ── Step 4: Install official packages ─────────────────────────────────────────
+# ── Step 4: Resolve known package conflicts ───────────────────────────────────
+printf "\n"
+printf "  ${C_BOLD}Resolving known conflicts…${C_RST}\n"
+
+# jack2 conflicts with pipewire-jack (pipewire provides jack support)
+if pacman -Qi jack2 &>/dev/null; then
+    x "remove jack2 (conflicts with pipewire-jack)" sudo pacman -Rdd --noconfirm jack2
+else
+    printf "${C_OK}  [ OK ]${C_RST} no conflicts to resolve\n"
+fi
+
+# ── Step 5: Install official packages ─────────────────────────────────────────
 printf "\n"
 printf "  ${C_BOLD}Installing official packages (%d packages)…${C_RST}\n" "${#PACMAN_PACKAGES[@]}"
 install_pacman "${PACMAN_PACKAGES[@]}"
 
-# ── Step 5: Install AUR packages ──────────────────────────────────────────────
+# ── Step 6: Install AUR packages ──────────────────────────────────────────────
 printf "\n"
 printf "  ${C_BOLD}Installing AUR packages (%d packages)…${C_RST}\n" "${#AUR_PACKAGES[@]}"
 install_paru "${AUR_PACKAGES[@]}"
