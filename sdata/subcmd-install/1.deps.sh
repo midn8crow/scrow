@@ -14,7 +14,6 @@ ensure_yay() {
         return 0
     fi
 
-    # Clean broken installs
     if command -v yay >/dev/null 2>&1 || command -v paru >/dev/null 2>&1; then
         printf "${YELLOW}  Broken AUR helper found — cleaning up...${RST}\n"
         sudo pacman -Rns --noconfirm yay paru paru-bin 2>/dev/null || true
@@ -25,7 +24,6 @@ ensure_yay() {
 
     local build_dir
     build_dir="$(mktemp -d -p "${XDG_CACHE_HOME:-$HOME/.cache}")"
-    register_temp_file "$build_dir"
 
     git clone https://aur.archlinux.org/yay-bin.git "$build_dir/yay-bin" 2>/dev/null
     (cd "$build_dir/yay-bin" && makepkg --noconfirm -si --nocheck) || {
@@ -44,25 +42,49 @@ ensure_yay() {
     fi
 }
 
-# ── Install official packages ─────────────────────────────────────────────────
+# ── Read manifest into array ──────────────────────────────────────────────────
+
+read_manifest() {
+    local manifest="$1"
+    local -n out=$2
+    out=()
+    while IFS= read -r line; do
+        line="${line%%#*}"
+        line="${line// /}"
+        [[ -n "$line" ]] && out+=("$line")
+    done < "$manifest"
+}
+
+# ── Install official packages in batches of 15 ───────────────────────────────
 
 install_official_packages() {
     local manifest="$REPO_ROOT/packages/official.txt"
     [[ ! -f "$manifest" ]] && { printf "${YELLOW}  No official.txt found, skipping${RST}\n"; return 0; }
 
     local -a pkgs=()
-    while IFS= read -r line; do
-        line="${line%%#*}"       # strip comments
-        line="${line// /}"       # strip spaces
-        [[ -n "$line" ]] && pkgs+=("$line")
-    done < "$manifest"
-
+    read_manifest "$manifest" pkgs
     (( ${#pkgs[@]} == 0 )) && return 0
-    printf "${BLUE}  Installing %d official packages...${RST}\n" "${#pkgs[@]}"
-    sudo pacman -S --needed --noconfirm "${pkgs[@]}"
+
+    local batch_size=15
+    local total=${#pkgs[@]}
+    local i=0
+
+    printf "${BLUE}  Installing %d official packages (batches of %d)...${RST}\n" "$total" "$batch_size"
+
+    while (( i < total )); do
+        local -a batch=("${pkgs[@]:$i:$batch_size}")
+        local batch_num=$(( i / batch_size + 1 ))
+        local batch_total=$(( (total + batch_size - 1) / batch_size ))
+        printf "${BLUE}  [%d/%d] %d packages...${RST}\n" "$batch_num" "$batch_total" "${#batch[@]}"
+        sudo pacman -S --needed --noconfirm "${batch[@]}" || {
+            printf "${YELLOW}  Batch had errors, continuing...${RST}\n"
+        }
+        i=$(( i + batch_size ))
+        sleep 1
+    done
 }
 
-# ── Install AUR packages ─────────────────────────────────────────────────────
+# ── Install AUR packages one by one ───────────────────────────────────────────
 
 install_aur_packages() {
     local manifest="$REPO_ROOT/packages/aur.txt"
@@ -71,15 +93,30 @@ install_aur_packages() {
     ensure_yay || { printf "${RED}  Cannot install AUR packages without an AUR helper${RST}\n"; return 1; }
 
     local -a pkgs=()
-    while IFS= read -r line; do
-        line="${line%%#*}"
-        line="${line// /}"
-        [[ -n "$line" ]] && pkgs+=("$line")
-    done < "$manifest"
-
+    read_manifest "$manifest" pkgs
     (( ${#pkgs[@]} == 0 )) && return 0
-    printf "${BLUE}  Installing %d AUR packages...${RST}\n" "${#pkgs[@]}"
-    "$SCROW_AUR_HELPER" -S --needed --noconfirm "${pkgs[@]}"
+
+    local total=${#pkgs[@]}
+    local failed=0
+
+    printf "${BLUE}  Installing %d AUR packages (one at a time to avoid OOM)...${RST}\n" "$total"
+
+    local i=0
+    while (( i < total )); do
+        local pkg="${pkgs[$i]}"
+        local num=$(( i + 1 ))
+        printf "${BLUE}  [%d/%d] %s${RST}\n" "$num" "$total" "$pkg"
+        "$SCROW_AUR_HELPER" -S --needed --noconfirm "$pkg" 2>&1 || {
+            printf "${YELLOW}  Failed: %s — skipping${RST}\n" "$pkg"
+            failed=$(( failed + 1 ))
+        }
+        i=$(( i + 1 ))
+        sleep 2
+    done
+
+    if (( failed > 0 )); then
+        printf "${YELLOW}  %d AUR packages failed (non-fatal)${RST}\n" "$failed"
+    fi
 }
 
 # ── Install hyprpm plugins ────────────────────────────────────────────────────
@@ -90,7 +127,6 @@ install_hyprpm_plugins() {
         return 0
     fi
 
-    # ScrollOverview plugin (required by hypr/modules/workspace_overview.lua)
     if ! hyprpm list 2>/dev/null | grep -q scrolloverview; then
         printf "${YELLOW}  Installing ScrollOverview plugin...${RST}\n"
         local hp_log; hp_log="$(mktemp)"
