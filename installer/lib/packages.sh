@@ -32,15 +32,18 @@ ensure_paru() {
     printf "${C_WARN}  paru not found — building from AUR…${C_RST}\n"
     _log "Installing paru from AUR"
 
-    x "install base-devel" sudo pacman -S --needed --noconfirm base-devel
+    x "install base-devel rust" sudo pacman -S --needed --noconfirm base-devel rust
 
     local builddir
     builddir="$(mktemp -d)"
     register_tmp "$builddir"
     _log "Building paru in $builddir"
 
-    x "clone paru-bin" git clone https://aur.archlinux.org/paru-bin.git "$builddir/paru-bin"
-    x "build & install paru" bash -c "cd '$builddir/paru-bin' && makepkg -si --noconfirm"
+    # Build from source (NOT paru-bin) so the binary links against
+    # the system's actual libalpm.so.N — pre-built binaries break
+    # when pacman upgrades libalpm.
+    x "clone paru" git clone https://aur.archlinux.org/paru.git "$builddir/paru"
+    x "build & install paru" bash -c "cd '$builddir/paru' && makepkg -si --noconfirm"
 
     # Refresh dynamic linker cache so the new binary finds libalpm.so.N
     sudo ldconfig 2>/dev/null || true
