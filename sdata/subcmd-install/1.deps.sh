@@ -131,11 +131,7 @@ install_hyprpm_plugins() {
 
 ensure_yay
 install_official_packages
-if [[ "${SKIP_AUR}" != true ]]; then
-    install_aur_packages
-else
-    printf "${YELLOW}  Skipping AUR packages (--skip-aur)${RST}\n"
-fi
+install_aur_packages
 install_hyprpm_plugins
 
 printf "${GREEN}[$0]: Dependencies installed${RST}\n"
