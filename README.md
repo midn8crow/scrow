@@ -1,4 +1,4 @@
-the installer is broke so dont try this dots now .it will take 1 week iam fixing it
+
 
 
 
@@ -47,66 +47,51 @@ A complete, ready-to-use Hyprland configuration for Arch Linux. One command to i
 ### One-Line Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/midn8crow/scrow/main/bootstrap.sh | bash
+bash <(curl -s https://raw.githubusercontent.com/midn8crow/scrow/main/get)
 ```
 
-This fetches SCROW, starts the installer and opens the SCROW Manager.
+This clones SCROW to `~/.cache/scrow` and runs `./setup install`.
 
-### Development / Local Install
+### Local Install
 
 ```bash
 git clone https://github.com/midn8crow/scrow.git
 cd scrow
-./install.sh
+./setup install
 ```
 
 ### After Installation
 
-Run `scrow` from any directory to open the SCROW Manager again. The installer
-adds `~/.local/bin/scrow`; make sure `~/.local/bin` is on your PATH.
+Reboot your system for all changes to take effect.
 
-### SCROW Manager
+## What the Installer Does
 
-| Option | Description |
-|--------|-------------|
-| **Full Installation** (Recommended) | Complete official SCROW environment |
-| **Custom Installation** | Choose individual components |
-| **Components** | Install / reinstall / repair individual components |
-| **Update SCROW** | Update to a newer SCROW version |
-| **Restore** | Return to a previous automatic backup |
-| **Reset SCROW** | Restore official files (overwrites local edits) |
-| **Doctor / Repair** | Detect and safely repair problems |
-| **Uninstall SCROW** | Safely remove SCROW-managed content |
-
-### Automatic Backups
-
-Before any operation that can change SCROW-managed files, SCROW automatically creates a backup in:
-
-```
-~/.local/share/scrow/backups/
-```
-
-Backups are never deleted automatically. Use **Restore** in the manager to return to a previous backup. Each backup records the SCROW version, manifest, symlinks and installed state.
+1. **Installs yay** (AUR helper, builds from source if needed)
+2. **Installs official packages** via pacman (Hyprland, Waybar, Kitty, etc.)
+3. **Installs AUR packages** (custom themes, tools)
+4. **Installs Hyprpm plugins** (ScrollOverview for workspace overview)
+5. **Sets up system** (user groups, kernel modules, services, fonts)
+6. **Deploys dotfiles** — mirrors `dots/` tree into your `$HOME`
+7. **Backs up existing configs** on first install
+8. **Verifies the installation**
 
 ### Command Line
 
 ```bash
-./install.sh --help        # Show help
-./install.sh --version     # Show version
-./install.sh --dry-run     # Preview every change without touching the system
+./setup --help          # Show help
+./setup install         # Full install
+./setup install --skip-deps     # Skip package installation
+./setup install --skip-files    # Skip dotfile deployment
+./setup install --interactive   # Prompt before each step
 ```
 
-## What the Installer Does
+### Updating
 
-1. **Checks the system** (Arch Linux, dependencies)
-2. **Installs required packages** (pacman + AUR via paru)
-3. **Creates a safety backup** of existing configuration
-4. **Deploys all configs** and creates symlinks
-5. **Configures your shell** (Zsh + Starship)
-6. **Enables the desktop service stack** (PipeWire, WirePlumber, xdg-desktop-portal-hyprland)
-7. **Sets up theming** (GTK, Qt, Fonts)
-8. **Installs the `scrow` command** (`~/.local/bin/scrow`) so you can reopen the manager anytime
-9. **Verifies the installation**
+```bash
+cd ~/.cache/scrow       # or your clone directory
+git pull
+./setup install
+```
 
 ## Features
 
@@ -180,8 +165,7 @@ All scripts are in `~/.local/bin/`:
 
 ## Package List
 
-Packages are grouped by SCROW component. The authoritative list is defined in
-`installer/components.sh`.
+Packages are defined in `packages/official.txt` (pacman) and `packages/aur.txt` (AUR).
 
 ### Hyprland (core desktop)
 
@@ -400,13 +384,15 @@ hl.exec_cmd("bash -c '$HOME/.local/bin/kbd-backlight-keep.sh &'")
 
 ## Uninstall
 
-Open the SCROW Manager and choose **Uninstall SCROW**:
+To remove SCROW-managed files, delete the deployed dotfiles:
 
 ```bash
-scrow
+rm -rf ~/.config/hypr ~/.config/waybar ~/.config/rofi ~/.config/mako
+rm -rf ~/.config/kitty ~/.config/scrow ~/.local/bin/*
+rm -f ~/.zshrc ~/.fzf-init.zsh ~/.starship-init.zsh ~/.zoxide-init.zsh
 ```
 
-Uninstall removes only SCROW-managed files, symlinks, services and the `scrow` command. Your automatic backups are kept, so you can restore a previous state by cloning the repository and running `./install.sh` → **Restore**.
+Backups are stored in `~/scrow-original-dots-backup/`.
 
 ## Contributing
 
