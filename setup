@@ -34,6 +34,7 @@ Options:
   --skip-deps    Skip dependency installation
   --skip-setup   Skip system setup
   --skip-files   Skip file deployment
+  --skip-aur     Skip AUR package installation
   --skip-backup  Skip backup
   --firstrun     Force firstrun behavior
   -h, --help     Show this help
@@ -42,7 +43,7 @@ Examples:
   $0 install                     # Full install (non-interactive)
   $0 install --interactive       # Full install (prompt before each step)
   $0 install --skip-deps         # Skip package installation
-  $0 install --skip-files        # Skip dotfile deployment
+  $0 install --skip-aur          # Skip AUR packages (faster, no compilation)
 
 Online install:
   bash <(curl -s https://raw.githubusercontent.com/midn8crow/scrow/main/get)
@@ -64,6 +65,7 @@ while [[ $# -gt 0 ]]; do
         --skip-deps)    SKIP_DEPS=true; shift ;;
         --skip-setup)   SKIP_SETUP=true; shift ;;
         --skip-files)   SKIP_FILES=true; shift ;;
+        --skip-aur)     SKIP_AUR=true; shift ;;
         --skip-backup)  SKIP_BACKUP=true; shift ;;
         --firstrun)     shift ;;
         -h|--help)      showhelp ;;
