@@ -1,132 +1,96 @@
 #!/usr/bin/env bash
-# =============================================================================
-# SCROW — setup dispatcher
-# =============================================================================
-# Entry point: dispatches to actions or shows interactive menu.
-#
-# Usage:
-#   ./setup full            Full installation
-#   ./setup components      Component selection
-#   ./setup update          Update packages + redeploy
-#   ./setup repair          Fix missing/broken files
-#   ./setup restore         Restore from backup
-#   ./setup doctor          Environment checks
-#   ./setup uninstall       Remove SCROW files
-#   ./setup                 Interactive menu
-#   ./setup help            Show help
+# SCROW installer dispatcher
+# Usage: ./setup install [--noconfirm] [--skip-deps] [--skip-setup] [--skip-files] [--firstrun]
 
-set -uo pipefail
+cd "$(dirname "$0")"
+REPO_ROOT="$(pwd)"
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-export REPO_ROOT
+source ./sdata/lib/env.sh
+source ./sdata/lib/functions.sh
 
-# Source all libraries
-source "$REPO_ROOT/installer/lib/common.sh"
-source "$REPO_ROOT/installer/lib/packages.sh"
-source "$REPO_ROOT/installer/lib/deploy.sh"
-source "$REPO_ROOT/installer/lib/services.sh"
-source "$REPO_ROOT/installer/lib/validate.sh"
+prevent_sudo_or_root
+set -e
 
-# ── Cleanup on exit ───────────────────────────────────────────────────────────
-cleanup_on_exit() {
-    local rc=$?
-    stop_sudo_keepalive
-    cleanup_tmpfiles
-    if (( rc != 0 )); then
-        printf "\n  ${C_DIM}Installation log saved to: %s${C_RST}\n" "$SCROW_LOG_FILE"
-    fi
-}
-trap cleanup_on_exit EXIT
+# Options
+ask=false
+SKIP_DEPS=false
+SKIP_SETUP=false
+SKIP_FILES=false
+SKIP_BACKUP=false
 
-# ── Greeting ──────────────────────────────────────────────────────────────────
-show_greeting() {
-    printf "\n"
-    printf "${C_BOLD}${C_CYN}  ╔══════════════════════════════════════════════════╗${C_RST}\n"
-    printf "${C_BOLD}${C_CYN}  ║   ███████╗████████╗██╗   ██╗████████╗██╗  ██╗   ║${C_RST}\n"
-    printf "${C_BOLD}${C_CYN}  ║   ██╔════╝╚══██╔══╝██║   ██║╚══██╔══╝██║  ██║   ║${C_RST}\n"
-    printf "${C_BOLD}${C_CYN}  ║   ███████╗   ██║   ██║   ██║   ██║   ███████║   ║${C_RST}\n"
-    printf "${C_BOLD}${C_CYN}  ║   ╚════██║   ██║   ██║   ██║   ██║   ██╔══██║   ║${C_RST}\n"
-    printf "${C_BOLD}${C_CYN}  ║   ███████║   ██║   ╚██████╔╝   ██║   ██║  ██║   ║${C_RST}\n"
-    printf "${C_BOLD}${C_CYN}  ║   ╚══════╝   ╚═╝    ╚═════╝    ╚═╝   ╚═╝  ╚═╝   ║${C_RST}\n"
-    printf "${C_BOLD}${C_CYN}  ║                                                  ║${C_RST}\n"
-    printf "${C_BOLD}${C_CYN}  ║          Arch Linux · Hyprland · v%s${C_RST}            ${C_BOLD}${C_CYN}║${C_RST}\n" "$SCROW_VERSION"
-    printf "${C_BOLD}${C_CYN}  ║                                                  ║${C_RST}\n"
-    printf "${C_BOLD}${C_CYN}  ╚══════════════════════════════════════════════════╝${C_RST}\n"
-    printf "\n"
+showhelp() {
+    cat <<EOF
+SCROW - Hyprland dotfiles installer
+
+Usage: $0 <subcommand> [OPTIONS]
+
+Subcommands:
+  install        Install/update SCROW dotfiles
+  help           Show this help
+
+Options:
+  --noconfirm    Non-interactive (default)
+  --interactive  Prompt before each step
+  --skip-deps    Skip dependency installation
+  --skip-setup   Skip system setup
+  --skip-files   Skip file deployment
+  --skip-backup  Skip backup
+  --firstrun     Force firstrun behavior
+  -h, --help     Show this help
+
+Examples:
+  $0 install                     # Full install (non-interactive)
+  $0 install --interactive       # Full install (prompt before each step)
+  $0 install --skip-deps         # Skip package installation
+  $0 install --skip-files        # Skip dotfile deployment
+
+Online install:
+  bash <(curl -s https://raw.githubusercontent.com/midn8crow/scrow/main/get)
+EOF
+    exit 0
 }
 
-# ── Help ──────────────────────────────────────────────────────────────────────
-show_help() {
-    printf "Usage: %s [command]\n\n" "$0"
-    printf "Commands:\n"
-    printf "  full          Full installation (packages + configs + services)\n"
-    printf "  components    Select individual components to install\n"
-    printf "  update        Update packages and redeploy configuration\n"
-    printf "  repair        Fix missing or broken files\n"
-    printf "  restore       Restore from backup\n"
-    printf "  doctor        Run environment checks\n"
-    printf "  uninstall     Remove SCROW-deployed files\n"
-    printf "  help          Show this help message\n"
-    printf "\n"
-    printf "  (no args)     Interactive menu\n"
-    printf "\n"
-    printf "Quick install:\n"
-    printf "  curl -fsSL https://raw.githubusercontent.com/midn8crow/scrow/main/bootstrap.sh | bash\n"
-    printf "\n"
-}
-
-# ── Interactive menu ──────────────────────────────────────────────────────────
-run_menu() {
-    show_greeting
-    printf "  Distro: %s | Repo: %s\n" "$SCROW_DISTRO_ID" "$REPO_ROOT"
-    printf "\n"
-
-    while true; do
-        printf "${C_BOLD}  SCROW — %s — Hyprland${C_RST}\n\n" "$SCROW_DISTRO_ID"
-        printf "    1) Full Installation\n"
-        printf "    2) Components\n"
-        printf "    3) Update\n"
-        printf "    4) Repair\n"
-        printf "    5) Restore Backup\n"
-        printf "    6) Doctor\n"
-        printf "    7) Uninstall\n"
-        printf "    8) Exit\n"
-        printf "\n"
-        printf "  Choice [1-8]: "
-        read -rn1 choice
-        printf "\n"
-
-        case "$choice" in
-            1) source "$REPO_ROOT/installer/actions/full.sh";      action_full;      return ;;
-            2) source "$REPO_ROOT/installer/actions/components.sh"; action_components; return ;;
-            3) source "$REPO_ROOT/installer/actions/update.sh";    action_update;    return ;;
-            4) source "$REPO_ROOT/installer/actions/repair.sh";    action_repair;    return ;;
-            5) source "$REPO_ROOT/installer/actions/restore.sh";   action_restore;   return ;;
-            6) source "$REPO_ROOT/installer/actions/doctor.sh";    action_doctor;    return ;;
-            7) source "$REPO_ROOT/installer/actions/uninstall.sh"; action_uninstall; return ;;
-            8|q|Q) printf "  Goodbye.\n"; return ;;
-            *)
-                printf "${C_WARN}  Invalid choice.${C_RST}\n\n"
-                ;;
-        esac
-    done
-}
-
-# ── Main dispatch ─────────────────────────────────────────────────────────────
 case "${1:-}" in
-    full|components|update|repair|restore|doctor|uninstall)
-        source "$REPO_ROOT/installer/actions/$1.sh"
-        "action_$1" "${@:2}"
-        ;;
-    help|--help|-h)
-        show_help
-        ;;
-    "")
-        run_menu
-        ;;
-    *)
-        printf "${C_ERR}Error: Unknown command '%s'${C_RST}\n\n" "$1"
-        show_help
-        exit 1
-        ;;
+    ""|help|--help|-h) showhelp ;;
+    install) shift ;;
+    *) printf "${RED}Unknown subcommand: $1${RST}\n"; showhelp ;;
 esac
+
+# Parse options
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --noconfirm)    ask=false; shift ;;
+        --interactive)  ask=true; shift ;;
+        --skip-deps)    SKIP_DEPS=true; shift ;;
+        --skip-setup)   SKIP_SETUP=true; shift ;;
+        --skip-files)   SKIP_FILES=true; shift ;;
+        --skip-backup)  SKIP_BACKUP=true; shift ;;
+        --firstrun)     shift ;;
+        -h|--help)      showhelp ;;
+        *) printf "${RED}Unknown option: $1${RST}\n"; exit 1 ;;
+    esac
+done
+
+printf "\n${CYAN}${BOLD}=== SCROW Installer ===${RST}\n"
+printf "${CYAN}Repository: ${REPO_ROOT}${RST}\n\n"
+
+sudo_init_keepalive
+trap sudo_stop_keepalive EXIT INT TERM
+
+# Phase 1: Dependencies
+if [[ "$SKIP_DEPS" != true ]]; then
+    source "$REPO_ROOT/sdata/subcmd-install/1.deps.sh"
+fi
+
+# Phase 2: System setup
+if [[ "$SKIP_SETUP" != true ]]; then
+    source "$REPO_ROOT/sdata/subcmd-install/2.setups.sh"
+fi
+
+# Phase 3: File deployment
+if [[ "$SKIP_FILES" != true ]]; then
+    source "$REPO_ROOT/sdata/subcmd-install/3.files.sh"
+fi
+
+printf "\n${GREEN}${BOLD}=== SCROW Installation Complete ===${RST}\n"
+printf "${CYAN}Reboot for all changes to take effect.${RST}\n\n"

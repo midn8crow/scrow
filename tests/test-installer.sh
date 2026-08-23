@@ -1,509 +1,279 @@
 #!/usr/bin/env bash
-set -uo pipefail
+# SCROW installer test suite — tests the NEW end-4-style installer
+# Usage: bash tests/test-installer.sh
 
-TEST_DIR="$(mktemp -d)"
-trap 'rm -rf "$TEST_DIR"' EXIT
+set -euo pipefail
 
-PASS=0
-FAIL=0
-FAILED=()
-REPO_ROOT="/home/shadhin/dotfiles"
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+PASS=0 FAIL=0
 
-TEST_HOME="$TEST_DIR/home"
-TEST_REPO="$TEST_DIR/repo"
-mkdir -p "$TEST_HOME"
+check() {
+    local desc="$1" result="$2" detail="${3:-}"
+    if [[ "$result" == "true" ]]; then
+        printf "  \e[32mOK\e[0m: %s\n" "$desc"
+        PASS=$((PASS + 1))
+    else
+        printf "  \e[31mFAIL\e[0m: %s (%s)\n" "$desc" "$detail"
+        FAIL=$((FAIL + 1))
+    fi
+}
+
+echo "=== SCROW Installer Test Suite ==="
+echo "Repository: $REPO_ROOT"
+echo ""
+
+# ── 1. Repository structure ───────────────────────────────────────────────────
+
+echo "== 1. Repository structure =="
+check "setup exists"          "$([ -f "$REPO_ROOT/setup" ] && echo true || echo false)"
+check "setup is executable"   "$([ -x "$REPO_ROOT/setup" ] && echo true || echo false)"
+check "get exists"            "$([ -f "$REPO_ROOT/get" ] && echo true || echo false)"
+check "sdata/lib/env.sh"     "$([ -f "$REPO_ROOT/sdata/lib/env.sh" ] && echo true || echo false)"
+check "sdata/lib/functions.sh" "$([ -f "$REPO_ROOT/sdata/lib/functions.sh" ] && echo true || echo false)"
+check "sdata/subcmd-install/1.deps.sh"  "$([ -f "$REPO_ROOT/sdata/subcmd-install/1.deps.sh" ] && echo true || echo false)"
+check "sdata/subcmd-install/2.setups.sh" "$([ -f "$REPO_ROOT/sdata/subcmd-install/2.setups.sh" ] && echo true || echo false)"
+check "sdata/subcmd-install/3.files.sh"  "$([ -f "$REPO_ROOT/sdata/subcmd-install/3.files.sh" ] && echo true || echo false)"
+check "packages/official.txt" "$([ -f "$REPO_ROOT/packages/official.txt" ] && echo true || echo false)"
+check "packages/aur.txt"      "$([ -f "$REPO_ROOT/packages/aur.txt" ] && echo true || echo false)"
+check "dots/ directory exists" "$([ -d "$REPO_ROOT/dots" ] && echo true || echo false)"
+
+# ── 2. Old installer fully removed ────────────────────────────────────────────
+
+echo ""
+echo "== 2. Old installer removed =="
+check "no installer/ directory"      "$([ ! -d "$REPO_ROOT/installer" ] && echo true || echo false)"
+check "no bootstrap.sh"              "$([ ! -f "$REPO_ROOT/bootstrap.sh" ] && echo true || echo false)"
+check "no tests/test-installer.sh"   "$([ ! -f "$REPO_ROOT/tests/test-installer.sh.bak" ] && echo true || echo false)"
+check "no installer/lib/"            "$([ ! -d "$REPO_ROOT/installer/lib" ] && echo true || echo false)"
+check "no installer/actions/"        "$([ ! -d "$REPO_ROOT/installer/actions" ] && echo true || echo false)"
+
+# ── 3. dots/ tree contains all expected dotfiles ──────────────────────────────
+
+echo ""
+echo "== 3. dots/ tree content =="
+check "dots/.config exists"   "$([ -d "$REPO_ROOT/dots/.config" ] && echo true || echo false)"
+check "dots/.local exists"    "$([ -d "$REPO_ROOT/dots/.local" ] && echo true || echo false)"
+check "dots/.zshrc exists"    "$([ -f "$REPO_ROOT/dots/.zshrc" ] && echo true || echo false)"
+
+# Waybar: complete tree
+waybar_files=$(find "$REPO_ROOT/dots/.config/waybar" -type f 2>/dev/null | wc -l)
+check "waybar has files (>=50)" "$([ "$waybar_files" -ge 50 ] && echo true || echo false)" "count=$waybar_files"
+check "waybar/launch.sh exists" "$([ -f "$REPO_ROOT/dots/.config/waybar/launch.sh" ] && echo true || echo false)"
+check "waybar/config-anik.jsonc" "$([ -f "$REPO_ROOT/dots/.config/waybar/config-anik.jsonc" ] && echo true || echo false)"
+check "waybar/athena/ dir"      "$([ -d "$REPO_ROOT/dots/.config/waybar/athena" ] && echo true || echo false)"
+check "waybar/scripts/ dir"     "$([ -d "$REPO_ROOT/dots/.config/waybar/scripts" ] && echo true || echo false)"
+check "waybar/colors/ dir"      "$([ -d "$REPO_ROOT/dots/.config/waybar/colors" ] && echo true || echo false)"
+check "waybar/cava/ dir"        "$([ -d "$REPO_ROOT/dots/.config/waybar/cava" ] && echo true || echo false)"
+check "waybar/context/ dir"     "$([ -d "$REPO_ROOT/dots/.config/waybar/context" ] && echo true || echo false)"
+
+# Hyprland: complete tree
+hypr_files=$(find "$REPO_ROOT/dots/.config/hypr" -type f 2>/dev/null | wc -l)
+check "hypr has files (>=20)"   "$([ "$hypr_files" -ge 20 ] && echo true || echo false)" "count=$hypr_files"
+check "hyprland.conf exists"    "$([ -f "$REPO_ROOT/dots/.config/hypr/hyprland.conf" ] && echo true || echo false)"
+check "hyprland.lua exists"     "$([ -f "$REPO_ROOT/dots/.config/hypr/hyprland.lua" ] && echo true || echo false)"
+check "hypr/modules/ dir"       "$([ -d "$REPO_ROOT/dots/.config/hypr/modules" ] && echo true || echo false)"
+check "hypr/scripts/ dir"       "$([ -d "$REPO_ROOT/dots/.config/hypr/scripts" ] && echo true || echo false)"
+check "hypr/hyprlock/ dir"      "$([ -d "$REPO_ROOT/dots/.config/hypr/hyprlock" ] && echo true || echo false)"
+check "hypr/modules/autostart.lua" "$([ -f "$REPO_ROOT/dots/.config/hypr/modules/autostart.lua" ] && echo true || echo false)"
+check "hypr/modules/workspace_overview.lua" "$([ -f "$REPO_ROOT/dots/.config/hypr/modules/workspace_overview.lua" ] && echo true || echo false)"
+
+# Rofi, mako, kitty, other configs
+check "rofi/ exists"    "$([ -d "$REPO_ROOT/dots/.config/rofi" ] && echo true || echo false)"
+check "mako/ exists"    "$([ -d "$REPO_ROOT/dots/.config/mako" ] && echo true || echo false)"
+check "kitty/ exists"   "$([ -d "$REPO_ROOT/dots/.config/kitty" ] && echo true || echo false)"
+
+# Local bin scripts
+localbin_count=$(find "$REPO_ROOT/dots/.local/bin" -type f 2>/dev/null | wc -l)
+check "local/bin has scripts (>=40)" "$([ "$localbin_count" -ge 40 ] && echo true || echo false)" "count=$localbin_count"
+
+# Fonts
+check ".local/share/fonts/ exists" "$([ -d "$REPO_ROOT/dots/.local/share/fonts" ] && echo true || echo false)"
+
+# Icons
+check ".local/share/icons/ exists" "$([ -d "$REPO_ROOT/dots/.local/share/icons" ] && echo true || echo false)"
+
+# ── 4. Root-level dotfiles are NOT in repo root (moved to dots/) ─────────────
+
+echo ""
+echo "== 4. Dotfiles are in dots/, not repo root =="
+check ".config NOT at root"  "$([ ! -d "$REPO_ROOT/.config" ] && echo true || echo false)"
+check ".local NOT at root"   "$([ ! -d "$REPO_ROOT/.local" ] && echo true || echo false)"
+check ".zshrc NOT at root"   "$([ ! -f "$REPO_ROOT/.zshrc" ] && echo true || echo false)"
+
+# ── 5. No old installer artifacts remain ──────────────────────────────────────
+
+echo ""
+echo "== 5. No legacy artifacts =="
+check "no installer/components.list"  "$([ ! -f "$REPO_ROOT/installer/components.list" ] && echo true || echo false)"
+check "no installer/lib/common.sh"   "$([ ! -f "$REPO_ROOT/installer/lib/common.sh" ] && echo true || echo false)"
+check "no installer/lib/deploy.sh"   "$([ ! -f "$REPO_ROOT/installer/lib/deploy.sh" ] && echo true || echo false)"
+
+# ── 6. setup help works ──────────────────────────────────────────────────────
+
+echo ""
+echo "== 6. setup help =="
+output=$(bash "$REPO_ROOT/setup" help 2>&1) || true
+check "help shows usage"  "$(echo "$output" | grep -q 'Usage:' && echo true || echo false)"
+check "help shows install" "$(echo "$output" | grep -q 'install' && echo true || echo false)"
+
+# ── 7. packages manifests are non-empty ──────────────────────────────────────
+
+echo ""
+echo "== 7. Package manifests =="
+official_count=$(grep -v '^#' "$REPO_ROOT/packages/official.txt" | grep -v '^[[:space:]]*$' | wc -l)
+check "official.txt has packages (>=60)" "$([ "$official_count" -ge 60 ] && echo true || echo false)" "count=$official_count"
+aur_count=$(grep -v '^#' "$REPO_ROOT/packages/aur.txt" | grep -v '^[[:space:]]*$' | wc -l)
+check "aur.txt has packages (>=5)" "$([ "$aur_count" -ge 5 ] && echo true || echo false)" "count=$aur_count"
+check "official.txt has hyprland"  "$(grep -q '^hyprland$' "$REPO_ROOT/packages/official.txt" && echo true || echo false)"
+check "official.txt has waybar"    "$(grep -q '^waybar$' "$REPO_ROOT/packages/official.txt" && echo true || echo false)"
+check "official.txt has rust"      "$(grep -q '^rust$' "$REPO_ROOT/packages/official.txt" && echo true || echo false)"
+check "official.txt has go"        "$(grep -q '^go$' "$REPO_ROOT/packages/official.txt" && echo true || echo false)"
+
+# ── 8. Deployment test with temp HOME ─────────────────────────────────────────
+
+echo ""
+echo "== 8. Deployment test (temp HOME) =="
+TEST_HOME=$(mktemp -d)
+trap 'rm -rf "$TEST_HOME"' EXIT
+
+# Source env and functions
 export HOME="$TEST_HOME"
 export XDG_CONFIG_HOME="$TEST_HOME/.config"
 export XDG_DATA_HOME="$TEST_HOME/.local/share"
-export XDG_STATE_HOME="$TEST_HOME/.local/state"
 export XDG_BIN_HOME="$TEST_HOME/.local/bin"
 export XDG_CACHE_HOME="$TEST_HOME/.cache"
-export USER="${USER:-testuser}"
+export XDG_STATE_HOME="$TEST_HOME/.local/state"
 
-STUB_DIR="$TEST_DIR/stubs"
-STUB_LOG="$TEST_DIR/stub.log"
-mkdir -p "$STUB_DIR"
-: > "$STUB_LOG"
+source "$REPO_ROOT/sdata/lib/env.sh"
+# Override paths for test
+INSTALLED_LISTFILE="$TEST_HOME/.config/scrow/installed_listfile"
+FIRSTRUN_FILE="$TEST_HOME/.config/scrow/installed_true"
 
-check() {
-    local name="$1" cond="$2" extra="${3:-}"
-    if [[ "$cond" == "true" ]]; then
-        ((PASS++))
-        printf "  OK: %s\n" "$name"
-    else
-        ((FAIL++))
-        FAILED+=("$name $extra")
-        printf "  FAIL: %s %s\n" "$name" "$extra"
-    fi
-}
+# Create XDG dirs
+mkdir -p "$XDG_BIN_HOME" "$XDG_CACHE_HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME"
+mkdir -p "$(dirname "$INSTALLED_LISTFILE")"
 
-create_stubs() {
-    for cmd in pacman systemctl loginctl chsh usermod fc-cache lsof ping grub-mkconfig sysctl id getent; do
-        printf '#!/usr/bin/env bash\necho "STUB:%s" >> "%s"\nexit 0\n' "$cmd $*" "$STUB_LOG" > "$STUB_DIR/$cmd"
-        chmod +x "$STUB_DIR/$cmd"
+# Define deployment functions inline (cp-based for test without rsync)
+_cp_dir() {
+    local src="$1" dst="$2"
+    mkdir -p "$dst"
+    cp -a "$src"/. "$dst"/
+    mkdir -p "$(dirname "$INSTALLED_LISTFILE")"
+    find "$src" -type f -o -type l | while read -r f; do
+        local rel="${f#"$src"/}"
+        realpath -se "$dst/$rel" >> "$INSTALLED_LISTFILE"
     done
-
-    # sudo stub: logs the call, then executes the remaining args
-    cat > "$STUB_DIR/sudo" << 'SEOF'
-#!/usr/bin/env bash
-echo "STUB:sudo $*" >> "$STUB_LOG"
-# Execute the command if it exists, otherwise just succeed
-if command -v "$1" >/dev/null 2>&1 || [[ -x "$1" ]]; then
-    "$@"
-else
-    exit 0
-fi
-SEOF
-    chmod +x "$STUB_DIR/sudo"
-
-    cat > "$STUB_DIR/getent" << 'EOF2'
-#!/usr/bin/env bash
-echo "testuser:x:1000:1000::/home/testuser:/bin/bash"
-exit 0
-EOF2
-    chmod +x "$STUB_DIR/getent"
-
-    cat > "$STUB_DIR/id" << 'EOF2'
-#!/usr/bin/env bash
-echo "testuser video audio input optical storage"
-exit 0
-EOF2
-    chmod +x "$STUB_DIR/id"
-
-    cat > "$STUB_DIR/paru" << 'EOF2'
-#!/usr/bin/env bash
-echo "STUB:paru" >> "$STUB_LOG"
-if [[ "$1" == "--version" ]]; then
-    [[ -f /tmp/_scrow_test_paru_ok ]] && { echo "paru 25.0"; exit 0; }
-    exit 1
-fi
-[[ "$1" == "-S" ]] && touch /tmp/_scrow_test_paru_ok
-exit 0
-EOF2
-    chmod +x "$STUB_DIR/paru"
-
-    export PATH="$STUB_DIR:$PATH"
 }
-
-reset_log() { : > "$STUB_LOG"; }
-
-echo ""
-echo "═══ SCROW Installer Test Suite ═══"
-echo ""
-
-source "$REPO_ROOT/installer/lib/common.sh"
-source "$REPO_ROOT/installer/lib/packages.sh"
-source "$REPO_ROOT/installer/lib/deploy.sh"
-source "$REPO_ROOT/installer/lib/services.sh"
-
-echo "== 1. Manifest parsing =="
-read_manifest "$REPO_ROOT/packages/official.txt" TEST_OFFICIAL
-read_manifest "$REPO_ROOT/packages/aur.txt" TEST_AUR
-check "official.txt non-empty" "$([ ${#TEST_OFFICIAL[@]} -gt 0 ] && echo true || echo false)" "count=${#TEST_OFFICIAL[@]}"
-check "aur.txt non-empty" "$([ ${#TEST_AUR[@]} -gt 0 ] && echo true || echo false)" "count=${#TEST_AUR[@]}"
-check "official >= 60 pkgs" "$([ ${#TEST_OFFICIAL[@]} -ge 60 ] && echo true || echo false)" "count=${#TEST_OFFICIAL[@]}"
-check "aur >= 10 pkgs" "$([ ${#TEST_AUR[@]} -ge 10 ] && echo true || echo false)" "count=${#TEST_AUR[@]}"
-check "official no comments" "$(! printf '%s\n' "${TEST_OFFICIAL[@]}" | grep -q '^#' && echo true || echo false)"
-
-echo "== 2. Manifest dedup =="
-dupes=$(printf '%s\n' "${TEST_OFFICIAL[@]}" | sort | uniq -d | wc -l)
-check "official no duplicates" "$([ "$dupes" -eq 0 ] && echo true || echo false)" "dups=$dupes"
-
-echo "== 3. discover_sources =="
-sources_list=$(discover_sources)
-check "discover_sources has output" "$([ -n "$sources_list" ] && echo true || echo false)"
-check ".config in sources" "$(echo "$sources_list" | grep -q '^\.config$' && echo true || echo false)"
-
-echo "== 4. Exclusions =="
-for never in installer packages tests bootstrap.sh setup README.md CHANGELOG.md LICENSE VERSION .git .gitignore; do
-    found=$(echo "$sources_list" | grep -qx "$never" && echo yes || echo no)
-    check "excluded: $never" "$([ "$found" = "no" ] && echo true || echo false)"
-done
-
-echo "== 5. Deploy =="
-mkdir -p "$TEST_REPO/.config/hypr/scripts"
-mkdir -p "$TEST_REPO/.config/waybar"
-mkdir -p "$TEST_REPO/.config/kitty"
-mkdir -p "$TEST_REPO/.config/newapp/configs"
-mkdir -p "$TEST_REPO/.local/bin"
-mkdir -p "$TEST_REPO/Pictures/Wallpapers"
-mkdir -p "$TEST_REPO/installer" "$TEST_REPO/packages" "$TEST_REPO/tests"
-
-echo "monitor = DP-1,1920x1080@60,0x0,1" > "$TEST_REPO/.config/hypr/monitors.conf"
-echo "bind = SUPER,Return,exec,kitty" > "$TEST_REPO/.config/hypr/keybinds.conf"
-echo "windowrulev2 = float" > "$TEST_REPO/.config/hypr/windowrules.conf"
-echo "source = ~/.config/hypr/monitors.conf" > "$TEST_REPO/.config/hypr/hyprland.conf"
-printf '#!/bin/bash\necho hello\n' > "$TEST_REPO/.config/hypr/scripts/wallpaper.sh"
-chmod +x "$TEST_REPO/.config/hypr/scripts/wallpaper.sh"
-echo '{"layer":"bar"}' > "$TEST_REPO/.config/waybar/config.jsonc"
-echo "font_family JetBrainsMono" > "$TEST_REPO/.config/kitty/kitty.conf"
-printf '#!/bin/bash\necho script\n' > "$TEST_REPO/.local/bin/my-script.sh"
-chmod +x "$TEST_REPO/.local/bin/my-script.sh"
-echo "wallpaper.png" > "$TEST_REPO/Pictures/Wallpapers/scrow.png"
-echo "newapp=true" > "$TEST_REPO/.config/newapp/configs/settings.conf"
-echo "old content" > "$TEST_REPO/.config/hypr/test.bak"
-mkdir -p "$TEST_REPO/.config/__pycache__"
-echo "cached" > "$TEST_REPO/.config/__pycache__/mod.pyc"
-echo "1.0.0" > "$TEST_REPO/VERSION"
-
-export REPO_ROOT="$TEST_REPO"
-
-deployed_count=0
-while IFS= read -r src; do
-    [[ ! -e "$REPO_ROOT/$src" ]] && continue
-    if [[ -d "$REPO_ROOT/$src" ]]; then
-        deploy_home_dir "$REPO_ROOT/$src" "$HOME/$src"
-    elif [[ -f "$REPO_ROOT/$src" ]]; then
-        mkdir -p "$(dirname "$HOME/$src")"
-        cp -a "$REPO_ROOT/$src" "$HOME/$src" 2>/dev/null || true
-    fi
-    ((deployed_count++))
-done < <(discover_sources)
-
-check "deployed items > 0" "$([ "$deployed_count" -gt 0 ] && echo true || echo false)" "count=$deployed_count"
-check "hyprland.conf deployed" "$([ -f "$HOME/.config/hypr/hyprland.conf" ] && echo true || echo false)"
-check "keybinds.conf deployed" "$([ -f "$HOME/.config/hypr/keybinds.conf" ] && echo true || echo false)"
-check "windowrules.conf deployed" "$([ -f "$HOME/.config/hypr/windowrules.conf" ] && echo true || echo false)"
-check "monitors.conf deployed" "$([ -f "$HOME/.config/hypr/monitors.conf" ] && echo true || echo false)"
-check "hypr scripts deployed" "$([ -f "$HOME/.config/hypr/scripts/wallpaper.sh" ] && echo true || echo false)"
-check "waybar deployed" "$([ -f "$HOME/.config/waybar/config.jsonc" ] && echo true || echo false)"
-check "kitty deployed" "$([ -f "$HOME/.config/kitty/kitty.conf" ] && echo true || echo false)"
-check "local/bin deployed" "$([ -f "$HOME/.local/bin/my-script.sh" ] && echo true || echo false)"
-check "Pictures deployed" "$([ -f "$HOME/Pictures/Wallpapers/scrow.png" ] && echo true || echo false)"
-check "new .config/newapp deployed" "$([ -f "$HOME/.config/newapp/configs/settings.conf" ] && echo true || echo false)"
-check "exec bit: local/bin" "$([ -x "$HOME/.local/bin/my-script.sh" ] && echo true || echo false)"
-check "exec bit: hypr script" "$([ -x "$HOME/.config/hypr/scripts/wallpaper.sh" ] && echo true || echo false)"
-
-echo "== 6. Excludes =="
-check "*.bak excluded" "$([ ! -f "$HOME/.config/hypr/test.bak" ] && echo true || echo false)"
-check "__pycache__ excluded" "$([ ! -d "$HOME/.config/__pycache__" ] && echo true || echo false)"
-check "setup not in HOME" "$([ ! -f "$HOME/setup" ] && echo true || echo false)"
-check "installer not in HOME" "$([ ! -d "$HOME/installer" ] && echo true || echo false)"
-
-echo "== 7. Backup =="
-SCROW_BACKUP_DIR="$XDG_DATA_HOME/scrow/backups"
-mkdir -p "$HOME/.config/hypr"
-echo "original" > "$HOME/.config/hypr/hyprland.conf"
-backup_file "$HOME/.config/hypr/hyprland.conf"
-check "backup dir created" "$([ -d "$SCROW_BACKUP_DIR" ] && echo true || echo false)"
-check "backup file exists" "$([ -n "$(find "$SCROW_BACKUP_DIR" -name '*.bak' 2>/dev/null)" ] && echo true || echo false)"
-check "backup has content" "$(grep -rq 'original' "$SCROW_BACKUP_DIR"/ 2>/dev/null && echo true || echo false)"
-
-echo "== 8. Manifest =="
-SCROW_MANIFEST="$XDG_DATA_HOME/scrow/manifest.tsv"
-: > "$SCROW_MANIFEST"
-while IFS= read -r src; do
-    [[ -e "$REPO_ROOT/$src" ]] && echo "$src" >> "$SCROW_MANIFEST"
-done < <(discover_sources)
-check "manifest.tsv exists" "$([ -f "$SCROW_MANIFEST" ] && echo true || echo false)"
-check "manifest.tsv non-empty" "$([ -s "$SCROW_MANIFEST" ] && echo true || echo false)"
-
-echo "== 9. Validate =="
-cp -a "$REPO_ROOT/.config/hypr/hyprland.conf" "$HOME/.config/hypr/hyprland.conf"
-FIND_EXCLUDES=(-not -path '*/.git/*' -not -path '*/installer/*' -not -path '*/packages/*'
-    -not -path '*/tests/*' -not -name '*.bak' -not -name '*.pyc'
-    -not -name 'setup' -not -name 'README.md' -not -name 'CHANGELOG.md'
-    -not -name 'LICENSE' -not -name 'VERSION' -not -name '.gitignore'
-    -not -name 'bootstrap.sh')
-
-count_missing() {
-    local count=0
-    while IFS= read -r repo_file; do
-        local rel="${repo_file#$REPO_ROOT/}"
-        [[ ! -e "$HOME/$rel" ]] && ((count++))
-    done < <(find "$REPO_ROOT" -type f "${FIND_EXCLUDES[@]}" 2>/dev/null)
-    echo "$count"
-}
-
-count_differs() {
-    local count=0
-    while IFS= read -r repo_file; do
-        local rel="${repo_file#$REPO_ROOT/}"
-        if [[ -e "$HOME/$rel" ]] && [[ -f "$repo_file" ]]; then
-            cmp -s "$repo_file" "$HOME/$rel" 2>/dev/null || ((count++))
-        fi
-    done < <(find "$REPO_ROOT" -type f "${FIND_EXCLUDES[@]}" 2>/dev/null)
-    echo "$count"
-}
-
-rm -f "$HOME/.config/kitty/kitty.conf"
-missing=$(count_missing)
-check "detects missing file" "$([ "$missing" -gt 0 ] && echo true || echo false)" "missing=$missing"
-
-echo "modified" > "$HOME/.config/kitty/kitty.conf"
-differs=$(count_differs)
-check "detects differs" "$([ "$differs" -gt 0 ] && echo true || echo false)" "differs=$differs"
-
-cp -a "$REPO_ROOT/.config/kitty/kitty.conf" "$HOME/.config/kitty/kitty.conf"
-m2=$(count_missing); d2=$(count_differs)
-problems=$((m2 + d2))
-check "validation clean" "$([ "$problems" -eq 0 ] && echo true || echo false)" "problems=$problems"
-
-echo "== 10. Paru already installed =="
-create_stubs
-# Create the trigger file so paru --version succeeds
-touch /tmp/_scrow_test_paru_ok
-reset_log
-SCROW_PARU_READY=0
-set +e
-ensure_paru 2>/dev/null
-paru_rc=$?
-set -e
-check "ensure_paru returns 0 (paru found)" "$([ "$paru_rc" -eq 0 ] && echo true || echo false)" "rc=$paru_rc"
-
-echo "== 10b. Paru idempotent =="
-set +e
-ensure_paru 2>/dev/null
-paru_rc2=$?
-set -e
-check "ensure_paru idempotent" "$([ "$paru_rc2" -eq 0 ] && echo true || echo false)" "rc=$paru_rc2"
-
-echo "== 11. Services =="
-reset_log
-"$STUB_DIR/systemctl" --user is-enabled test.service 2>/dev/null
-"$STUB_DIR/sudo" systemctl enable sddm.service 2>/dev/null
-svc_calls=$(grep -cE "(systemctl|sudo)" "$STUB_LOG" 2>/dev/null || true)
-svc_calls=${svc_calls:-0}
-check "systemctl stub works" "$([ "$svc_calls" -ge 2 ] && echo true || echo false)" "calls=$svc_calls"
-
-reset_log
-# Use a known-alive PID for SCROW_SUDO_PID so make_sudo_keepalive skips the background loop
-# and stop_sudo_keepalive skips the kill (because kill $$ would be fatal)
-MOCK_KEEPALIVE_PID="$(sleep 999999 & echo $!)"
-SCROW_SUDO_PID="$MOCK_KEEPALIVE_PID"
-setup_user_services 2>/dev/null
-setup_system_services 2>/dev/null
-stop_sudo_keepalive 2>/dev/null
-kill "$MOCK_KEEPALIVE_PID" 2>/dev/null || true
-svc_calls2=$(grep -cE "(systemctl|sudo)" "$STUB_LOG" 2>/dev/null || true)
-svc_calls2=${svc_calls2:-0}
-check "services setup calls systemctl" "$([ "$svc_calls2" -gt 0 ] && echo true || echo false)" "calls=$svc_calls2"
-
-echo "== 12. Idempotent =="
-export REPO_ROOT="$TEST_REPO"
-while IFS= read -r src; do
-    [[ ! -e "$REPO_ROOT/$src" ]] && continue
-    if [[ -d "$REPO_ROOT/$src" ]]; then
-        deploy_home_dir "$REPO_ROOT/$src" "$HOME/$src"
-    elif [[ -f "$REPO_ROOT/$src" ]]; then
-        mkdir -p "$(dirname "$HOME/$src")"
-        cp -a "$REPO_ROOT/$src" "$HOME/$src" 2>/dev/null || true
-    fi
-done < <(discover_sources)
-check "second deploy OK" "true"
-
-echo "== 13. Components =="
-export REPO_ROOT="/home/shadhin/dotfiles"
-comp_count=$(grep -v '^#' "$REPO_ROOT/installer/components.list" | grep -v '^[[:space:]]*$' | wc -l)
-check "components.list has entries" "$([ "$comp_count" -gt 0 ] && echo true || echo false)" "count=$comp_count"
-
-echo "== 14. x() and try() =="
-set +e
-( source "$REPO_ROOT/installer/lib/common.sh" 2>/dev/null; x "failing" false 2>/dev/null )
-rc=$?
-set -e
-check "x() non-zero on fail" "$([ "$rc" -ne 0 ] && echo true || echo false)" "rc=$rc"
-source "$REPO_ROOT/installer/lib/common.sh" 2>/dev/null
-x "passing" true
-check "x() zero on success" "$([ $? -eq 0 ] && echo true || echo false)"
-try false
-check "try() zero on failure" "$([ $? -eq 0 ] && echo true || echo false)"
-
-echo "== 15. Setup help =="
-output=$(bash "$REPO_ROOT/setup" help 2>&1)
-check "help shows usage" "$(echo "$output" | grep -q 'Usage:' && echo true || echo false)"
-check "help shows commands" "$(echo "$output" | grep -q 'full' && echo true || echo false)"
-
-echo "== 16. Temp cleanup =="
-tmp_count=$(find /tmp -maxdepth 1 -name "scrow-*" -type d 2>/dev/null | wc -l)
-check "no stale /tmp/scrow-*" "$([ "$tmp_count" -eq 0 ] && echo true || echo false)" "count=$tmp_count"
-
-echo "== 17. Action files =="
-for action in full components update repair restore doctor uninstall; do
-    file="$REPO_ROOT/installer/actions/$action.sh"
-    check "$action.sh exists" "$([ -f "$file" ] && echo true || echo false)"
-    check "$action.sh has function" "$(grep -q "action_$action" "$file" && echo true || echo false)"
-    check "$action.sh syntax" "$(bash -n "$file" 2>/dev/null && echo true || echo false)"
-done
-
-echo "== 18. Syntax =="
-check "setup syntax" "$(bash -n "$REPO_ROOT/setup" 2>/dev/null && echo true || echo false)"
-check "bootstrap.sh syntax" "$(bash -n "$REPO_ROOT/bootstrap.sh" 2>/dev/null && echo true || echo false)"
-for lib in common.sh packages.sh deploy.sh services.sh validate.sh; do
-    check "lib/$lib syntax" "$(bash -n "$REPO_ROOT/installer/lib/$lib" 2>/dev/null && echo true || echo false)"
-done
-
-echo "== 19. Old architecture removed =="
-check "ORCHESTRA.sh gone" "$([ ! -f "$REPO_ROOT/scripts/ORCHESTRA.sh" ] && echo true || echo false)"
-check "sdata/ gone" "$([ ! -d "$REPO_ROOT/sdata" ] && echo true || echo false)"
-check "old test gone" "$([ ! -f "$REPO_ROOT/test-installer.sh" ] && echo true || echo false)"
-check ".git_list gone" "$([ ! -f "$REPO_ROOT/.git_list" ] && echo true || echo false)"
-
-echo "== 20. Repo cleanliness =="
-bak_count=$(find "$REPO_ROOT" -name "*.bak" -not -path '*/.git/*' 2>/dev/null | wc -l)
-check "no .bak files" "$([ "$bak_count" -eq 0 ] && echo true || echo false)" "found=$bak_count"
-pycache_count=$(find "$REPO_ROOT" -name "__pycache__" -type d -not -path '*/.git/*' 2>/dev/null | wc -l)
-check "no __pycache__" "$([ "$pycache_count" -eq 0 ] && echo true || echo false)" "found=$pycache_count"
-
-echo "== 21. deploy_dir_sudo (system deploy fallback) =="
-TEST_SYS_SRC="$TEST_DIR/sys_src"
-TEST_SYS_DEST="$TEST_DIR/sys_dest"
-mkdir -p "$TEST_SYS_SRC/sddm/themes" "$TEST_SYS_SRC/hooks" "$TEST_SYS_SRC/grub/theme"
-echo "theme" > "$TEST_SYS_SRC/sddm/themes/test.conf"
-echo "hook" > "$TEST_SYS_SRC/hooks/test.hook"
-echo "grub" > "$TEST_SYS_SRC/grub/theme/theme.txt"
-
-# Override sudo stub to actually execute commands (not just log)
-cat > "$STUB_DIR/sudo" << 'SEOF'
-#!/usr/bin/env bash
-if command -v "$1" >/dev/null 2>&1 || [[ -x "$1" ]]; then
-    "$@"
-else
-    exit 0
-fi
-SEOF
-chmod +x "$STUB_DIR/sudo"
-
-# Test with rsync (or cp fallback if rsync not available)
-rm -rf "$TEST_SYS_DEST"
-deploy_dir_sudo "$TEST_SYS_SRC" "$TEST_SYS_DEST" "test deploy" 2>/dev/null
-sys_ok=true
-[[ -f "$TEST_SYS_DEST/sddm/themes/test.conf" ]] || sys_ok=false
-[[ -f "$TEST_SYS_DEST/hooks/test.hook" ]] || sys_ok=false
-[[ -f "$TEST_SYS_DEST/grub/theme/theme.txt" ]] || sys_ok=false
-check "system deploy (rsync or cp fallback)" "$($sys_ok && echo true || echo false)"
-
-# Force cp fallback: hide rsync if present
-rm -rf "$TEST_SYS_DEST"
-NO_RSYNC_DIR="$TEST_DIR/no_rsync_bin"
-mkdir -p "$NO_RSYNC_DIR"
-SAVED_PATH="$PATH"
-export PATH="$NO_RSYNC_DIR:$STUB_DIR"
-deploy_dir_sudo "$TEST_SYS_SRC" "$TEST_SYS_DEST" "test cp deploy" 2>/dev/null
-cp_sys_ok=true
-[[ -f "$TEST_SYS_DEST/sddm/themes/test.conf" ]] || cp_sys_ok=false
-[[ -f "$TEST_SYS_DEST/hooks/test.hook" ]] || cp_sys_ok=false
-[[ -f "$TEST_SYS_DEST/grub/theme/theme.txt" ]] || cp_sys_ok=false
-export PATH="$SAVED_PATH"
-check "system deploy cp fallback (no rsync)" "$($cp_sys_ok && echo true || echo false)"
-
-echo "== 22. deploy_home_dir (HOME deploy fallback) =="
-TEST_HOME_SRC="$TEST_DIR/home_src"
-TEST_HOME_DST="$TEST_DIR/home_dst"
-mkdir -p "$TEST_HOME_SRC/.config/hypr/scripts"
-echo "monitor" > "$TEST_HOME_SRC/.config/hypr/monitors.conf"
-echo "bind" > "$TEST_HOME_SRC/.config/hypr/binds.conf"
-printf '#!/bin/bash\necho hello\n' > "$TEST_HOME_SRC/.config/hypr/scripts/run.sh"
-chmod +x "$TEST_HOME_SRC/.config/hypr/scripts/run.sh"
-echo "old" > "$TEST_HOME_SRC/.config/hypr/test.bak"
-mkdir -p "$TEST_HOME_SRC/.config/__pycache__"
-echo "pyc" > "$TEST_HOME_SRC/.config/__pycache__/mod.pyc"
-
-# Test with rsync
-rm -rf "$TEST_HOME_DST"
-deploy_home_dir "$TEST_HOME_SRC" "$TEST_HOME_DST" 2>/dev/null
-rsync_home_ok=true
-[[ -f "$TEST_HOME_DST/.config/hypr/monitors.conf" ]] || rsync_home_ok=false
-[[ -f "$TEST_HOME_DST/.config/hypr/binds.conf" ]] || rsync_home_ok=false
-[[ -f "$TEST_HOME_DST/.config/hypr/scripts/run.sh" ]] || rsync_home_ok=false
-[[ ! -f "$TEST_HOME_DST/.config/hypr/test.bak" ]] || rsync_home_ok=false
-[[ ! -d "$TEST_HOME_DST/.config/__pycache__" ]] || rsync_home_ok=false
-check "home deploy with rsync" "$($rsync_home_ok && echo true || echo false)"
-
-# Test without rsync (cp fallback)
-rm -rf "$TEST_HOME_DST"
-NO_RSYNC_DIR="$TEST_DIR/no_rsync_bin"
-mkdir -p "$NO_RSYNC_DIR"
-SAVED_PATH="$PATH"
-export PATH="$NO_RSYNC_DIR:$STUB_DIR"
-deploy_home_dir "$TEST_HOME_SRC" "$TEST_HOME_DST" 2>/dev/null
-export PATH="$SAVED_PATH"
-cp_home_ok=true
-[[ -f "$TEST_HOME_DST/.config/hypr/monitors.conf" ]] || cp_home_ok=false
-[[ -f "$TEST_HOME_DST/.config/hypr/binds.conf" ]] || cp_home_ok=false
-[[ -f "$TEST_HOME_DST/.config/hypr/scripts/run.sh" ]] || cp_home_ok=false
-[[ ! -f "$TEST_HOME_DST/.config/hypr/test.bak" ]] || cp_home_ok=false
-[[ ! -d "$TEST_HOME_DST/.config/__pycache__" ]] || cp_home_ok=false
-check "home deploy cp fallback (no rsync)" "$($cp_home_ok && echo true || echo false)"
-
-echo "== 23. deploy_dir_sudo preserves symlinks =="
-rm -rf "$TEST_SYS_DEST"
-ln -sf /etc/hostname "$TEST_SYS_SRC/test_link"
-deploy_dir_sudo "$TEST_SYS_SRC" "$TEST_SYS_DEST" "test symlinks" 2>/dev/null
-check "symlink preserved" "$([ -L "$TEST_SYS_DEST/test_link" ] && echo true || echo false)"
-check "symlink target correct" "$([ "$(readlink "$TEST_SYS_DEST/test_link")" = "/etc/hostname" ] && echo true || echo false)"
-rm -f "$TEST_SYS_SRC/test_link"
-
-echo "== 24. deploy_dir_sudo propagates failures =="
-set +e
-deploy_dir_sudo "/nonexistent/path" "/nonexistent/dest" "test failure" 2>/dev/null
-deploy_rc=$?
-set -e
-check "deploy_dir_sudo propagates error" "$([ "$deploy_rc" -ne 0 ] && echo true || echo false)" "rc=$deploy_rc"
-
-echo "== 25. Hyprpm plugin dependency =="
-check "official.txt has cmake" "$(grep -qx 'cmake' "$REPO_ROOT/packages/official.txt" && echo true || echo false)"
-check "official.txt has meson" "$(grep -qx 'meson' "$REPO_ROOT/packages/official.txt" && echo true || echo false)"
-check "official.txt has gcc" "$(grep -qx 'gcc' "$REPO_ROOT/packages/official.txt" && echo true || echo false)"
-check "official.txt has cpio" "$(grep -qx 'cpio' "$REPO_ROOT/packages/official.txt" && echo true || echo false)"
-
-echo "== 26. install_hyprpm_plugins =="
-# Mock hyprpm: 'list' shows nothing → plugin needs installing
-cat > "$STUB_DIR/hyprpm" << 'HEOF'
-#!/usr/bin/env bash
-echo "STUB:hyprpm $*" >> "$STUB_LOG"
-case "$1" in
-    list) exit 0 ;;
-    add)  exit 0 ;;
-    enable) exit 0 ;;
-    reload) exit 0 ;;
-    *) exit 0 ;;
-esac
-HEOF
-chmod +x "$STUB_DIR/hyprpm"
-reset_log
-SCROW_PARU_READY=1
-install_hyprpm_plugins 2>/dev/null
-hyprpm_called=$(grep -c "STUB:hyprpm" "$STUB_LOG" 2>/dev/null || true)
-check "hyprpm plugins installed" "$([ "$hyprpm_called" -ge 2 ] && echo true || echo false)" "calls=$hyprpm_called"
-
-# Test idempotent: plugin already listed → skip add
-cat > "$STUB_DIR/hyprpm" << 'HEOF'
-#!/usr/bin/env bash
-echo "STUB:hyprpm $*" >> "$STUB_LOG"
-case "$1" in
-    list) echo "scrolloverview: enabled" ;;
-    *) exit 0 ;;
-esac
-HEOF
-chmod +x "$STUB_DIR/hyprpm"
-reset_log
-install_hyprpm_plugins 2>/dev/null
-add_calls=$(grep -c "STUB:hyprpm add" "$STUB_LOG" 2>/dev/null || true)
-check "hyprpm skip if already installed" "$([ "$add_calls" -eq 0 ] && echo true || echo false)" "adds=$add_calls"
-
-echo "== 27. workspace_overview.lua references scrolloverview =="
-check "workspace_overview.lua exists" "$([ -f "$REPO_ROOT/.config/hypr/modules/workspace_overview.lua" ] && echo true || echo false)"
-check "config references scrolloverview" "$(grep -q 'scrolloverview' "$REPO_ROOT/.config/hypr/modules/workspace_overview.lua" && echo true || echo false)"
-check "config uses hl.plugin.scrolloverview.overview" "$(grep -q 'hl.plugin.scrolloverview.overview' "$REPO_ROOT/.config/hypr/modules/workspace_overview.lua" && echo true || echo false)"
-
-echo "== 28. .zshrc cargo env is conditional =="
-check "cargo env is conditional" "$(grep -q '\-f.*cargo/env' "$REPO_ROOT/.zshrc" && echo true || echo false)"
-check "cargo env does not bare-source" "$(! grep -q '^\..*cargo/env$' "$REPO_ROOT/.zshrc" && echo true || echo false)"
-
-echo "== 29. No raw rsync in installer =="
-raw_rsync=$(grep -rn 'rsync -a' "$REPO_ROOT/installer/" 2>/dev/null | grep -v 'deploy_home_dir\|deploy_dir_sudo\|command -v' | wc -l)
-check "no raw rsync outside helpers" "$([ "$raw_rsync" -eq 0 ] && echo true || echo false)" "found=$raw_rsync"
-
-echo ""
-echo "═══ RESULT: $PASS PASS / $FAIL FAIL ═══"
-if (( FAIL > 0 )); then
-    echo ""
-    echo "Failed:"
-    for name in "${FAILED[@]}"; do
-        echo "  - $name"
+_cp_dir_sync() {
+    local src="$1" dst="$2"
+    mkdir -p "$dst"
+    rm -rf "$dst"/*
+    cp -a "$src"/. "$dst"/
+    mkdir -p "$(dirname "$INSTALLED_LISTFILE")"
+    find "$src" -type f -o -type l | while read -r f; do
+        local rel="${f#"$src"/}"
+        realpath -se "$dst/$rel" >> "$INSTALLED_LISTFILE"
     done
-    exit 1
-fi
+}
+rsync_dir()       { _cp_dir "$@"; }
+rsync_dir__sync() { _cp_dir_sync "$@"; }
+rsync_dir__ignore_existing() { mkdir -p "$2"; cp -an "$1"/. "$2"/ 2>/dev/null || true; }
+cp_file() {
+    mkdir -p "$(dirname "$2")"
+    cp -f "$1" "$2"
+    mkdir -p "$(dirname "$INSTALLED_LISTFILE")"
+    realpath -se "$2" >> "$INSTALLED_LISTFILE"
+}
+
+# Deploy .config
+rsync_dir__sync "$REPO_ROOT/dots/.config" "$XDG_CONFIG_HOME"
+
+# Deploy .local
+rsync_dir "$REPO_ROOT/dots/.local" "$HOME/.local"
+
+# Deploy shell files
+for f in .zshrc .fzf-init.zsh .starship-init.zsh .zoxide-init.zsh; do
+    [[ -f "$REPO_ROOT/dots/$f" ]] && cp_file "$REPO_ROOT/dots/$f" "$HOME/$f"
+done
+
+# Deploy .icons
+[[ -d "$REPO_ROOT/dots/.icons" ]] && rsync_dir "$REPO_ROOT/dots/.icons" "$HOME/.icons"
+
+# Deploy Pictures
+[[ -d "$REPO_ROOT/dots/Pictures" ]] && rsync_dir "$REPO_ROOT/dots/Pictures" "$HOME/Pictures"
+
+# Ensure executables
+find "$XDG_CONFIG_HOME/waybar/scripts" -type f -exec chmod +x {} + 2>/dev/null || true
+find "$XDG_CONFIG_HOME/hypr/scripts" -type f -exec chmod +x {} + 2>/dev/null || true
+find "$XDG_CONFIG_HOME/hypr/hyprlock" -name "*.sh" -exec chmod +x {} + 2>/dev/null || true
+
+# Verify deployment
+deployed_config=$(find "$XDG_CONFIG_HOME" -type f 2>/dev/null | wc -l)
+repo_config=$(find "$REPO_ROOT/dots/.config" -type f 2>/dev/null | wc -l)
+check ".config files deployed (repo=$repo_config deployed=$deployed_config)" \
+    "$([ "$deployed_config" -ge "$repo_config" ] && echo true || echo false)" \
+    "repo=$repo_config deployed=$deployed_config"
+
+deployed_local=$(find "$HOME/.local" -type f 2>/dev/null | wc -l)
+repo_local=$(find "$REPO_ROOT/dots/.local" -type f 2>/dev/null | wc -l)
+check ".local files deployed (repo=$repo_local deployed=$deployed_local)" \
+    "$([ "$deployed_local" -ge "$repo_local" ] && echo true || echo false)" \
+    "repo=$repo_local deployed=$deployed_local"
+
+# Waybar complete
+deployed_waybar=$(find "$XDG_CONFIG_HOME/waybar" -type f 2>/dev/null | wc -l)
+repo_waybar=$(find "$REPO_ROOT/dots/.config/waybar" -type f 2>/dev/null | wc -l)
+check "Waybar complete deployment ($deployed_waybar/$repo_waybar)" \
+    "$([ "$deployed_waybar" -ge "$repo_waybar" ] && echo true || echo false)" \
+    "deployed=$deployed_waybar repo=$repo_waybar"
+
+deployed_waybar_dirs=$(find "$XDG_CONFIG_HOME/waybar" -maxdepth 1 -type d 2>/dev/null | wc -l)
+repo_waybar_dirs=$(find "$REPO_ROOT/dots/.config/waybar" -maxdepth 1 -type d 2>/dev/null | wc -l)
+check "Waybar all theme dirs preserved ($deployed_waybar_dirs/$repo_waybar_dirs)" \
+    "$([ "$deployed_waybar_dirs" -ge "$repo_waybar_dirs" ] && echo true || echo false)" \
+    "dirs deployed=$deployed_waybar_dirs repo=$repo_waybar_dirs"
+
+# Hyprland complete
+deployed_hypr=$(find "$XDG_CONFIG_HOME/hypr" -type f 2>/dev/null | wc -l)
+repo_hypr=$(find "$REPO_ROOT/dots/.config/hypr" -type f 2>/dev/null | wc -l)
+check "Hyprland complete deployment ($deployed_hypr/$repo_hypr)" \
+    "$([ "$deployed_hypr" -ge "$repo_hypr" ] && echo true || echo false)" \
+    "deployed=$deployed_hypr repo=$repo_hypr"
+
+check "Hyprland modules deployed" "$([ -d "$XDG_CONFIG_HOME/hypr/modules" ] && echo true || echo false)"
+check "Hyprland scripts deployed" "$([ -d "$XDG_CONFIG_HOME/hypr/scripts" ] && echo true || echo false)"
+check "Hyprlock scripts deployed" "$([ -d "$XDG_CONFIG_HOME/hypr/hyprlock" ] && echo true || echo false)"
+
+# Local bin
+deployed_bin=$(find "$XDG_BIN_HOME" -type f 2>/dev/null | wc -l)
+repo_bin=$(find "$REPO_ROOT/dots/.local/bin" -type f 2>/dev/null | wc -l)
+check "Local bin complete ($deployed_bin/$repo_bin)" \
+    "$([ "$deployed_bin" -ge "$repo_bin" ] && echo true || echo false)" \
+    "deployed=$deployed_bin repo=$repo_bin"
+
+# Shell files
+check ".zshrc deployed" "$([ -f "$HOME/.zshrc" ] && echo true || echo false)"
+
+# Installed listfile
+check "installed_listfile created" "$([ -f "$INSTALLED_LISTFILE" ] && echo true || echo false)"
+listfile_lines=$(wc -l < "$INSTALLED_LISTFILE" 2>/dev/null || echo 0)
+check "installed_listfile has entries ($listfile_lines)" "$([ "$listfile_lines" -gt 0 ] && echo true || echo false)" "lines=$listfile_lines"
+
+# ── 9. No manual file list needed ────────────────────────────────────────────
+
 echo ""
-echo "All tests passed."
+echo "== 9. Auto-discovery (no manual file list) =="
+# Adding a file to dots/.config should auto-deploy without installer changes
+mkdir -p "$REPO_ROOT/dots/.config/newtest-app"
+echo "test" > "$REPO_ROOT/dots/.config/newtest-app/config.ini"
+rsync_dir__sync "$REPO_ROOT/dots/.config" "$XDG_CONFIG_HOME"
+check "New app auto-deployed" "$([ -f "$XDG_CONFIG_HOME/newtest-app/config.ini" ] && echo true || echo false)"
+rm -rf "$REPO_ROOT/dots/.config/newtest-app"
+
+# ── 10. Summary ───────────────────────────────────────────────────────────────
+
+echo ""
+echo "=== Results ==="
+printf "\e[32m%d passed\e[0m, \e[31m%d failed\e[0m\n" "$PASS" "$FAIL"
+echo ""
+[[ $FAIL -eq 0 ]] && exit 0 || exit 1

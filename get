@@ -1,0 +1,94 @@
+# Online bootstrap for SCROW dotfiles
+# Usage: bash <(curl -s https://raw.githubusercontent.com/midn8crow/scrow/main/get)
+#
+# This script clones the SCROW repository and runs ./setup install.
+# Idempotent: reuses existing clone via git pull.
+
+me="-->scrow-setup<--"
+remote_repo="midn8crow/scrow"
+local_path="${XDG_CACHE_HOME:-$HOME/.cache}/scrow"
+set -e
+
+function try { "$@" || sleep 0; }
+function x() {
+    if "$@"; then local cmdstatus=0; else local cmdstatus=1; fi
+    while [[ $cmdstatus -eq 1 ]]; do
+        printf "\e[31m$me: Command \"\e[32m$*\e[31m\" has failed.\e[0m\n"
+        printf "  r = Repeat (DEFAULT)  e = Exit\n"
+        read -p " [R/e]: " p
+        case "$p" in
+            [eE]) printf "\e[34mExiting.\e[0m\n"; exit 1 ;;
+            *) if "$@"; then cmdstatus=0; else cmdstatus=1; fi ;;
+        esac
+    done
+    [[ $cmdstatus -eq 0 ]] && printf "\e[34m$me: \"\e[32m$*\e[34m\" finished.\e[0m\n"
+}
+
+detect_distro_id() {
+    export OS_RELEASE_FILE="${OS_RELEASE_FILE:-/etc/os-release}"
+    [[ -f "$OS_RELEASE_FILE" ]] || { printf "$OS_RELEASE_FILE does not exist. Aborting.\n"; exit 1; }
+    export OS_DISTRO_ID=$(awk -F'=' '/^ID=/ { gsub("\"","",$2); print tolower($2) }' "$OS_RELEASE_FILE" 2>/dev/null)
+    export OS_DISTRO_ID_LIKE=$(awk -F'=' '/^ID_LIKE=/ { gsub("\"","",$2); print tolower($2) }' "$OS_RELEASE_FILE" 2>/dev/null)
+    if [[ "$OS_DISTRO_ID" == "arch" || "$OS_DISTRO_ID_LIKE" == "arch" || "$OS_DISTRO_ID" == "cachyos" ]]; then
+        export OS_GROUP_ID="arch"
+    else
+        export OS_GROUP_ID="unknown"
+    fi
+}
+
+auto_install_git() {
+    command -v git &>/dev/null && return
+    printf "$me: git not found, installing...\n"
+    sleep 2
+    case "$OS_GROUP_ID" in
+        arch) x sudo pacman -Syu --noconfirm && x sudo pacman -S --noconfirm git ;;
+        *) printf "Please install git manually.\n"; exit 1 ;;
+    esac
+}
+
+start_ts=$(date +%s)
+print_runtime() {
+    local elapsed=$(( $(date +%s) - start_ts ))
+    printf "\e[34m$me: Total runtime: %dm %ds\e[0m\n" $((elapsed/60)) $((elapsed%60))
+}
+trap print_runtime EXIT
+
+# Parse arguments
+path_using_default=true
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        "") break ;;
+        --) shift; break ;;
+        -*) printf "Usage: bash get [path-to-clone] [-- setup-args]\n"; exit 1 ;;
+        *)
+            if $path_using_default; then
+                local_path="$1"; path_using_default=false
+            else
+                printf "Usage: bash get [path-to-clone] [-- setup-args]\n"; exit 1
+            fi
+            shift ;;
+    esac
+done
+
+echo "$me: Clone path: $local_path"
+echo "$me: Setup args: $@"
+
+detect_distro_id
+auto_install_git
+
+echo "$me: Downloading repo to $local_path ..."
+x mkdir -p "$local_path"
+x cd "$local_path"
+if [[ -z "$(ls -A)" ]]; then
+    x git init -b main
+    x git remote add origin "https://github.com/$remote_repo"
+fi
+git remote get-url origin 2>/dev/null | grep -q "$remote_repo" || {
+    printf "$me: Directory $local_path is not empty and not a SCROW repo clone. Aborting.\n"
+    exit 1
+}
+x git pull origin main
+x git branch --set-upstream-to=origin/main main
+echo "$me: Repo ready."
+echo "$me: Running ./setup install ..."
+x ./setup install "$@" || { printf "$me: Error during install.\n"; exit 1; }
