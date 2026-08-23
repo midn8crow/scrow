@@ -246,6 +246,8 @@ pacman_update() {
     if sudo pacman -Syu --noconfirm 2>"$stderr_file"; then
         printf "${C_OK}[ OK ]${C_RST}\n"
         rm -f "$stderr_file"
+        # Refresh linker cache so new libalpm.so.N is visible to paru etc.
+        sudo ldconfig 2>/dev/null || true
         return 0
     fi
     local rc=$?
@@ -255,6 +257,7 @@ pacman_update() {
 
     if [[ "$stderr_output" == *"nothing to do"* ]]; then
         printf "${C_OK}[ OK ]${C_RST} (already up to date)\n"
+        sudo ldconfig 2>/dev/null || true
         return 0
     fi
     printf "${C_ERR}[FAIL]${C_RST}\n"

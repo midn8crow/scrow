@@ -42,11 +42,14 @@ ensure_paru() {
     x "clone paru-bin" git clone https://aur.archlinux.org/paru-bin.git "$builddir/paru-bin"
     x "build & install paru" bash -c "cd '$builddir/paru-bin' && makepkg -si --noconfirm"
 
-    if command -v paru >/dev/null 2>&1; then
+    # Refresh dynamic linker cache so the new binary finds libalpm.so.N
+    sudo ldconfig 2>/dev/null || true
+
+    if command -v paru >/dev/null 2>&1 && paru --version >/dev/null 2>&1; then
         printf "${C_OK}  [ OK ]${C_RST} paru installed: %s\n" "$(paru --version 2>/dev/null | head -1)"
         SCROW_PARU_READY=1
     else
-        printf "${C_ERR}  Error: paru built but not in PATH.${C_RST}\n"
+        printf "${C_ERR}  Error: paru built but still broken — try: sudo ldconfig${C_RST}\n"
         exit 1
     fi
 }
