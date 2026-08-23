@@ -119,8 +119,9 @@ meson
 gcc
 cpio
 
-# Paru build from source (pre-built paru-bin breaks on libalpm upgrades)
+# AUR helper build deps
 rust
+go
 
 # System
 sddm
