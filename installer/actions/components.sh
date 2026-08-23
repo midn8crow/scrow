@@ -70,11 +70,6 @@ action_components() {
 
     # Deploy selected components
     printf "\n${C_BOLD}  Deploying selected components…${C_RST}\n\n"
-    local exclude_args=()
-    local exc
-    for exc in "${RSYNC_EXCLUDES[@]}"; do
-        exclude_args+=(--exclude="$exc")
-    done
 
     for idx in "${selected[@]}"; do
         printf "  ${C_BOLD}%s${C_RST} — %s\n" "${names[$idx]}" "${descs[$idx]}"
@@ -87,8 +82,7 @@ action_components() {
             fi
             backup_file "$HOME/$p"
             if [[ -d "$REPO_ROOT/$p" ]]; then
-                mkdir -p "$HOME/$p"
-                rsync -a "${exclude_args[@]}" "$REPO_ROOT/$p/" "$HOME/$p/" 2>/dev/null || true
+                deploy_home_dir "$REPO_ROOT/$p" "$HOME/$p"
             elif [[ -f "$REPO_ROOT/$p" ]]; then
                 mkdir -p "$(dirname "$HOME/$p")"
                 cp -a "$REPO_ROOT/$p" "$HOME/$p" 2>/dev/null || true

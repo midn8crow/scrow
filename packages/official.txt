@@ -113,6 +113,12 @@ wtype
 pacman-contrib
 reflector
 
+# Hyprpm plugin build deps
+cmake
+meson
+gcc
+cpio
+
 # System
 sddm
 grub

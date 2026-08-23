@@ -48,6 +48,36 @@ discover_sources() {
     done | sort
 }
 
+# ── Deploy a HOME directory recursively (rsync or cp fallback) ────────────────
+deploy_home_dir() {
+    local src="$1" dest="$2"
+    if command -v rsync >/dev/null 2>&1; then
+        local exclude_args=() exc
+        for exc in "${RSYNC_EXCLUDES[@]}"; do
+            exclude_args+=(--exclude="$exc")
+        done
+        mkdir -p "$dest"
+        rsync -a "${exclude_args[@]}" "$src/" "$dest/" 2>/dev/null || true
+    else
+        mkdir -p "$dest"
+        local f rel
+        while IFS= read -r f; do
+            rel="${f#${src%/}/}"
+            mkdir -p "$(dirname "$dest/$rel")"
+            cp -a "$f" "$dest/$rel" 2>/dev/null || true
+        done < <(find "$src" -type f \
+            -not -name '*.bak' -not -name '*.pyc' \
+            -not -path '*__pycache__*' \
+            -not -path '*.swp' -not -path '*.tmp' \
+            -not -path '*.pid' \
+            -not -name 'crash.log' -not -name '.DS_Store' \
+            -not -name 'mimeinfo.cache' \
+            -not -path '*/.config/ibus/bus/*' \
+            -not -path '*/.config/hypr/backup/*' \
+            -not -path '*/.config/fcitx/dbus/*' 2>/dev/null)
+    fi
+}
+
 # ── Deploy home directory files ───────────────────────────────────────────────
 deploy_home() {
     local src changed=0 deployed=0 skipped=0
@@ -62,35 +92,8 @@ deploy_home() {
 
         backup_file "$HOME/$src"
 
-        # Build rsync exclude args
-        local exclude_args=()
-        local exc
-        for exc in "${RSYNC_EXCLUDES[@]}"; do
-            exclude_args+=(--exclude="$exc")
-        done
-
         if [[ -d "$REPO_ROOT/$src" ]]; then
-            mkdir -p "$HOME/$src"
-            if command -v rsync >/dev/null 2>&1; then
-                rsync -a "${exclude_args[@]}" "$REPO_ROOT/$src/" "$HOME/$src/" 2>/dev/null || true
-            else
-                # cp fallback with manual excludes matching RSYNC_EXCLUDES
-                local f rel
-                while IFS= read -r f; do
-                    rel="${f#$REPO_ROOT/$src/}"
-                    mkdir -p "$(dirname "$HOME/$src/$rel")"
-                    cp -a "$f" "$HOME/$src/$rel" 2>/dev/null || true
-                done < <(find "$REPO_ROOT/$src" -type f \
-                    -not -name '*.bak' -not -name '*.pyc' \
-                    -not -path '*__pycache__*' \
-                    -not -path '*.swp' -not -path '*.tmp' \
-                    -not -path '*.pid' \
-                    -not -name 'crash.log' -not -name '.DS_Store' \
-                    -not -name 'mimeinfo.cache' \
-                    -not -path '*/.config/ibus/bus/*' \
-                    -not -path '*/.config/hypr/backup/*' \
-                    -not -path '*/.config/fcitx/dbus/*' 2>/dev/null)
-            fi
+            deploy_home_dir "$REPO_ROOT/$src" "$HOME/$src"
         elif [[ -f "$REPO_ROOT/$src" ]]; then
             # Check if file matches any rsync exclude pattern (name-level)
             local _skip_file=0 _exc_pat
@@ -120,6 +123,21 @@ deploy_home() {
     printf "  Deployed %d items (${C_WARN}%d skipped${C_OK}).${C_RST}\n" "$deployed" "$skipped"
 }
 
+# ── Deploy a directory recursively with sudo (rsync or cp fallback) ───────────
+deploy_dir_sudo() {
+    local src="$1" dest="$2" label="$3"
+    if command -v rsync >/dev/null 2>&1; then
+        x "$label" sudo rsync -a "$src/" "$dest/"
+    else
+        local _script
+        _script="$(mktemp)"
+        printf "mkdir -p '%s' && cp -a '%s/.' '%s/'\n" "$dest" "$src" "$dest" > "$_script"
+        chmod +x "$_script"
+        x "$label" sudo "$_script"
+        rm -f "$_script"
+    fi
+}
+
 # ── Deploy system-level files ─────────────────────────────────────────────────
 deploy_system() {
     make_sudo_keepalive
@@ -127,17 +145,17 @@ deploy_system() {
     # SDDM theme
     if [[ -d "$REPO_ROOT/etc/sddm" ]]; then
         backup_file /etc/sddm
-        x "deploy SDDM theme" sudo rsync -a "$REPO_ROOT/etc/sddm/" /etc/sddm/
+        deploy_dir_sudo "$REPO_ROOT/etc/sddm" /etc/sddm "deploy SDDM theme"
     fi
 
     # Pacman hooks
     if [[ -d "$REPO_ROOT/etc/pacman.d/hooks" ]]; then
-        x "deploy pacman hooks" sudo rsync -a "$REPO_ROOT/etc/pacman.d/hooks/" /etc/pacman.d/hooks/
+        deploy_dir_sudo "$REPO_ROOT/etc/pacman.d/hooks" /etc/pacman.d/hooks "deploy pacman hooks"
     fi
 
     # GRUB theme
     if [[ -d "$REPO_ROOT/boot/grub/themes/minegrub" ]]; then
-        x "deploy GRUB theme" sudo rsync -a "$REPO_ROOT/boot/grub/themes/minegrub/" /boot/grub/themes/minegrub/
+        deploy_dir_sudo "$REPO_ROOT/boot/grub/themes/minegrub" /boot/grub/themes/minegrub "deploy GRUB theme"
         if [[ -f /etc/default/grub ]]; then
             if grep -q '^GRUB_THEME=' /etc/default/grub 2>/dev/null; then
                 x "set GRUB theme" sudo sed -i 's|^GRUB_THEME=.*|GRUB_THEME=/boot/grub/themes/minegrub/theme.txt|' /etc/default/grub

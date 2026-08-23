@@ -72,3 +72,33 @@ resolve_conflicts() {
         x "remove jack2 (conflicts with pipewire-jack)" sudo pacman -Rdd --noconfirm jack2
     fi
 }
+
+# ── Install hyprpm plugins required by config ─────────────────────────────────
+install_hyprpm_plugins() {
+    if ! command -v hyprpm >/dev/null 2>&1; then
+        printf "${C_WARN}  hyprpm not found — skipping plugin install${C_RST}\n"
+        _log "WARN: hyprpm not found, skipping plugin install"
+        return 0
+    fi
+
+    # ScrollOverview plugin (required by .config/hypr/modules/workspace_overview.lua)
+    if ! hyprpm list 2>/dev/null | grep -q scrolloverview; then
+        printf "${C_WARN}  Installing ScrollOverview plugin…${C_RST}\n"
+        _log "Installing hyprland-scroll-overview via hyprpm"
+        local _hp_log
+        _hp_log="$(mktemp)"
+        if hyprpm add https://github.com/yayuuu/hyprland-scroll-overview.git >"$_hp_log" 2>&1; then
+            printf "${C_OK}  [ OK ]${C_RST} ScrollOverview plugin added\n"
+            _log "OK: ScrollOverview plugin added"
+            hyprpm enable scrolloverview 2>/dev/null || true
+        else
+            printf "${C_WARN}  ScrollOverview plugin install failed — desktop will degrade gracefully${C_RST}\n"
+            _log "WARN: ScrollOverview plugin install failed: $(cat "$_hp_log")"
+            rm -f "$_hp_log"
+            return 0
+        fi
+        rm -f "$_hp_log"
+    fi
+
+    hyprpm reload 2>/dev/null || true
+}

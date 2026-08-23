@@ -38,10 +38,23 @@ check() {
 }
 
 create_stubs() {
-    for cmd in sudo pacman systemctl loginctl chsh usermod fc-cache lsof ping grub-mkconfig sysctl; do
+    for cmd in pacman systemctl loginctl chsh usermod fc-cache lsof ping grub-mkconfig sysctl id getent; do
         printf '#!/usr/bin/env bash\necho "STUB:%s" >> "%s"\nexit 0\n' "$cmd $*" "$STUB_LOG" > "$STUB_DIR/$cmd"
         chmod +x "$STUB_DIR/$cmd"
     done
+
+    # sudo stub: logs the call, then executes the remaining args
+    cat > "$STUB_DIR/sudo" << 'SEOF'
+#!/usr/bin/env bash
+echo "STUB:sudo $*" >> "$STUB_LOG"
+# Execute the command if it exists, otherwise just succeed
+if command -v "$1" >/dev/null 2>&1 || [[ -x "$1" ]]; then
+    "$@"
+else
+    exit 0
+fi
+SEOF
+    chmod +x "$STUB_DIR/sudo"
 
     cat > "$STUB_DIR/getent" << 'EOF2'
 #!/usr/bin/env bash
@@ -52,7 +65,7 @@ EOF2
 
     cat > "$STUB_DIR/id" << 'EOF2'
 #!/usr/bin/env bash
-echo "testuser"
+echo "testuser video audio input optical storage"
 exit 0
 EOF2
     chmod +x "$STUB_DIR/id"
@@ -139,21 +152,7 @@ deployed_count=0
 while IFS= read -r src; do
     [[ ! -e "$REPO_ROOT/$src" ]] && continue
     if [[ -d "$REPO_ROOT/$src" ]]; then
-        mkdir -p "$HOME/$src"
-        if command -v rsync >/dev/null 2>&1; then
-            rsync -a --exclude='*.bak' --exclude='__pycache__/' --exclude='*.pyc' \
-                "$REPO_ROOT/$src/" "$HOME/$src/" 2>/dev/null || true
-        else
-            while IFS= read -r _f; do
-                _rel="${_f#$REPO_ROOT/$src/}"
-                mkdir -p "$(dirname "$HOME/$src/$_rel")"
-                cp -a "$_f" "$HOME/$src/$_rel" 2>/dev/null || true
-            done < <(find "$REPO_ROOT/$src" -type f \
-                -not -name '*.bak' -not -name '*.pyc' \
-                -not -path '*__pycache__*' \
-                -not -path '*.swp' -not -path '*.tmp' \
-                -not -path '*.pid' 2>/dev/null)
-        fi
+        deploy_home_dir "$REPO_ROOT/$src" "$HOME/$src"
     elif [[ -f "$REPO_ROOT/$src" ]]; then
         mkdir -p "$(dirname "$HOME/$src")"
         cp -a "$REPO_ROOT/$src" "$HOME/$src" 2>/dev/null || true
@@ -200,7 +199,6 @@ check "manifest.tsv exists" "$([ -f "$SCROW_MANIFEST" ] && echo true || echo fal
 check "manifest.tsv non-empty" "$([ -s "$SCROW_MANIFEST" ] && echo true || echo false)"
 
 echo "== 9. Validate =="
-# Restore hyprland.conf overwritten by backup test
 cp -a "$REPO_ROOT/.config/hypr/hyprland.conf" "$HOME/.config/hypr/hyprland.conf"
 FIND_EXCLUDES=(-not -path '*/.git/*' -not -path '*/installer/*' -not -path '*/packages/*'
     -not -path '*/tests/*' -not -name '*.bak' -not -name '*.pyc'
@@ -239,26 +237,14 @@ check "detects differs" "$([ "$differs" -gt 0 ] && echo true || echo false)" "di
 cp -a "$REPO_ROOT/.config/kitty/kitty.conf" "$HOME/.config/kitty/kitty.conf"
 m2=$(count_missing); d2=$(count_differs)
 problems=$((m2 + d2))
-# Debug: show remaining problems
-if [ "$problems" -gt 0 ]; then
-    while IFS= read -r rf; do
-        rel="${rf#$REPO_ROOT/}"
-        if [ ! -e "$HOME/$rel" ]; then
-            printf "    MISSING: %s
-" "$rel"
-        elif [ -f "$rf" ] && ! cmp -s "$rf" "$HOME/$rel" 2>/dev/null; then
-            printf "    DIFFERS: %s
-" "$rel"
-        fi
-    done < <(find "$REPO_ROOT" -type f "${FIND_EXCLUDES[@]}" 2>/dev/null)
-fi
 check "validation clean" "$([ "$problems" -eq 0 ] && echo true || echo false)" "problems=$problems"
 
 echo "== 10. Paru already installed =="
 create_stubs
+# Create the trigger file so paru --version succeeds
+touch /tmp/_scrow_test_paru_ok
 reset_log
 SCROW_PARU_READY=0
-# paru stub is in PATH, so ensure_paru detects it and returns early
 set +e
 ensure_paru 2>/dev/null
 paru_rc=$?
@@ -274,7 +260,6 @@ check "ensure_paru idempotent" "$([ "$paru_rc2" -eq 0 ] && echo true || echo fal
 
 echo "== 11. Services =="
 reset_log
-# Verify stubs are callable
 "$STUB_DIR/systemctl" --user is-enabled test.service 2>/dev/null
 "$STUB_DIR/sudo" systemctl enable sddm.service 2>/dev/null
 svc_calls=$(grep -cE "(systemctl|sudo)" "$STUB_LOG" 2>/dev/null || true)
@@ -282,10 +267,14 @@ svc_calls=${svc_calls:-0}
 check "systemctl stub works" "$([ "$svc_calls" -ge 2 ] && echo true || echo false)" "calls=$svc_calls"
 
 reset_log
-SCROW_SUDO_PID=""
+# Use a known-alive PID for SCROW_SUDO_PID so make_sudo_keepalive skips the background loop
+# and stop_sudo_keepalive skips the kill (because kill $$ would be fatal)
+MOCK_KEEPALIVE_PID="$(sleep 999999 & echo $!)"
+SCROW_SUDO_PID="$MOCK_KEEPALIVE_PID"
 setup_user_services 2>/dev/null
 setup_system_services 2>/dev/null
 stop_sudo_keepalive 2>/dev/null
+kill "$MOCK_KEEPALIVE_PID" 2>/dev/null || true
 svc_calls2=$(grep -cE "(systemctl|sudo)" "$STUB_LOG" 2>/dev/null || true)
 svc_calls2=${svc_calls2:-0}
 check "services setup calls systemctl" "$([ "$svc_calls2" -gt 0 ] && echo true || echo false)" "calls=$svc_calls2"
@@ -295,21 +284,7 @@ export REPO_ROOT="$TEST_REPO"
 while IFS= read -r src; do
     [[ ! -e "$REPO_ROOT/$src" ]] && continue
     if [[ -d "$REPO_ROOT/$src" ]]; then
-        mkdir -p "$HOME/$src"
-        if command -v rsync >/dev/null 2>&1; then
-            rsync -a --exclude='*.bak' --exclude='__pycache__/' --exclude='*.pyc' \
-                "$REPO_ROOT/$src/" "$HOME/$src/" 2>/dev/null || true
-        else
-            while IFS= read -r _f; do
-                _rel="${_f#$REPO_ROOT/$src/}"
-                mkdir -p "$(dirname "$HOME/$src/$_rel")"
-                cp -a "$_f" "$HOME/$src/$_rel" 2>/dev/null || true
-            done < <(find "$REPO_ROOT/$src" -type f \
-                -not -name '*.bak' -not -name '*.pyc' \
-                -not -path '*__pycache__*' \
-                -not -path '*.swp' -not -path '*.tmp' \
-                -not -path '*.pid' 2>/dev/null)
-        fi
+        deploy_home_dir "$REPO_ROOT/$src" "$HOME/$src"
     elif [[ -f "$REPO_ROOT/$src" ]]; then
         mkdir -p "$(dirname "$HOME/$src")"
         cp -a "$REPO_ROOT/$src" "$HOME/$src" 2>/dev/null || true
@@ -369,6 +344,156 @@ bak_count=$(find "$REPO_ROOT" -name "*.bak" -not -path '*/.git/*' 2>/dev/null | 
 check "no .bak files" "$([ "$bak_count" -eq 0 ] && echo true || echo false)" "found=$bak_count"
 pycache_count=$(find "$REPO_ROOT" -name "__pycache__" -type d -not -path '*/.git/*' 2>/dev/null | wc -l)
 check "no __pycache__" "$([ "$pycache_count" -eq 0 ] && echo true || echo false)" "found=$pycache_count"
+
+echo "== 21. deploy_dir_sudo (system deploy fallback) =="
+TEST_SYS_SRC="$TEST_DIR/sys_src"
+TEST_SYS_DEST="$TEST_DIR/sys_dest"
+mkdir -p "$TEST_SYS_SRC/sddm/themes" "$TEST_SYS_SRC/hooks" "$TEST_SYS_SRC/grub/theme"
+echo "theme" > "$TEST_SYS_SRC/sddm/themes/test.conf"
+echo "hook" > "$TEST_SYS_SRC/hooks/test.hook"
+echo "grub" > "$TEST_SYS_SRC/grub/theme/theme.txt"
+
+# Override sudo stub to actually execute commands (not just log)
+cat > "$STUB_DIR/sudo" << 'SEOF'
+#!/usr/bin/env bash
+if command -v "$1" >/dev/null 2>&1 || [[ -x "$1" ]]; then
+    "$@"
+else
+    exit 0
+fi
+SEOF
+chmod +x "$STUB_DIR/sudo"
+
+# Test with rsync (or cp fallback if rsync not available)
+rm -rf "$TEST_SYS_DEST"
+deploy_dir_sudo "$TEST_SYS_SRC" "$TEST_SYS_DEST" "test deploy" 2>/dev/null
+sys_ok=true
+[[ -f "$TEST_SYS_DEST/sddm/themes/test.conf" ]] || sys_ok=false
+[[ -f "$TEST_SYS_DEST/hooks/test.hook" ]] || sys_ok=false
+[[ -f "$TEST_SYS_DEST/grub/theme/theme.txt" ]] || sys_ok=false
+check "system deploy (rsync or cp fallback)" "$($sys_ok && echo true || echo false)"
+
+# Force cp fallback: hide rsync if present
+rm -rf "$TEST_SYS_DEST"
+NO_RSYNC_DIR="$TEST_DIR/no_rsync_bin"
+mkdir -p "$NO_RSYNC_DIR"
+SAVED_PATH="$PATH"
+export PATH="$NO_RSYNC_DIR:$STUB_DIR"
+deploy_dir_sudo "$TEST_SYS_SRC" "$TEST_SYS_DEST" "test cp deploy" 2>/dev/null
+cp_sys_ok=true
+[[ -f "$TEST_SYS_DEST/sddm/themes/test.conf" ]] || cp_sys_ok=false
+[[ -f "$TEST_SYS_DEST/hooks/test.hook" ]] || cp_sys_ok=false
+[[ -f "$TEST_SYS_DEST/grub/theme/theme.txt" ]] || cp_sys_ok=false
+export PATH="$SAVED_PATH"
+check "system deploy cp fallback (no rsync)" "$($cp_sys_ok && echo true || echo false)"
+
+echo "== 22. deploy_home_dir (HOME deploy fallback) =="
+TEST_HOME_SRC="$TEST_DIR/home_src"
+TEST_HOME_DST="$TEST_DIR/home_dst"
+mkdir -p "$TEST_HOME_SRC/.config/hypr/scripts"
+echo "monitor" > "$TEST_HOME_SRC/.config/hypr/monitors.conf"
+echo "bind" > "$TEST_HOME_SRC/.config/hypr/binds.conf"
+printf '#!/bin/bash\necho hello\n' > "$TEST_HOME_SRC/.config/hypr/scripts/run.sh"
+chmod +x "$TEST_HOME_SRC/.config/hypr/scripts/run.sh"
+echo "old" > "$TEST_HOME_SRC/.config/hypr/test.bak"
+mkdir -p "$TEST_HOME_SRC/.config/__pycache__"
+echo "pyc" > "$TEST_HOME_SRC/.config/__pycache__/mod.pyc"
+
+# Test with rsync
+rm -rf "$TEST_HOME_DST"
+deploy_home_dir "$TEST_HOME_SRC" "$TEST_HOME_DST" 2>/dev/null
+rsync_home_ok=true
+[[ -f "$TEST_HOME_DST/.config/hypr/monitors.conf" ]] || rsync_home_ok=false
+[[ -f "$TEST_HOME_DST/.config/hypr/binds.conf" ]] || rsync_home_ok=false
+[[ -f "$TEST_HOME_DST/.config/hypr/scripts/run.sh" ]] || rsync_home_ok=false
+[[ ! -f "$TEST_HOME_DST/.config/hypr/test.bak" ]] || rsync_home_ok=false
+[[ ! -d "$TEST_HOME_DST/.config/__pycache__" ]] || rsync_home_ok=false
+check "home deploy with rsync" "$($rsync_home_ok && echo true || echo false)"
+
+# Test without rsync (cp fallback)
+rm -rf "$TEST_HOME_DST"
+NO_RSYNC_DIR="$TEST_DIR/no_rsync_bin"
+mkdir -p "$NO_RSYNC_DIR"
+SAVED_PATH="$PATH"
+export PATH="$NO_RSYNC_DIR:$STUB_DIR"
+deploy_home_dir "$TEST_HOME_SRC" "$TEST_HOME_DST" 2>/dev/null
+export PATH="$SAVED_PATH"
+cp_home_ok=true
+[[ -f "$TEST_HOME_DST/.config/hypr/monitors.conf" ]] || cp_home_ok=false
+[[ -f "$TEST_HOME_DST/.config/hypr/binds.conf" ]] || cp_home_ok=false
+[[ -f "$TEST_HOME_DST/.config/hypr/scripts/run.sh" ]] || cp_home_ok=false
+[[ ! -f "$TEST_HOME_DST/.config/hypr/test.bak" ]] || cp_home_ok=false
+[[ ! -d "$TEST_HOME_DST/.config/__pycache__" ]] || cp_home_ok=false
+check "home deploy cp fallback (no rsync)" "$($cp_home_ok && echo true || echo false)"
+
+echo "== 23. deploy_dir_sudo preserves symlinks =="
+rm -rf "$TEST_SYS_DEST"
+ln -sf /etc/hostname "$TEST_SYS_SRC/test_link"
+deploy_dir_sudo "$TEST_SYS_SRC" "$TEST_SYS_DEST" "test symlinks" 2>/dev/null
+check "symlink preserved" "$([ -L "$TEST_SYS_DEST/test_link" ] && echo true || echo false)"
+check "symlink target correct" "$([ "$(readlink "$TEST_SYS_DEST/test_link")" = "/etc/hostname" ] && echo true || echo false)"
+rm -f "$TEST_SYS_SRC/test_link"
+
+echo "== 24. deploy_dir_sudo propagates failures =="
+set +e
+deploy_dir_sudo "/nonexistent/path" "/nonexistent/dest" "test failure" 2>/dev/null
+deploy_rc=$?
+set -e
+check "deploy_dir_sudo propagates error" "$([ "$deploy_rc" -ne 0 ] && echo true || echo false)" "rc=$deploy_rc"
+
+echo "== 25. Hyprpm plugin dependency =="
+check "official.txt has cmake" "$(grep -qx 'cmake' "$REPO_ROOT/packages/official.txt" && echo true || echo false)"
+check "official.txt has meson" "$(grep -qx 'meson' "$REPO_ROOT/packages/official.txt" && echo true || echo false)"
+check "official.txt has gcc" "$(grep -qx 'gcc' "$REPO_ROOT/packages/official.txt" && echo true || echo false)"
+check "official.txt has cpio" "$(grep -qx 'cpio' "$REPO_ROOT/packages/official.txt" && echo true || echo false)"
+
+echo "== 26. install_hyprpm_plugins =="
+# Mock hyprpm: 'list' shows nothing → plugin needs installing
+cat > "$STUB_DIR/hyprpm" << 'HEOF'
+#!/usr/bin/env bash
+echo "STUB:hyprpm $*" >> "$STUB_LOG"
+case "$1" in
+    list) exit 0 ;;
+    add)  exit 0 ;;
+    enable) exit 0 ;;
+    reload) exit 0 ;;
+    *) exit 0 ;;
+esac
+HEOF
+chmod +x "$STUB_DIR/hyprpm"
+reset_log
+SCROW_PARU_READY=1
+install_hyprpm_plugins 2>/dev/null
+hyprpm_called=$(grep -c "STUB:hyprpm" "$STUB_LOG" 2>/dev/null || true)
+check "hyprpm plugins installed" "$([ "$hyprpm_called" -ge 2 ] && echo true || echo false)" "calls=$hyprpm_called"
+
+# Test idempotent: plugin already listed → skip add
+cat > "$STUB_DIR/hyprpm" << 'HEOF'
+#!/usr/bin/env bash
+echo "STUB:hyprpm $*" >> "$STUB_LOG"
+case "$1" in
+    list) echo "scrolloverview: enabled" ;;
+    *) exit 0 ;;
+esac
+HEOF
+chmod +x "$STUB_DIR/hyprpm"
+reset_log
+install_hyprpm_plugins 2>/dev/null
+add_calls=$(grep -c "STUB:hyprpm add" "$STUB_LOG" 2>/dev/null || true)
+check "hyprpm skip if already installed" "$([ "$add_calls" -eq 0 ] && echo true || echo false)" "adds=$add_calls"
+
+echo "== 27. workspace_overview.lua references scrolloverview =="
+check "workspace_overview.lua exists" "$([ -f "$REPO_ROOT/.config/hypr/modules/workspace_overview.lua" ] && echo true || echo false)"
+check "config references scrolloverview" "$(grep -q 'scrolloverview' "$REPO_ROOT/.config/hypr/modules/workspace_overview.lua" && echo true || echo false)"
+check "config uses hl.plugin.scrolloverview.overview" "$(grep -q 'hl.plugin.scrolloverview.overview' "$REPO_ROOT/.config/hypr/modules/workspace_overview.lua" && echo true || echo false)"
+
+echo "== 28. .zshrc cargo env is conditional =="
+check "cargo env is conditional" "$(grep -q '\-f.*cargo/env' "$REPO_ROOT/.zshrc" && echo true || echo false)"
+check "cargo env does not bare-source" "$(! grep -q '^\..*cargo/env$' "$REPO_ROOT/.zshrc" && echo true || echo false)"
+
+echo "== 29. No raw rsync in installer =="
+raw_rsync=$(grep -rn 'rsync -a' "$REPO_ROOT/installer/" 2>/dev/null | grep -v 'deploy_home_dir\|deploy_dir_sudo\|command -v' | wc -l)
+check "no raw rsync outside helpers" "$([ "$raw_rsync" -eq 0 ] && echo true || echo false)" "found=$raw_rsync"
 
 echo ""
 echo "═══ RESULT: $PASS PASS / $FAIL FAIL ═══"

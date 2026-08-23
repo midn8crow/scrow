@@ -12,12 +12,6 @@ action_repair() {
     if ! validate_deployment; then
         printf "\n${C_BOLD}  Redeploying broken/missing files…${C_RST}\n\n"
 
-        local exclude_args=()
-        local exc
-        for exc in "${RSYNC_EXCLUDES[@]}"; do
-            exclude_args+=(--exclude="$exc")
-        done
-
         local repo_file rel dest_file repaired=0
         while IFS= read -r repo_file; do
             rel="${repo_file#./}"
@@ -27,8 +21,7 @@ action_repair() {
             if [[ ! -e "$dest_file" ]] || \
                ( [[ -f "$repo_file" ]] && ! cmp -s "$repo_file" "$dest_file" 2>/dev/null ); then
                 if [[ -d "$repo_file" ]]; then
-                    mkdir -p "$dest_file"
-                    rsync -a "${exclude_args[@]}" "$repo_file/" "$dest_file/" 2>/dev/null || true
+                    deploy_home_dir "$repo_file" "$dest_file"
                 elif [[ -f "$repo_file" ]]; then
                     mkdir -p "$(dirname "$dest_file")"
                     cp -a "$repo_file" "$dest_file" 2>/dev/null || true

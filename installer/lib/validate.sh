@@ -108,7 +108,7 @@ doctor_checks() {
     check "git" "$(command -v git >/dev/null 2>&1 && echo true || echo false)" \
         "sudo pacman -S git"
     check "rsync" "$(command -v rsync >/dev/null 2>&1 && echo true || echo false)" \
-        "sudo pacman -S rsync"
+        "optional — cp fallback will be used"
     check "paru" "$(command -v paru >/dev/null 2>&1 && echo true || echo false)" \
         "paru will be auto-installed on first run"
 

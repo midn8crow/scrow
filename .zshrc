@@ -218,5 +218,5 @@ alias menu='~/.local/bin/scrow-menu-tui'
 
 fastfetch
 
-# rustup
-. "$HOME/.cargo/env"
+# rustup (optional — only present if rust is installed)
+[[ -f "$HOME/.cargo/env" ]] && . "$HOME/.cargo/env"

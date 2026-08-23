@@ -39,6 +39,10 @@ action_full() {
     printf "\n  ${C_BOLD}Installing AUR packages…${C_RST}\n"
     install_aur "${aur_pkgs[@]}"
 
+    # Install hyprpm plugins (ScrollOverview etc.)
+    printf "\n  ${C_BOLD}Installing Hyprland plugins…${C_RST}\n"
+    install_hyprpm_plugins
+
     stop_sudo_keepalive
 
     # ── Step 2: Deploy configuration files ────────────────────────────────────
