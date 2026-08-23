@@ -65,23 +65,8 @@ install_official_packages() {
     read_manifest "$manifest" pkgs
     (( ${#pkgs[@]} == 0 )) && return 0
 
-    local batch_size=40
-    local total=${#pkgs[@]}
-    local i=0
-
-    printf "${BLUE}  Installing %d official packages (batches of %d)...${RST}\n" "$total" "$batch_size"
-
-    while (( i < total )); do
-        local -a batch=("${pkgs[@]:$i:$batch_size}")
-        local batch_num=$(( i / batch_size + 1 ))
-        local batch_total=$(( (total + batch_size - 1) / batch_size ))
-        printf "${BLUE}  [%d/%d] %d packages...${RST}\n" "$batch_num" "$batch_total" "${#batch[@]}"
-        sudo pacman -S --needed --noconfirm "${batch[@]}" || {
-            printf "${YELLOW}  Batch had errors, continuing...${RST}\n"
-        }
-        i=$(( i + batch_size ))
-        sleep 1
-    done
+    printf "${BLUE}  Installing %d official packages...${RST}\n" "${#pkgs[@]}"
+    sudo pacman -S --needed --noconfirm "${pkgs[@]}"
 }
 
 # ── Install AUR packages one by one ───────────────────────────────────────────
