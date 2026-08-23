@@ -65,7 +65,7 @@ install_official_packages() {
     read_manifest "$manifest" pkgs
     (( ${#pkgs[@]} == 0 )) && return 0
 
-    local batch_size=15
+    local batch_size=40
     local total=${#pkgs[@]}
     local i=0
 
