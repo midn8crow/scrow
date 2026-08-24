@@ -40,25 +40,25 @@ if command -v rsync >/dev/null 2>&1; then
         mkdir -p "$2"
         local dest; dest="$(realpath -se "$2")"
         mkdir -p "$(dirname "$INSTALLED_LISTFILE")"
-        rsync -a --out-format='%i %n' "$1"/ "$2"/ \
+        rsync -a --out-format='%i %n' "$1"/ "$2"/ 2>/dev/null \
             | awk -v d="$dest" '$1 ~ /^>/{ sub(/^[^ ]+ /,""); printf d "/" $0 "\n" }' \
-            >> "$INSTALLED_LISTFILE"
+            >> "$INSTALLED_LISTFILE" || true
     }
     rsync_dir__sync() {
         mkdir -p "$2"
         local dest; dest="$(realpath -se "$2")"
         mkdir -p "$(dirname "$INSTALLED_LISTFILE")"
-        rsync -a --delete --out-format='%i %n' "$1"/ "$2"/ \
+        rsync -a --delete --out-format='%i %n' "$1"/ "$2"/ 2>/dev/null \
             | awk -v d="$dest" '$1 ~ /^>/{ sub(/^[^ ]+ /,""); printf d "/" $0 "\n" }' \
-            >> "$INSTALLED_LISTFILE"
+            >> "$INSTALLED_LISTFILE" || true
     }
     rsync_dir__ignore_existing() {
         mkdir -p "$2"
         local dest; dest="$(realpath -se "$2")"
         mkdir -p "$(dirname "$INSTALLED_LISTFILE")"
-        rsync -a --ignore-existing --out-format='%i %n' "$1"/ "$2"/ \
+        rsync -a --ignore-existing --out-format='%i %n' "$1"/ "$2"/ 2>/dev/null \
             | awk -v d="$dest" '$1 ~ /^>/{ sub(/^[^ ]+ /,""); printf d "/" $0 "\n" }' \
-            >> "$INSTALLED_LISTFILE"
+            >> "$INSTALLED_LISTFILE" || true
     }
 else
     rsync_dir()       { _cp_dir "$@"; }
