@@ -5,7 +5,7 @@
 hyprpolkitagent
 openbangla-keyboard-fcitx-git
 hypr-kdeconnect-fix-git
-waybar-git
+waybar-cava-git
 matugen
 awww
 mpvpaper
