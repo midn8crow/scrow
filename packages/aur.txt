@@ -1,6 +1,6 @@
 # SCROW — AUR package manifest
 # One package per line. Comments and blank lines are ignored.
-# These require paru (auto-bootstrapped if missing).
+# These require yay (auto-bootstrapped if missing).
 
 hyprpolkitagent
 openbangla-keyboard-fcitx-git
@@ -10,6 +10,7 @@ matugen
 awww
 mpvpaper
 gpu-screen-recorder
-hyprlauncher
 wlr-randr
 ytdlp-gui
+songrec
+bibata-cursor-theme

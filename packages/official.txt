@@ -5,9 +5,7 @@
 # Core Hyprland
 hyprland
 hyprlock
-hypridle
 hyprutils
-uwsm
 xdg-desktop-portal-hyprland
 xdg-desktop-portal-gtk
 xdg-utils
@@ -15,9 +13,7 @@ wl-clipboard
 cliphist
 grim
 slurp
-swappy
 satty
-hyprshot
 swww
 
 # Networking & Bluetooth
@@ -41,9 +37,7 @@ wireplumber
 pipewire-alsa
 pipewire-jack
 pavucontrol
-
-# Polkit
-polkit-kde-agent
+alsa-utils
 
 # Status bar
 cava
@@ -59,6 +53,7 @@ kitty
 
 # Notifications
 mako
+libnotify
 
 # Shell
 zsh
@@ -68,23 +63,18 @@ starship
 fzf
 zoxide
 eza
-bat
-fd
-ripgrep
+neovim
+git-delta
 
 # Theming
 adw-gtk-theme
 qt6ct
-kvantum
-nwg-look
 papirus-icon-theme
 
 # Fonts
 ttf-jetbrains-mono-nerd
 noto-fonts
 noto-fonts-emoji
-ttf-font-awesome
-ttf-cascadia-code
 
 # File manager
 thunar
@@ -109,8 +99,15 @@ curl
 git
 xdg-user-dirs
 wtype
-pacman-contrib
-reflector
+zenity
+libqalculate
+tesseract
+tesseract-data-eng
+loupe
+rclone
+fuse3
+python-pillow
+firefox
 
 # Hyprpm plugin build deps
 cmake
@@ -126,7 +123,6 @@ go
 sddm
 grub
 efibootmgr
-networkmanager
 
 # Security
 nftables

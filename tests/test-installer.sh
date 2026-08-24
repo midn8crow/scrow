@@ -125,7 +125,7 @@ check "official.txt has packages (>=60)" "$([ "$official_count" -ge 60 ] && echo
 aur_count=$(grep -v '^#' "$REPO_ROOT/packages/aur.txt" | grep -v '^[[:space:]]*$' | wc -l)
 check "aur.txt has packages (>=5)" "$([ "$aur_count" -ge 5 ] && echo true || echo false)" "count=$aur_count"
 check "official.txt has hyprland"  "$(grep -q '^hyprland$' "$REPO_ROOT/packages/official.txt" && echo true || echo false)"
-check "official.txt has waybar"    "$(grep -q '^waybar$' "$REPO_ROOT/packages/official.txt" && echo true || echo false)"
+check "official.txt has no stable waybar (use AUR git)"    "$(grep -q '^waybar$' "$REPO_ROOT/packages/official.txt" && echo false || echo true)"
 check "official.txt has rust"      "$(grep -q '^rust$' "$REPO_ROOT/packages/official.txt" && echo true || echo false)"
 check "official.txt has go"        "$(grep -q '^go$' "$REPO_ROOT/packages/official.txt" && echo true || echo false)"
 
