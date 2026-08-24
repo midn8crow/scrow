@@ -18,7 +18,7 @@ _cp_dir() {
     mkdir -p "$(dirname "$INSTALLED_LISTFILE")"
     find "$src" -type f -o -type l | while read -r f; do
         local rel="${f#"$src"/}"
-        realpath -se "$dst/$rel" >> "$INSTALLED_LISTFILE"
+        echo "$dst/$rel" >> "$INSTALLED_LISTFILE"
     done
 }
 
@@ -30,7 +30,7 @@ _cp_dir_sync() {
     mkdir -p "$(dirname "$INSTALLED_LISTFILE")"
     find "$src" -type f -o -type l | while read -r f; do
         local rel="${f#"$src"/}"
-        realpath -se "$dst/$rel" >> "$INSTALLED_LISTFILE"
+        echo "$dst/$rel" >> "$INSTALLED_LISTFILE"
     done
 }
 
