@@ -46,7 +46,6 @@ pavucontrol
 polkit-kde-agent
 
 # Status bar
-waybar
 cava
 playerctl
 jq
