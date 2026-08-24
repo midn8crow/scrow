@@ -105,6 +105,10 @@ remove_system_setup() {
     sudo rm -rf /usr/share/sddm/themes/pixie 2>/dev/null || true
     sudo rm -f /etc/sddm/conf.d/theme.conf 2>/dev/null || true
 
+    # Remove pacman hooks
+    sudo rm -f /etc/pacman.d/hooks/hyprpm-update.hook 2>/dev/null || true
+    sudo rm -f /etc/pacman.d/hooks/hyprpm-post-update.sh 2>/dev/null || true
+
     # Disable services
     sudo systemctl disable sddm 2>/dev/null || true
     sudo systemctl disable bluetooth 2>/dev/null || true
