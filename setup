@@ -96,3 +96,11 @@ fi
 
 printf "\n${GREEN}${BOLD}=== SCROW Installation Complete ===${RST}\n"
 printf "${CYAN}Reboot for all changes to take effect.${RST}\n\n"
+
+if [[ "${SKIP_REBOOT:-false}" != true ]]; then
+    printf "${YELLOW}Reboot now? (y/N): ${RST}"
+    read -r answer
+    if [[ "$answer" =~ ^[Yy]$ ]]; then
+        sudo reboot
+    fi
+fi
