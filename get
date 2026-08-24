@@ -38,7 +38,7 @@ detect_distro_id() {
 
 auto_install_git() {
     command -v git &>/dev/null && return
-    printf "$me: git not found, installing...\n"
+    printf "%s: git not found, installing...\n" "$me"
     sleep 2
     case "$OS_GROUP_ID" in
         arch) x sudo pacman -Syu --noconfirm && x sudo pacman -S --noconfirm git ;;
@@ -84,11 +84,11 @@ if [[ -z "$(ls -A)" ]]; then
     x git remote add origin "https://github.com/$remote_repo"
 fi
 git remote get-url origin 2>/dev/null | grep -q "$remote_repo" || {
-    printf "$me: Directory $local_path is not empty and not a SCROW repo clone. Aborting.\n"
+    printf "%s: Directory $local_path is not empty and not a SCROW repo clone. Aborting.\n" "$me"
     exit 1
 }
 x git pull origin main
 x git branch --set-upstream-to=origin/main main
 echo "$me: Repo ready."
 echo "$me: Running ./setup install ..."
-x ./setup install "$@" || { printf "$me: Error during install.\n"; exit 1; }
+x ./setup install "$@" || { printf "%s: Error during install.\n" "$me"; exit 1; }
