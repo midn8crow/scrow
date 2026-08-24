@@ -1,9 +1,0 @@
-[Trigger]
-Operation = Upgrade
-Type = Package
-Target = hyprland
-
-[Action]
-Description = Rebuilding hyprpm plugins for updated Hyprland...
-When = PostTransaction
-Exec = /etc/pacman.d/hooks/hyprpm-post-update.sh

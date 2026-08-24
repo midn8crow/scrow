@@ -150,14 +150,6 @@ deploy_etc() {
         fi
         printf "${GREEN}  [OK]${RST} GRUB config updated\n"
     fi
-
-    # Pacman hooks (auto-rebuild hyprpm on Hyprland update)
-    if [[ -d "$REPO_ROOT/etc/pacman.d/hooks" ]]; then
-        sudo mkdir -p /etc/pacman.d/hooks
-        sudo cp -f "$REPO_ROOT/etc/pacman.d/hooks/"* /etc/pacman.d/hooks/ 2>/dev/null || true
-        sudo chmod +x /etc/pacman.d/hooks/*.sh 2>/dev/null || true
-        printf "${GREEN}  [OK]${RST} Pacman hooks installed\n"
-    fi
 }
 deploy_etc
 
