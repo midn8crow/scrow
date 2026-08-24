@@ -101,6 +101,10 @@ remove_system_setup() {
     # Remove kernel modules
     sudo rm -f /etc/modules-load.d/i2c-dev.conf /etc/modules-load.d/uinput.conf 2>/dev/null || true
 
+    # Remove SDDM theme
+    sudo rm -rf /usr/share/sddm/themes/pixie 2>/dev/null || true
+    sudo rm -f /etc/sddm/conf.d/theme.conf 2>/dev/null || true
+
     # Disable services
     sudo systemctl disable sddm 2>/dev/null || true
     sudo systemctl disable bluetooth 2>/dev/null || true
