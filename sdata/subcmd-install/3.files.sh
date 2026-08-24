@@ -130,6 +130,12 @@ dedup_and_sort_listfile "${INSTALLED_LISTFILE}" "${INSTALLED_LISTFILE}"
 # Reload Hyprland if running
 try hyprctl reload
 
+# Update hyprpm plugins
+if command -v hyprpm >/dev/null 2>&1; then
+    printf "${BLUE}  Updating hyprpm plugins...${RST}\n"
+    hyprpm update 2>/dev/null || true
+fi
+
 printf "\n${GREEN}[$0]: Config files deployed${RST}\n"
 printf "${CYAN}  Waybar: ${XDG_CONFIG_HOME}/waybar/${RST}\n"
 printf "${CYAN}  Hyprland: ${XDG_CONFIG_HOME}/hypr/${RST}\n"
