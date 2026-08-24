@@ -2,9 +2,8 @@
 ---- WORKSPACE OVERVIEW ----
 ---------------------------
 
--- ScrollOverview plugin config + keybind
--- Wrapped in pcall so a missing plugin never breaks autostart or other modules.
-local ok = pcall(function()
+-- Only configure ScrollOverview if the plugin is actually installed
+if hl.plugin and hl.plugin.scrolloverview then
     hl.config({
         plugin = {
             scrolloverview = {
@@ -27,8 +26,6 @@ local ok = pcall(function()
     hl.bind("SUPER + O", function()
         hl.plugin.scrolloverview.overview("toggle")
     end)
-end)
-
-if not ok then
+else
     hl.log("workspace_overview: ScrollOverview plugin not installed — skipping (run: hyprpm add https://github.com/yayuuu/hyprland-scroll-overview.git)")
 end
