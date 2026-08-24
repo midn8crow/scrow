@@ -26,6 +26,7 @@ Usage: $0 <subcommand> [OPTIONS]
 
 Subcommands:
   install        Install/update SCROW dotfiles
+  uninstall      Remove all SCROW-managed files and packages
   help           Show this help
 
 Options:
@@ -53,6 +54,7 @@ EOF
 case "${1:-}" in
     ""|help|--help|-h) showhelp ;;
     install) shift ;;
+    uninstall) source "$REPO_ROOT/sdata/subcmd-uninstall/uninstall.sh"; exit 0 ;;
     *) printf "${RED}Unknown subcommand: $1${RST}\n"; showhelp ;;
 esac
 
