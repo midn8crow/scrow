@@ -130,6 +130,29 @@ dedup_and_sort_listfile "${INSTALLED_LISTFILE}" "${INSTALLED_LISTFILE}"
 # Reload Hyprland if running
 try hyprctl reload
 
+# Deploy /etc files (SDDM theme, GRUB config)
+deploy_etc() {
+    printf "${BLUE}  Deploying /etc files...${RST}\n"
+
+    # SDDM theme
+    if [[ -d "$REPO_ROOT/etc/sddm" ]]; then
+        sudo cp -a "$REPO_ROOT/etc/sddm/themes" /usr/share/sddm/themes/ 2>/dev/null || true
+        sudo mkdir -p /etc/sddm/conf.d
+        sudo cp -f "$REPO_ROOT/etc/sddm/conf.d/theme.conf" /etc/sddm/conf.d/ 2>/dev/null || true
+        printf "${GREEN}  [OK]${RST} SDDM pixie theme installed\n"
+    fi
+
+    # GRUB config
+    if [[ -f "$REPO_ROOT/etc/default/grub" ]]; then
+        sudo cp -f "$REPO_ROOT/etc/default/grub" /etc/default/grub 2>/dev/null || true
+        if command -v grub-mkconfig >/dev/null 2>&1; then
+            sudo grub-mkconfig -o /boot/grub/grub.cfg 2>/dev/null || true
+        fi
+        printf "${GREEN}  [OK]${RST} GRUB config updated\n"
+    fi
+}
+deploy_etc
+
 # Update hyprpm plugins
 if command -v hyprpm >/dev/null 2>&1; then
     printf "${BLUE}  Updating hyprpm plugins...${RST}\n"
