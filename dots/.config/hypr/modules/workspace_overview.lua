@@ -27,5 +27,5 @@ if hl.plugin and hl.plugin.scrolloverview then
         hl.plugin.scrolloverview.overview("toggle")
     end)
 else
-    hl.log("workspace_overview: ScrollOverview plugin not installed — skipping (run: hyprpm add https://github.com/yayuuu/hyprland-scroll-overview.git)")
+    hl.exec_cmd("hyprctl notify -w 5000 -l 'ScrollOverview plugin not installed'")
 end
