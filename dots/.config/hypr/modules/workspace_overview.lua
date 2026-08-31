@@ -27,5 +27,10 @@ if hl.plugin and hl.plugin.scrolloverview then
         hl.plugin.scrolloverview.overview("toggle")
     end)
 else
-    hl.exec_cmd("hyprctl notify -w 5000 -l 'ScrollOverview plugin not installed'")
+    if hl.notification and hl.notification.create then
+        hl.notification.create({
+            text = "ScrollOverview plugin not installed — run: hyprpm add https://github.com/yayuuu/hyprland-scroll-overview.git",
+            timeout = 8000,
+        })
+    end
 end
