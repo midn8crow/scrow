@@ -69,6 +69,49 @@ install_official_packages() {
     sudo pacman -S --needed --noconfirm "${pkgs[@]}"
 }
 
+# ── Run one AUR install quietly (into the log) with an animated spinner ───────
+
+# yay's build output goes to BOTH the log and the screen would flood the
+# terminal, so it is kept in the log while a braille spinner + elapsed time
+# shows the install is alive. Honors the 1800s ceiling and returns yay's exit
+# status without ever tripping set -e (the wait-and-rc guard pattern is
+    # identical to the old `wait ... && rc=0 || rc=$?`).
+aur_install_run() {
+    local log_file="$1"; shift
+    local msg="$1"; shift
+
+    timeout 1800 "$SCROW_AUR_HELPER" -S --needed "${yay_flags[@]}" "$@" \
+        >>"$log_file" 2>&1 &
+    local ypid=$!
+
+    if [[ -t 1 ]]; then
+        local sp='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏' i=0
+        while kill -0 "$ypid" 2>/dev/null; do
+            printf "\r\033[K  %s  %s" "${sp:i++ % ${#sp}}" "$msg"
+            sleep 0.2
+        done
+        printf "\r\033[K"
+    fi
+
+    local rc=0
+    wait "$ypid" && rc=0 || rc=$?
+    return "$rc"
+}
+
+# Ensure a working waybar even when the AUR build fails. waybar-cava-git cannot
+# be installed on Arch (its PKGBUILD makedepends on `glib2-devel`, which does
+# not exist in Arch repos or AUR — deterministic failure), but the scrowland
+# cava visualizer is script-based (custom/cava -> waybar-cava.py + cava +
+# python-pillow), so stock waybar renders identically. Prefer the AUR build,
+# fall back to a version of waybar from the official repos when it failed.
+ensure_waybar_fallback() {
+    command -v waybar >/dev/null 2>&1 && return 0
+    grep -qx 'waybar-cava-git' "$REPO_ROOT/packages/aur.txt" 2>/dev/null || return 0
+    printf "${YELLOW}  waybar-cava-git build not installable on Arch (broken PKGBUILD," \
+        " missing glib2-devel dep) — installing stock waybar (same cava visualizer).${RST}\n"
+    sudo pacman -S --needed --noconfirm waybar
+}
+
 # ── Install AUR packages one by one ───────────────────────────────────────────
 
 install_aur_packages() {
@@ -93,7 +136,6 @@ install_aur_packages() {
 
     local total=${#pkgs[@]}
     local -a failed_pkgs=()
-    local rc=0
     local log_dir="${XDG_CACHE_HOME:-$HOME/.cache}/scrow"
     local log_file="$log_dir/aur-install.log"
     mkdir -p "$log_dir"
@@ -125,13 +167,12 @@ install_aur_packages() {
         printf "${BLUE}  Installing %d AUR packages in one pass...${RST}\n" "$total"
     fi
 
-    # Single-pass mode: one yay invocation for everything, output STREAMED live
-    # to the screen (and logged) so you always see what's happening, under the
-    # same 1800s ceiling so one hung package can't stall. If yay reports any
+    # Single-pass mode: one yay invocation for everything (quiet), under the
+    # 1800s ceiling so one hung package can't stall. Output is captured to the
+    # log; an animated spinner keeps the terminal alive. If yay reports any
     # failure we fall through and re-run the individual loop to isolate them.
     if (( oom_safe == 0 )); then
-        if timeout 1800 "$SCROW_AUR_HELPER" -S --needed "${yay_flags[@]}" "${pkgs[@]}" 2>&1 \
-            | tee -a "$log_file"; rc=${PIPESTATUS[0]}; (( rc == 0 )); then
+        if aur_install_run "$log_file" "Installing all $total AUR packages..." "${pkgs[@]}"; then
             printf "${GREEN}  [OK]${RST} All AUR packages installed\n"
             printf '%s\n' "${failed_pkgs[@]}" > "${log_file%.log}-failed.txt"
             return 0
@@ -149,9 +190,9 @@ install_aur_packages() {
         while (( attempt <= 2 )); do
             printf -- "--- %s (attempt %d) ---\n" "$pkg" "$attempt" >> "$log_file"
             # 1800s per-package ceiling so one hung package can't stall setup
-            # forever; failures print "Failed: ... - skipping" and we continue.
-            if timeout 1800 "$SCROW_AUR_HELPER" -S --needed "${yay_flags[@]}" "$pkg" 2>&1 \
-                | tee -a "$log_file"; rc=${PIPESTATUS[0]}; (( rc == 0 )); then
+            # forever (spinner shows it's alive); failures print "Failed: ... -
+            # skipping" and we continue.
+            if aur_install_run "$log_file" "Installing $pkg (attempt $attempt of 2)..." "$pkg"; then
                 ok=1
                 break
             fi
@@ -281,6 +322,7 @@ install_hyprpm_plugins() {
 ensure_yay
 install_official_packages
 install_aur_packages
+ensure_waybar_fallback
 install_hyprpm_plugins
 
 printf "${GREEN}[$0]: Dependencies installed${RST}\n"
