@@ -15,7 +15,6 @@ grim
 slurp
 satty
 swww
-waybar
 
 # Networking & Bluetooth
 networkmanager

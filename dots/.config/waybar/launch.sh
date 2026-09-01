@@ -13,13 +13,12 @@ else
 fi
 
 # No waybar binary at all -> the bar can never appear. Write a diagnostic file
-# instead of failing silently (waybar is a plain official-repo package now).
+# instead of failing silently (waybar ships from the AUR waybar-cava-git build).
 if [[ "$WB" != /* ]] && ! command -v waybar >/dev/null 2>&1; then
     {
         echo "waybar could NOT start: no waybar binary found."
         if [[ -n "${XDG_CACHE_HOME:-$HOME/.cache}/scrow" ]]; then
-            echo "Likely cause: the official 'waybar' package was not installed during SCROW setup."
-            echo "Fix: sudo pacman -S --needed --noconfirm waybar"
+            echo "Likely cause: the AUR waybar-cava-git build failed during SCROW setup."
             echo "Check: ${XDG_CACHE_HOME:-$HOME/.cache}/scrow/aur-install.log"
             echo "Check: ${XDG_CACHE_HOME:-$HOME/.cache}/scrow/aur-install-failed.txt"
         fi

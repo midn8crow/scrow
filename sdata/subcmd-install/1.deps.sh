@@ -77,6 +77,16 @@ install_aur_packages() {
 
     ensure_yay || { printf "${RED}  Cannot install AUR packages without an AUR helper${RST}\n"; return 1; }
 
+    # Slow/fragile network hardening for -git clones (fixes waybar-cava-git &
+    # other -git packages dropping mid-download on QEMU user-net / throttled
+    # links): git aborts "slow but alive" transfers by default and HTTP/2
+    # multiplexing stalls on SLIRP. Use HTTP/1.1, no low-speed abort, bigger
+    # request buffer so the full Waybar history clone has time to complete.
+    git config --global http.version HTTP/1.1 2>/dev/null || true
+    git config --global http.lowSpeedLimit 0 2>/dev/null || true
+    git config --global http.lowSpeedTime 999 2>/dev/null || true
+    git config --global http.postBuffer 524288000 2>/dev/null || true
+
     local -a pkgs=()
     read_manifest "$manifest" pkgs
     (( ${#pkgs[@]} == 0 )) && return 0
