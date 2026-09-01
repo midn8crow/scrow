@@ -98,12 +98,44 @@ install_aur_packages() {
     mkdir -p "$log_dir"
     : > "$log_file"
 
-    printf "${BLUE}  Installing %d AUR packages (one at a time to avoid OOM)...${RST}\n" "$total"
-
     # yay CLONE/BUILD prompts (--answer*) are NOT covered by --noconfirm and they
     # hang/abort on a non-tty install (bash <(curl ...)). Force every answer so
     # the install is deterministic.
     local yay_flags=(--noconfirm --answerdiff None --answerclean None --answeredit None --answerupgrade None)
+
+    # OOM-safe mode is OPTIONAL. One prompt with a 30s answer window:
+    #   y -> one package at a time (safest on a 4GB VM)
+    #   n / nothing typed within 30s / non-tty install -> single fast pass
+    local oom_safe=0 ans
+    if [[ -t 0 ]]; then
+        printf "${YELLOW}  AUR packages — install one at a time to avoid OOM? [y/N] (30s to answer, else n) ${RST}"
+        if IFS= read -r -t 30 ans; then
+            case "${ans,,}" in
+                y|yes) oom_safe=1 ;;
+            esac
+        else
+            printf "\n"
+        fi
+    fi
+
+    if (( oom_safe )); then
+        printf "${BLUE}  Installing %d AUR packages one at a time (OOM-safe)...${RST}\n" "$total"
+    else
+        printf "${BLUE}  Installing %d AUR packages in one pass...${RST}\n" "$total"
+    fi
+
+    # Single-pass mode: one yay invocation for everything, under the same 1800s
+    # ceiling so one hung package can't stall. If yay reports any failure we
+    # fall through and re-run the individual loop to isolate the failures.
+    if (( oom_safe == 0 )); then
+        if timeout 1800 "$SCROW_AUR_HELPER" -S --needed "${yay_flags[@]}" "${pkgs[@]}" \
+            >>"$log_file" 2>&1; then
+            printf "${GREEN}  [OK]${RST} All AUR packages installed\n"
+            printf '%s\n' "${failed_pkgs[@]}" > "${log_file%.log}-failed.txt"
+            return 0
+        fi
+        printf "${YELLOW}  One-pass install had failures — retrying individually to isolate them...${RST}\n"
+    fi
 
     local i=0
     while (( i < total )); do
