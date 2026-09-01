@@ -129,6 +129,23 @@ check "official.txt has no stable waybar (use AUR git)"    "$(grep -q '^waybar$'
 check "official.txt has rust"      "$(grep -q '^rust$' "$REPO_ROOT/packages/official.txt" && echo true || echo false)"
 check "official.txt has go"        "$(grep -q '^go$' "$REPO_ROOT/packages/official.txt" && echo true || echo false)"
 
+# Launcher coverage: every app referenced by the SCROW menu / configs must be
+# representable in a manifest so a fresh install actually installs it.
+check "official.txt has uv (WayClick dep)" \
+    "$(grep -q '^uv$' "$REPO_ROOT/packages/official.txt" && echo true || echo false)"
+check "official.txt has libuv (WayClick dep)" \
+    "$(grep -q '^libuv$' "$REPO_ROOT/packages/official.txt" && echo true || echo false)"
+check "official.txt has python (WayClick venv)" \
+    "$(grep -q '^python$' "$REPO_ROOT/packages/official.txt" && echo true || echo false)"
+check "official.txt has pipewire-audio (WayClick audio)" \
+    "$(grep -q '^pipewire-audio$' "$REPO_ROOT/packages/official.txt" && echo true || echo false)"
+check "official.txt has chess-tui" \
+    "$(grep -q '^chess-tui$' "$REPO_ROOT/packages/official.txt" && echo true || echo false)"
+check "aur.txt has stockfish (chess engine)" \
+    "$(grep -q '^stockfish$' "$REPO_ROOT/packages/aur.txt" && echo true || echo false)"
+check "aur.txt has moviebox-tui" \
+    "$(grep -q '^moviebox-tui$' "$REPO_ROOT/packages/aur.txt" && echo true || echo false)"
+
 # ── 8. Deployment test with temp HOME ─────────────────────────────────────────
 
 echo ""
@@ -270,7 +287,88 @@ rsync_dir__sync "$REPO_ROOT/dots/.config" "$XDG_CONFIG_HOME"
 check "New app auto-deployed" "$([ -f "$XDG_CONFIG_HOME/newtest-app/config.ini" ] && echo true || echo false)"
 rm -rf "$REPO_ROOT/dots/.config/newtest-app"
 
-# ── 10. Summary ───────────────────────────────────────────────────────────────
+# ── 10. Waybar deployment fixture test ────────────────────────────────────────
+# Prove the .config deployment engine mirrors EVERY intended Waybar file: all
+# themes/configs/styles, nested theme modules, scripts (incl. deep ones),
+# hidden files (.current, dot-dirs) and symlinks.
+
+echo ""
+echo "== 10. Waybar deployment fixture (multi-theme, nested, hidden, symlink) =="
+
+FIX_TMP=$(mktemp -d)
+FIX_SRC="$FIX_TMP/fixture"
+FIX_DST="$FIX_TMP/home/.config/waybar"
+
+mkdir -p \
+    "$FIX_SRC/configs/themes/alpha/modules" \
+    "$FIX_SRC/configs/themes/beta/modules" \
+    "$FIX_SRC/configs/scripts/nested" \
+    "$FIX_SRC/configs/extra/.hidden-dir"
+
+echo '{ "modules-left": [] }' > "$FIX_SRC/configs/config-alpha.jsonc"
+echo '{ "modules-left": [] }' > "$FIX_SRC/configs/config-beta.jsonc"
+echo '* { color: red; }'      > "$FIX_SRC/configs/style-alpha.css"
+echo '* { color: blue; }'     > "$FIX_SRC/configs/style-beta.css"
+printf 'alpha'                > "$FIX_SRC/configs/.current"
+echo '#!/bin/sh'              > "$FIX_SRC/configs/scripts/media.sh"
+echo '#!/bin/sh'              > "$FIX_SRC/configs/scripts/nested/health.sh"
+echo 'keep'                   > "$FIX_SRC/configs/extra/.hidden-dir/.keep"
+echo '{ "battery": {} }'      > "$FIX_SRC/configs/themes/alpha/modules/battery.jsonc"
+echo '{ "clock": {} }'        > "$FIX_SRC/configs/themes/beta/modules/clock.jsonc"
+chmod +x "$FIX_SRC/configs/scripts/media.sh" "$FIX_SRC/configs/scripts/nested/health.sh"
+ln -s themes/alpha/modules/battery.jsonc "$FIX_SRC/configs/logos.jsonc"
+
+# The same .config deployment primitive 3.files.sh uses (rsync preferred,
+# cp fallback). rsync_dir__sync is already defined above (cp-based), and we
+# additionally exercise the real rsync mode when rsync is available.
+if command -v rsync >/dev/null 2>&1; then
+    deploy_waybar_fixture() { mkdir -p "$2"; rsync -a --delete "$1"/ "$2"/; }
+else
+    deploy_waybar_fixture() { mkdir -p "$2"; rm -rf "$2"/*; cp -a "$1"/. "$2"/; }
+fi
+deploy_waybar_fixture "$FIX_SRC/configs" "$FIX_DST"
+find "$FIX_DST/scripts" -type f -exec chmod +x {} + 2>/dev/null || true
+
+fix_count_src=$(find "$FIX_SRC/configs" -mindepth 1 | wc -l)
+fix_count_dst=$(find "$FIX_DST" -mindepth 1 | wc -l)
+check "Fixture: deployed count == source count ($fix_count_dst/$fix_count_src)" \
+    "$([ "$fix_count_dst" -eq "$fix_count_src" ] && echo true || echo false)" \
+    "dst=$fix_count_dst src=$fix_count_src"
+
+fix_missing=$(comm -23 \
+    <(cd "$FIX_SRC/configs" && find . -mindepth 1 | sort) \
+    <(cd "$FIX_DST" && find . -mindepth 1 | sort))
+check "Fixture: zero intended files missing from deployed tree" \
+    "$([ -z "$fix_missing" ] && echo true || echo false)" "missing=$fix_missing"
+
+check "Fixture: multiple configs deployed (alpha+beta)" \
+    "$([ -f "$FIX_DST/config-alpha.jsonc" ] && [ -f "$FIX_DST/config-beta.jsonc" ] && echo true || echo false)"
+check "Fixture: multiple styles deployed (alpha+beta)" \
+    "$([ -f "$FIX_DST/style-alpha.css" ] && [ -f "$FIX_DST/style-beta.css" ] && echo true || echo false)"
+check "Fixture: nested theme module deployed (themes/alpha/modules/battery.jsonc)" \
+    "$([ -f "$FIX_DST/themes/alpha/modules/battery.jsonc" ] && echo true || echo false)"
+check "Fixture: deep script deployed + executable (scripts/nested/health.sh)" \
+    "$([ -x "$FIX_DST/scripts/nested/health.sh" ] && echo true || echo false)"
+check "Fixture: script executable bit preserved (scripts/media.sh)" \
+    "$([ -x "$FIX_DST/scripts/media.sh" ] && echo true || echo false)"
+check "Fixture: hidden state file deployed (.current)" \
+    "$([ -f "$FIX_DST/.current" ] && echo true || echo false)"
+check "Fixture: hidden nested file deployed (extra/.hidden-dir/.keep)" \
+    "$([ -f "$FIX_DST/extra/.hidden-dir/.keep" ] && echo true || echo false)"
+check "Fixture: symlink preserved as symlink (not dereferenced)" \
+    "$([ -L "$FIX_DST/logos.jsonc" ] && echo true || echo false)"
+
+# The real installed tree must satisfy the same completeness check the
+# installer's preflight runs (3.files.sh waybar_preflight).
+real_waybar_missing=$(comm -23 \
+    <(cd "$REPO_ROOT/dots/.config/waybar" && find . -mindepth 1 | sort) \
+    <(cd "$XDG_CONFIG_HOME/waybar" && find . -mindepth 1 | sort) 2>/dev/null)
+check "Real tree: repository waybar == deployed waybar (0 missing)" \
+    "$([ -z "$real_waybar_missing" ] && echo true || echo false)" "missing=$real_waybar_missing"
+
+rm -rf "$FIX_TMP"
+
+# ── 11. Summary ───────────────────────────────────────────────────────────────
 
 echo ""
 echo "=== Results ==="

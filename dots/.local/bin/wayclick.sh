@@ -271,7 +271,10 @@ if [[ -x "$PYTHON_BIN" ]] && ! "$PYTHON_BIN" -c "pass" >/dev/null 2>&1; then
 fi
 
 if [[ ! -d "$VENV_DIR" ]]; then
-    if ! $INTERACTIVE; then
+    # --setup is the explicit "build the environment" command: it is safe to run
+    # without a TTY (the SCROW installer invokes it) because dependency
+    # installation already happened and building needs no user input.
+    if [[ "$RUN_MODE" != "setup" ]] && ! $INTERACTIVE; then
         notify_user "Environment not built! Run in terminal once to initialize."
         exit 1
     fi
@@ -284,7 +287,7 @@ fi
 MARKER_FILE="$BASE_DIR/.build_marker_v10"
 
 if [[ ! -f "$MARKER_FILE" ]]; then
-    if ! $INTERACTIVE; then
+    if [[ "$RUN_MODE" != "setup" ]] && ! $INTERACTIVE; then
         notify_user "First run setup required! Run in terminal to build native extensions."
         exit 1
     fi

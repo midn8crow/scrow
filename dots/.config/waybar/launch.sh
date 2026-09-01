@@ -12,6 +12,20 @@ else
     WB="waybar"
 fi
 
+# No waybar binary at all -> the bar can never appear. Write a diagnostic file
+# instead of failing silently (waybar only ships from the AUR waybar-cava-git).
+if [[ "$WB" != /* ]] && ! command -v waybar >/dev/null 2>&1; then
+    {
+        echo "waybar could NOT start: no waybar binary found."
+        if [[ -n "${XDG_CACHE_HOME:-$HOME/.cache}/scrow" ]]; then
+            echo "Likely cause: waybar-cava-git failed to build in the SCROW install."
+            echo "Check: ${XDG_CACHE_HOME:-$HOME/.cache}/scrow/aur-install.log"
+            echo "Check: ${XDG_CACHE_HOME:-$HOME/.cache}/scrow/aur-install-failed.txt"
+        fi
+    } > "$LOG_DIR/diagnose.txt"
+    exit 1
+fi
+
 pkill waybar 2>/dev/null
 sleep 0.3
 
@@ -44,7 +58,25 @@ fi
 # If it exits before the new waybar detaches into its own session, the kernel
 # SIGHUPs waybar's process group and it dies silently. Wait until waybar is up
 # so it has left the dying session's group before this script returns.
-for _ in 1 2 3 4 5 6 7 8 9 10; do
-    pgrep -x waybar >/dev/null && break
-    sleep 0.1
+started=0
+for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+    if pgrep -x waybar >/dev/null; then
+        started=1
+        break
+    fi
+    sleep 0.2
 done
+
+# If the bar still is not up, capture the reason into a diagnostic file so a
+# headless VM (or a fresh session) leaves a trail instead of a silent missing bar.
+if [[ "$started" -eq 0 ]]; then
+    {
+        echo "waybar did not stay running (checked at $(date '+%H:%M:%S'))"
+        echo "binary       : $WB (executable: $([[ -x "$(command -v "$WB" 2>/dev/null)" ]] && echo yes || echo \"$WB\"))"
+        echo "state (.current): $config"
+        echo "config       : $CFG (exists: $([[ -f "$CFG" ]] && echo yes || echo no))"
+        echo "style        : $STYLE (exists: $([[ -f "$STYLE" ]] && echo yes || echo no))"
+        echo "-- waybar.log tail --"
+        tail -25 "$LOG_DIR/waybar.log" 2>/dev/null || echo "(no log)"
+    } > "$LOG_DIR/diagnose.txt"
+fi

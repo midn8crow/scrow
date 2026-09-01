@@ -116,6 +116,97 @@ find "$XDG_CONFIG_HOME/waybar/scripts" -type f -exec chmod +x {} + 2>/dev/null |
 find "$XDG_CONFIG_HOME/hypr/scripts" -type f -exec chmod +x {} + 2>/dev/null || true
 find "$XDG_CONFIG_HOME/hypr/hyprlock" -name "*.sh" -exec chmod +x {} + 2>/dev/null || true
 
+# ── Waybar preflight: verify the full tree deployed and the bar can actually run ─
+
+waybar_preflight() {
+    local src="$REPO_ROOT/dots/.config/waybar"
+    local dst="$XDG_CONFIG_HOME/waybar"
+
+    # 1) Every file/theme/script — including hidden files (.current) and nested
+    #    subdirectories — must exist in the deployed tree, not a hardcoded subset.
+    local src_n dst_n
+    src_n=$(find "$src" -mindepth 1 | wc -l)
+    dst_n=$(find "$dst" -mindepth 1 | wc -l)
+    local missing
+    missing=$(comm -23 \
+        <(cd "$src" && find . -mindepth 1 | sort) \
+        <(cd "$dst" && find . -mindepth 1 | sort))
+    if [[ -z "$missing" && "$src_n" -eq "$dst_n" ]]; then
+        printf "${GREEN}  [OK]${RST} Waybar tree fully deployed (%d entries incl. hidden + nested)\n" "$dst_n"
+    else
+        printf "${RED}  [FAIL]${RST} Waybar deployment incomplete (%d src vs %d deployed) Missing:%s\n" \
+            "$src_n" "$dst_n" "$(sed 's/^/    /' <<< "$missing")"
+    fi
+
+    # 2) The bar binary must actually exist (it only comes from AUR waybar-cava-git)
+    if command -v waybar >/dev/null 2>&1 || [[ -x "$HOME/.local/bin/waybar" ]]; then
+        printf "${GREEN}  [OK]${RST} Waybar binary: %s\n" \
+            "$(command -v waybar 2>/dev/null || echo "$HOME/.local/bin/waybar")"
+    else
+        printf "${RED}  [FAIL]${RST} No waybar binary — waybar-cava-git failed in phase 1. See %s\n" \
+            "${XDG_CACHE_HOME:-$HOME/.cache}/scrow/aur-install.log"
+    fi
+
+    # 3) .current must resolve to an existing config (style is optional; launch.sh
+    #    then omits -s rather than erroring).
+    local cur cfg style
+    cur="$(cat "$dst/.current" 2>/dev/null)"
+    cfg="$dst/config-${cur}.jsonc"
+    style="$dst/style-${cur}.css"
+    if [[ -n "$cur" && -f "$cfg" ]]; then
+        if [[ -f "$style" ]]; then
+            printf "${GREEN}  [OK]${RST} Waybar theme .current=%s (config + style present)\n" "$cur"
+        else
+            printf "${GREEN}  [OK]${RST} Waybar theme .current=%s (config present, no style — launch uses -c only)\n" "$cur"
+        fi
+    else
+        printf "${YELLOW}  [WARN]${RST} .current='%s' unmapped — launch.sh will auto-detect a config\n" "$cur"
+    fi
+
+    # 4) Every config-*.jsonc must parse as JSONC (strip // and /* */ comments and
+    #    trailing commas — the lenient syntax waybar itself accepts).
+    if command -v python3 >/dev/null 2>&1; then
+        local bad="" cfg2
+        for cfg2 in "$dst"/config-*.jsonc; do
+            [[ -f "$cfg2" ]] || continue
+            if ! python3 -c '
+import sys, re, json
+s = open(sys.argv[1]).read()
+s = re.sub(r"//.*?$", "", s, flags=re.M)
+s = re.sub(r"/\*.*?\*/", "", s, flags=re.S)
+s = re.sub(r",(\s*[}\]])", r"\1", s)
+json.loads(s)
+' "$cfg2" 2>/dev/null; then
+                bad="$bad $(basename "$cfg2")"
+            fi
+        done
+        if [[ -z "$bad" ]]; then
+            printf "${GREEN}  [OK]${RST} All Waybar configs parse as valid JSONC\n"
+        else
+            printf "${RED}  [FAIL]${RST} Waybar configs with parse errors:%s\n" "$bad"
+        fi
+    else
+        printf "${YELLOW}  [WARN]${RST} python3 not found — skipped Waybar JSONC validation\n"
+    fi
+
+    # 5) The autostart chain that actually starts the bar is deployed.
+    local failc=0
+    [[ -f "$dst/launch.sh" ]] || { printf "${RED}  [FAIL]${RST} waybar/launch.sh not deployed\n"; failc=1; }
+    [[ -f "$HOME/.config/hypr/modules/autostart.lua" ]] || { printf "${RED}  [FAIL]${RST} hypr/modules/autostart.lua not deployed\n"; failc=1; }
+    [[ -f "$HOME/.config/hypr/hyprland.lua" ]] || { printf "${RED}  [FAIL]${RST} hypr/hyprland.lua not deployed\n"; failc=1; }
+    if grep -q "waybar/launch.sh" "$HOME/.config/hypr/modules/autostart.lua" 2>/dev/null; then
+        printf "${GREEN}  [OK]${RST} Autostart chain: hyprland.start -> waybar/launch.sh\n"
+    elif [[ $failc -eq 0 ]]; then
+        printf "${RED}  [FAIL]${RST} launch.sh reference missing from autostart.lua\n"
+    fi
+
+    # 6) Waybar scripts + launcher executable (deploy-time chmod is not enough
+    #    proof on its own).
+    chmod +x "$dst/launch.sh" "$dst/switch-waybar.sh" 2>/dev/null || true
+    printf "${GREEN}  [OK]${RST} Waybar scripts/launcher executable\n"
+}
+waybar_preflight
+
 # Generate firstrun marker
 gen_firstrun() {
     mkdir -p "$(dirname "${FIRSTRUN_FILE}")"
@@ -192,6 +283,18 @@ deploy_etc
 if command -v hyprpm >/dev/null 2>&1; then
     printf "${BLUE}  Updating hyprpm plugins...${RST}\n"
     hyprpm update 2>/dev/null || true
+fi
+
+# Build the WayClick environment so the Ctrl+Shift+A keybind and the SCROW menu
+# toggle both work immediately (wayclick.sh refuses to run without a built venv).
+# Non-fatal like AUR packages: a failure is reported loudly but does not abort.
+if [[ -x "$XDG_BIN_HOME/wayclick.sh" ]]; then
+    printf "${BLUE}  Building WayClick environment (keyboard sounds)...${RST}\n"
+    if "$XDG_BIN_HOME/wayclick.sh" --setup >/tmp/wayclick-setup.log 2>&1; then
+        printf "${GREEN}  [OK]${RST} WayClick environment ready\n"
+    else
+        printf "${RED}  [FAIL]${RST} WayClick setup failed — see /tmp/wayclick-setup.log\n"
+    fi
 fi
 
 printf "\n${GREEN}[$0]: Config files deployed${RST}\n"

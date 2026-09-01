@@ -32,6 +32,7 @@ fcitx5-qt
 
 # Audio
 pipewire
+pipewire-audio
 pipewire-pulse
 wireplumber
 pipewire-alsa
@@ -82,6 +83,9 @@ gvfs
 file-roller
 ffmpegthumbnailer
 
+# Games / TUI apps
+chess-tui
+
 # Utilities
 fastfetch
 btop
@@ -114,6 +118,11 @@ cmake
 meson
 gcc
 cpio
+
+# WayClick (mechanical keypress sounds) deps
+uv
+libuv
+python
 
 # AUR helper build deps
 rust

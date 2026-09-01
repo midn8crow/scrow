@@ -138,43 +138,95 @@ install_aur_packages() {
 
 # ── Install hyprpm plugins ────────────────────────────────────────────────────
 
+# True when `hyprpm list` shows the scrolloverview plugin enabled (state, not
+# whether a running compositor has it loaded). ANSI is stripped for parsing.
+hyprpm_plugin_enabled() {
+    hyprpm list 2>/dev/null | sed -r 's/\x1b\[[0-9;]*m//g' \
+        | grep -A1 -iE 'plugin[[:space:]]+scrolloverview' \
+        | grep -qi 'enabled.*true'
+}
+
 install_hyprpm_plugins() {
     if ! command -v hyprpm >/dev/null 2>&1; then
-        printf "${YELLOW}  hyprpm not found — skipping plugin install${RST}\n"
-        return 0
+        printf "${RED}  hyprpm not found — hyprland did not install hyprpm. Cannot install plugins.${RST}\n"
+        return 1
     fi
 
-    # hyprpm add fails with "Headers outdated" unless hyprpm is first synced to
-    # the ABI of the currently running/installed Hyprland. Plain `update` skips
-    # ABI-only header bumps; -f forces a real header sync/build.
-    printf "${YELLOW}  Syncing hyprpm headers/builds...${RST}\n"
-    hyprpm update -f 2>/dev/null || hyprpm update 2>/dev/null || true
+    local plugin_so="/var/cache/hyprpm/${USER:-$(id -un)}/hyprland-scroll-overview/scrolloverview.so"
+    local hp_log; hp_log="$(mktemp)"
 
-    if ! hyprpm list 2>/dev/null | grep -q scrolloverview; then
+    # hyprpm add/load fails with "Headers outdated" unless hyprpm is synced to
+    # the ABI of the installed Hyprland. Plain `update` can skip ABI-only header
+    # bumps, so -f is used first. Output is captured (never swallowed) so a real
+    # failure is visible; we only continue when headers are actually in sync.
+    printf "${YELLOW}  Syncing hyprpm headers/builds (may take a while)...${RST}\n"
+    if ! hyprpm update -f >"$hp_log" 2>&1 && ! hyprpm update >"$hp_log" 2>&1; then
+        printf "${RED}  hyprpm header sync FAILED — plugins cannot build:${RST}\n"
+        sed 's/^/    /' "$hp_log"
+        rm -f "$hp_log"
+        return 1
+    fi
+
+    if ! hyprpm list 2>/dev/null | grep -qi scrolloverview; then
         printf "${YELLOW}  Installing ScrollOverview plugin...${RST}\n"
-        local hp_log; hp_log="$(mktemp)"
         # hyprpm has no --yes flag; its "Are you sure? [Y/n]" reads one line from
         # stdin. Feed the confirmation so a non-tty install can't stall/abort.
-        if printf 'y\n' | hyprpm add https://github.com/yayuuu/hyprland-scroll-overview.git >"$hp_log" 2>&1; then
-            printf "${GREEN}  [OK]${RST} ScrollOverview plugin added\n"
-        else
-            printf "${RED}  ScrollOverview plugin add FAILED:${RST}\n"
-            sed 's/^/    /' "$hp_log"
-            rm -f "$hp_log"
-            return 1
+        if ! printf 'y\n' | hyprpm add https://github.com/yayuuu/hyprland-scroll-overview.git >"$hp_log" 2>&1; then
+            if grep -qi "already installed" "$hp_log"; then
+                printf "${YELLOW}  ScrollOverview repository already installed${RST}\n"
+            else
+                printf "${RED}  ScrollOverview plugin add FAILED:${RST}\n"
+                sed 's/^/    /' "$hp_log"
+                rm -f "$hp_log"
+                return 1
+            fi
         fi
-        rm -f "$hp_log"
     fi
 
-    # Enable (persists state) then reload to actually load it. If headers are
-    # still stale this reports "Outdated headers" — surface it instead of hiding.
-    hyprpm enable scrolloverview 2>/dev/null || true
-    if hyprpm reload 2>&1 | grep -qi "outdated"; then
-        printf "${YELLOW}  Plugin headers outdated — forcing sync and reload${RST}\n"
-        hyprpm update -f 2>/dev/null || true
-        hyprpm enable scrolloverview 2>/dev/null || true
+    # hyprpm add reports success even when the plugin BUILD failed (it records
+    # failed=true and still registers the repo). Verify the compiled shared
+    # object actually exists before claiming anything.
+    if ! sudo test -f "$plugin_so" 2>/dev/null; then
+        printf "${RED}  ScrollOverview build FAILED — no plugin binary at:%s${RST}\n" " $plugin_so"
+        sed 's/^/    /' "$hp_log" 2>/dev/null || true
+        rm -f "$hp_log"
+        return 1
     fi
-    hyprpm reload 2>/dev/null || true
+    printf "${GREEN}  [OK]${RST} ScrollOverview compiled: %s\n" "$plugin_so"
+
+    # Persist the enabled state. On a fresh install Hyprland is not running, so
+    # `hyprpm enable` cannot load it into a session and exits nonzero — that is
+    # EXPECTED; the important part is the persisted state, verified below.
+    hyprpm enable scrolloverview >"$hp_log" 2>&1 || true
+    rm -f "$hp_log"
+
+    if hyprpm_plugin_enabled; then
+        printf "${GREEN}  [OK]${RST} ScrollOverview enabled in hyprpm\n"
+    else
+        printf "${YELLOW}  ScrollOverview not enabled — retrying hyprpm enable...${RST}\n"
+        hyprpm enable scrolloverview >/dev/null 2>&1 || true
+        if ! hyprpm_plugin_enabled; then
+            printf "${RED}  ScrollOverview could NOT be enabled — run: hyprpm list${RST}\n"
+            return 1
+        fi
+        printf "${GREEN}  [OK]${RST} ScrollOverview enabled in hyprpm\n"
+    fi
+
+    # Load into a live instance if one is running (definitive proof). Without a
+    # session (typical during install) the plugin will load at the next Hyprland
+    # start, because autostart runs `hyprpm reload` on hyprland.start.
+    if command -v hyprctl >/dev/null 2>&1 && hyprctl -j instanceinfo >/dev/null 2>&1; then
+        hyprpm reload >/dev/null 2>&1 || true
+        if hyprctl plugin list 2>/dev/null | grep -qi scrolloverview; then
+            printf "${GREEN}  [OK]${RST} ScrollOverview LOADED into running Hyprland\n"
+        else
+            printf "${RED}  ScrollOverview installed but NOT loaded in the running instance. Output of hyprpm reload:${RST}\n"
+            hyprpm reload 2>&1 | sed 's/^/    /'
+            return 1
+        fi
+    else
+        printf "${GREEN}  [OK]${RST} ScrollOverview installed + enabled (no live Hyprland session yet; loads via autostart 'hyprpm reload')${RST}\n"
+    fi
 }
 
 # ── Run all dependency steps ──────────────────────────────────────────────────
