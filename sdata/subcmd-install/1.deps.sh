@@ -114,9 +114,35 @@ install_aur_packages() {
         local attempt=1 ok=0
         while (( attempt <= 2 )); do
             printf -- "--- %s (attempt %d) ---\n" "$pkg" "$attempt" >> "$log_file"
-            # Hard per-package ceiling so one stuck build (e.g. a heavy -git
-            # package that hangs on a slow link) can't stall the whole setup.
-            if timeout 1800 "$SCROW_AUR_HELPER" -S --needed "${yay_flags[@]}" "$pkg" >>"$log_file" 2>&1; then
+
+            # Hard per-package ceiling (1800s) + a live heartbeat. Heavy builds
+            # (e.g. waybar-cava-git's meson+ninja) run for many minutes and can
+            # look "stuck"; the heartbeat proves it's alive, and a genuinely
+            # hung package is auto-killed at the ceiling instead of stalling.
+            local start_ts last_hb ypid rc pstat
+            start_ts=$(date +%s); last_hb=$start_ts
+            timeout 1800 "$SCROW_AUR_HELPER" -S --needed "${yay_flags[@]}" "$pkg" \
+                >>"$log_file" 2>&1 &
+            ypid=$!
+            while :; do
+                if ! kill -0 "$ypid" 2>/dev/null; then break; fi
+                pstat=$(ps -o stat= -p "$ypid" 2>/dev/null | tr -d ' ')
+                [[ "$pstat" == Z* ]] && break   # exited, awaiting reap
+                sleep 30
+                local now
+                now=$(date +%s)
+                if (( now - last_hb >= 60 )); then
+                    last_hb=$now
+                    printf "${YELLOW}    ... %s still running (%ds) — latest:${RST}\n" \
+                        "$pkg" "$(( now - start_ts ))"
+                    tail -1 "$log_file" | sed 's/^/      /'
+                fi
+            done
+            wait "$ypid"; rc=$?
+            if (( rc == 124 )); then
+                printf "${RED}    ... %s hit the 1800s ceiling — marking failed${RST}\n" "$pkg"
+            fi
+            if (( rc == 0 )); then
                 ok=1
                 break
             fi
