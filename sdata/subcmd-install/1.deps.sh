@@ -138,7 +138,7 @@ install_aur_packages() {
                     tail -1 "$log_file" | sed 's/^/      /'
                 fi
             done
-            wait "$ypid"; rc=$?
+            wait "$ypid" && rc=0 || rc=$?
             if (( rc == 124 )); then
                 printf "${RED}    ... %s hit the 1800s ceiling — marking failed${RST}\n" "$pkg"
             fi
