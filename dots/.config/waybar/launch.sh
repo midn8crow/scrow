@@ -31,13 +31,22 @@ sleep 0.3
 
 config=$(cat "$STATE_FILE" 2>/dev/null)
 
-# auto-detect: if config not set or doesn't exist, use first available
+# auto-detect: if config not set or doesn't exist, use the project default
+# (scrowland) — same priority order as switch-waybar.sh — so a fresh install
+# mirrors the reference bar (workspaces click-to-switch etc.) instead of the
+# alphabetically-first preset.
 if [[ -z "$config" || ! -f "$DIR/config-${config}.jsonc" ]]; then
-    first=$(ls "$DIR"/config-*.jsonc 2>/dev/null | head -1)
-    if [[ -n "$first" ]]; then
-        config=$(basename "$first" | sed 's/^config-//; s/\.jsonc$//')
-        echo "$config" > "$STATE_FILE"
+    config=""
+    for cand in scrowland cxorz athena; do
+        if [[ -f "$DIR/config-$cand.jsonc" ]]; then
+            config="$cand"
+            break
+        fi
+    done
+    if [[ -z "$config" ]]; then
+        config=$(ls "$DIR"/config-*.jsonc 2>/dev/null | head -1 | sed 's#.*config-##; s/\.jsonc$//')
     fi
+    [[ -n "$config" ]] && echo "$config" > "$STATE_FILE"
 fi
 
 CFG="$DIR/config-${config}.jsonc"
