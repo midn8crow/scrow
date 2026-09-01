@@ -82,26 +82,58 @@ install_aur_packages() {
     (( ${#pkgs[@]} == 0 )) && return 0
 
     local total=${#pkgs[@]}
-    local failed=0
+    local -a failed_pkgs=()
+    local log_dir="${XDG_CACHE_HOME:-$HOME/.cache}/scrow"
+    local log_file="$log_dir/aur-install.log"
+    mkdir -p "$log_dir"
+    : > "$log_file"
 
     printf "${BLUE}  Installing %d AUR packages (one at a time to avoid OOM)...${RST}\n" "$total"
+
+    # yay CLONE/BUILD prompts (--answer*) are NOT covered by --noconfirm and they
+    # hang/abort on a non-tty install (bash <(curl ...)). Force every answer so
+    # the install is deterministic.
+    local yay_flags=(--noconfirm --answerdiff None --answerclean None --answeredit None --answerupgrade None)
 
     local i=0
     while (( i < total )); do
         local pkg="${pkgs[$i]}"
         local num=$(( i + 1 ))
         printf "${BLUE}  [%d/%d] %s${RST}\n" "$num" "$total" "$pkg"
-        "$SCROW_AUR_HELPER" -S --needed --noconfirm "$pkg" 2>&1 || {
+
+        local attempt=1 ok=0
+        while (( attempt <= 2 )); do
+            printf -- "--- %s (attempt %d) ---\n" "$pkg" "$attempt" >> "$log_file"
+            if "$SCROW_AUR_HELPER" -S --needed "${yay_flags[@]}" "$pkg" >>"$log_file" 2>&1; then
+                ok=1
+                break
+            fi
+            attempt=$(( attempt + 1 ))
+        done
+
+        if (( ok == 1 )); then
+            printf "${GREEN}  [OK]${RST} $pkg\n"
+        else
             printf "${YELLOW}  Failed: %s — skipping${RST}\n" "$pkg"
-            failed=$(( failed + 1 ))
-        }
+            failed_pkgs+=("$pkg")
+        fi
         i=$(( i + 1 ))
         sleep 2
     done
 
-    if (( failed > 0 )); then
-        printf "${YELLOW}  %d AUR packages failed (non-fatal)${RST}\n" "$failed"
+    if (( ${#failed_pkgs[@]} > 0 )); then
+        printf "${YELLOW}  %d AUR packages failed (non-fatal):${RST}\n" "${#failed_pkgs[@]}"
+        for fp in "${failed_pkgs[@]}"; do
+            printf "${YELLOW}    - ${fp}${RST}\n"
+            printf "${FAINT}       details in: ${log_file}${RST}\n"
+        done
+        printf "${FAINT}  Full log: ${log_file}${RST}\n"
+    else
+        printf "${GREEN}  All %d AUR packages installed${RST}\n" "$total"
     fi
+
+    # write the failure list so tools/VM can report them precisely
+    printf '%s\n' "${failed_pkgs[@]}" > "${log_file%.log}-failed.txt"
 }
 
 # ── Install hyprpm plugins ────────────────────────────────────────────────────
@@ -121,7 +153,9 @@ install_hyprpm_plugins() {
     if ! hyprpm list 2>/dev/null | grep -q scrolloverview; then
         printf "${YELLOW}  Installing ScrollOverview plugin...${RST}\n"
         local hp_log; hp_log="$(mktemp)"
-        if hyprpm add https://github.com/yayuuu/hyprland-scroll-overview.git >"$hp_log" 2>&1; then
+        # hyprpm has no --yes flag; its "Are you sure? [Y/n]" reads one line from
+        # stdin. Feed the confirmation so a non-tty install can't stall/abort.
+        if printf 'y\n' | hyprpm add https://github.com/yayuuu/hyprland-scroll-overview.git >"$hp_log" 2>&1; then
             printf "${GREEN}  [OK]${RST} ScrollOverview plugin added\n"
         else
             printf "${RED}  ScrollOverview plugin add FAILED:${RST}\n"
