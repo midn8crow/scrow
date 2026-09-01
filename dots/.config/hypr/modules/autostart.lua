@@ -9,7 +9,8 @@
 -- Or execute your favorite apps at launch like this:
 --
   hl.on("hyprland.start", function () 
-      hl.exec_cmd("hyprpm reload")
+      -- Ensure ScrollOverview is loaded (self-heals + verifies at runtime)
+      hl.exec_cmd("$HOME/.local/bin/hypr-scrolloverview.sh")
       hl.exec_cmd("gnome-keyring-daemon --start --components=secrets,ssh,pkcs11")
       hl.exec_cmd("$HOME/.config/waybar/launch.sh")
       hl.exec_cmd("mako")

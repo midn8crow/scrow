@@ -2,6 +2,7 @@ package.path = os.getenv("HOME") .. "/.config/hypr/?.lua;" .. package.path
 
 require("modules.monitors")
 require("modules.binds")
+require("modules.permissions")
 require("modules.autostart")
 require("modules.env")
 require("modules.decorations")

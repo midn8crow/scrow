@@ -26,11 +26,8 @@ if hl.plugin and hl.plugin.scrolloverview then
     hl.bind("SUPER + O", function()
         hl.plugin.scrolloverview.overview("toggle")
     end)
-else
-    if hl.notification and hl.notification.create then
-        hl.notification.create({
-            text = "ScrollOverview plugin not installed — run: hyprpm add https://github.com/yayuuu/hyprland-scroll-overview.git",
-            timeout = 8000,
-        })
-    end
+-- else
+--   Plugin is loaded after config (via hyprpm reload on hyprland.start), so a
+--   check here would falsely report "not installed" on every boot. Runtime
+--   verification + notification lives in ~/.local/bin/hypr-scrolloverview.sh.
 end
