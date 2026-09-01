@@ -29,7 +29,13 @@ fi
 CFG="$DIR/config-${config}.jsonc"
 STYLE="$DIR/style-${config}.css"
 if [[ -f "$CFG" ]]; then
-    setsid "$WB" -c "$CFG" -s "$STYLE" </dev/null >"$LOG_DIR/waybar.log" 2>&1 &
+    # Only pass -s if the matching style exists; a missing style (e.g. a config
+    # without its css yet) would make waybar fail to start.
+    if [[ -f "$STYLE" ]]; then
+        setsid "$WB" -c "$CFG" -s "$STYLE" </dev/null >"$LOG_DIR/waybar.log" 2>&1 &
+    else
+        setsid "$WB" -c "$CFG" </dev/null >"$LOG_DIR/waybar.log" 2>&1 &
+    fi
 else
     setsid "$WB" </dev/null >"$LOG_DIR/waybar.log" 2>&1 &
 fi

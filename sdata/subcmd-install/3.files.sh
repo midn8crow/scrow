@@ -134,21 +134,56 @@ try hyprctl reload
 deploy_etc() {
     printf "${BLUE}  Deploying /etc files...${RST}\n"
 
-    # SDDM theme
+    # SDDM theme. SDDM reads local overrides only from /etc/sddm.conf.d/
+    # (note the dot) — /etc/sddm/conf.d/ is NOT read by SDDM.
     if [[ -d "$REPO_ROOT/etc/sddm" ]]; then
-        sudo cp -a "$REPO_ROOT/etc/sddm/themes" /usr/share/sddm/themes/ 2>/dev/null || true
-        sudo mkdir -p /etc/sddm/conf.d
-        sudo cp -f "$REPO_ROOT/etc/sddm/conf.d/theme.conf" /etc/sddm/conf.d/ 2>/dev/null || true
-        printf "${GREEN}  [OK]${RST} SDDM pixie theme installed\n"
+        sudo mkdir -p /usr/share/sddm/themes
+        if sudo cp -a "$REPO_ROOT/etc/sddm/themes/." /usr/share/sddm/themes/ 2>/dev/null; then
+            printf "${GREEN}  [OK]${RST} SDDM pixie theme files deployed\n"
+        else
+            printf "${RED}  [FAIL]${RST} Could not deploy SDDM pixie theme\n"
+        fi
+        sudo mkdir -p /etc/sddm.conf.d
+        if sudo cp -f "$REPO_ROOT/etc/sddm/conf.d/theme.conf" /etc/sddm.conf.d/theme.conf 2>/dev/null; then
+            printf "${GREEN}  [OK]${RST} SDDM theme config set (Current=pixie)\n"
+        else
+            printf "${RED}  [FAIL]${RST} Could not write /etc/sddm.conf.d/theme.conf\n"
+        fi
+    fi
+
+    # GRUB theme: deploy the minegrub theme tree into /boot and enable
+    # GRUB_THEME, then regenerate grub.cfg so the menu picks it up.
+    if [[ -d "$REPO_ROOT/boot/grub/themes/minegrub" ]]; then
+        sudo mkdir -p /boot/grub/themes/minegrub
+        if sudo cp -a "$REPO_ROOT/boot/grub/themes/minegrub/." /boot/grub/themes/minegrub/ 2>/dev/null; then
+            printf "${GREEN}  [OK]${RST} minegrub GRUB theme deployed\n"
+        else
+            printf "${RED}  [FAIL]${RST} Could not deploy minegrub GRUB theme\n"
+        fi
     fi
 
     # GRUB config
     if [[ -f "$REPO_ROOT/etc/default/grub" ]]; then
-        sudo cp -f "$REPO_ROOT/etc/default/grub" /etc/default/grub 2>/dev/null || true
-        if command -v grub-mkconfig >/dev/null 2>&1; then
-            sudo grub-mkconfig -o /boot/grub/grub.cfg 2>/dev/null || true
+        sudo mkdir -p /etc/default
+        if ! sudo cp -f "$REPO_ROOT/etc/default/grub" /etc/default/grub; then
+            printf "${RED}  [FAIL]${RST} Could not write /etc/default/grub\n"
         fi
-        printf "${GREEN}  [OK]${RST} GRUB config updated\n"
+        # Enable GRUB_THEME if the repo ships a theme and it got deployed
+        if [[ -f /boot/grub/themes/minegrub/theme.txt ]] \
+           && ! grep -Eq '^GRUB_THEME=' /etc/default/grub 2>/dev/null; then
+            sudo sed -i \
+                's|^#\?GRUB_THEME=.*|GRUB_THEME="/boot/grub/themes/minegrub/theme.txt"|' \
+                /etc/default/grub 2>/dev/null || true
+        fi
+        if command -v grub-mkconfig >/dev/null 2>&1; then
+            printf "${BLUE}    Regenerating GRUB config...${RST}\n"
+            sudo grub-mkconfig -o /boot/grub/grub.cfg 2>&1 | grep -Ev '^Found|searching for|^Generating' || true
+            if [[ -f /boot/grub/grub.cfg ]]; then
+                printf "${GREEN}  [OK]${RST} GRUB config regenerated\n"
+            else
+                printf "${RED}  [FAIL]${RST} grub-mkconfig produced no config\n"
+            fi
+        fi
     fi
 }
 deploy_etc

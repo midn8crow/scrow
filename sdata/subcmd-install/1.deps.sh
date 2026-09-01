@@ -112,18 +112,34 @@ install_hyprpm_plugins() {
         return 0
     fi
 
+    # hyprpm add fails with "Headers outdated" unless hyprpm is first synced to
+    # the ABI of the currently running/installed Hyprland. Plain `update` skips
+    # ABI-only header bumps; -f forces a real header sync/build.
+    printf "${YELLOW}  Syncing hyprpm headers/builds...${RST}\n"
+    hyprpm update -f 2>/dev/null || hyprpm update 2>/dev/null || true
+
     if ! hyprpm list 2>/dev/null | grep -q scrolloverview; then
         printf "${YELLOW}  Installing ScrollOverview plugin...${RST}\n"
         local hp_log; hp_log="$(mktemp)"
         if hyprpm add https://github.com/yayuuu/hyprland-scroll-overview.git >"$hp_log" 2>&1; then
             printf "${GREEN}  [OK]${RST} ScrollOverview plugin added\n"
-            hyprpm enable scrolloverview 2>/dev/null || true
         else
-            printf "${YELLOW}  ScrollOverview install failed — desktop degrades gracefully${RST}\n"
+            printf "${RED}  ScrollOverview plugin add FAILED:${RST}\n"
+            sed 's/^/    /' "$hp_log"
+            rm -f "$hp_log"
+            return 1
         fi
         rm -f "$hp_log"
     fi
 
+    # Enable (persists state) then reload to actually load it. If headers are
+    # still stale this reports "Outdated headers" — surface it instead of hiding.
+    hyprpm enable scrolloverview 2>/dev/null || true
+    if hyprpm reload 2>&1 | grep -qi "outdated"; then
+        printf "${YELLOW}  Plugin headers outdated — forcing sync and reload${RST}\n"
+        hyprpm update -f 2>/dev/null || true
+        hyprpm enable scrolloverview 2>/dev/null || true
+    fi
     hyprpm reload 2>/dev/null || true
 }
 

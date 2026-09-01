@@ -103,7 +103,11 @@ remove_system_setup() {
 
     # Remove SDDM theme
     sudo rm -rf /usr/share/sddm/themes/pixie 2>/dev/null || true
+    sudo rm -f /etc/sddm.conf.d/theme.conf 2>/dev/null || true
     sudo rm -f /etc/sddm/conf.d/theme.conf 2>/dev/null || true
+
+    # Remove GRUB theme
+    sudo rm -rf /boot/grub/themes/minegrub 2>/dev/null || true
 
     # Disable services
     sudo systemctl disable sddm 2>/dev/null || true

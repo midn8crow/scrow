@@ -59,7 +59,7 @@ jq -c -n \
         elif $l == 1 then " " + . + " "
         else "   " end;
 
-    "\u{f0c1b}" as $dnd_icon | "\u{f0c1a}" as $norm_icon |
+    "󱅫" as $dnd_icon | "󰂛" as $norm_icon |
 
     ($bl | split("\n") | map(select(length > 0)) | reduce .[] as $id ({}; .[$id] = true)) as $blacklist_dict
 
