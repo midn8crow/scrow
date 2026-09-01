@@ -93,6 +93,7 @@ install_aur_packages() {
 
     local total=${#pkgs[@]}
     local -a failed_pkgs=()
+    local rc=0
     local log_dir="${XDG_CACHE_HOME:-$HOME/.cache}/scrow"
     local log_file="$log_dir/aur-install.log"
     mkdir -p "$log_dir"
@@ -124,12 +125,13 @@ install_aur_packages() {
         printf "${BLUE}  Installing %d AUR packages in one pass...${RST}\n" "$total"
     fi
 
-    # Single-pass mode: one yay invocation for everything, under the same 1800s
-    # ceiling so one hung package can't stall. If yay reports any failure we
-    # fall through and re-run the individual loop to isolate the failures.
+    # Single-pass mode: one yay invocation for everything, output STREAMED live
+    # to the screen (and logged) so you always see what's happening, under the
+    # same 1800s ceiling so one hung package can't stall. If yay reports any
+    # failure we fall through and re-run the individual loop to isolate them.
     if (( oom_safe == 0 )); then
-        if timeout 1800 "$SCROW_AUR_HELPER" -S --needed "${yay_flags[@]}" "${pkgs[@]}" \
-            >>"$log_file" 2>&1; then
+        if timeout 1800 "$SCROW_AUR_HELPER" -S --needed "${yay_flags[@]}" "${pkgs[@]}" 2>&1 \
+            | tee -a "$log_file"; rc=${PIPESTATUS[0]}; (( rc == 0 )); then
             printf "${GREEN}  [OK]${RST} All AUR packages installed\n"
             printf '%s\n' "${failed_pkgs[@]}" > "${log_file%.log}-failed.txt"
             return 0
@@ -148,8 +150,8 @@ install_aur_packages() {
             printf -- "--- %s (attempt %d) ---\n" "$pkg" "$attempt" >> "$log_file"
             # 1800s per-package ceiling so one hung package can't stall setup
             # forever; failures print "Failed: ... - skipping" and we continue.
-            if timeout 1800 "$SCROW_AUR_HELPER" -S --needed "${yay_flags[@]}" "$pkg" \
-                >>"$log_file" 2>&1; then
+            if timeout 1800 "$SCROW_AUR_HELPER" -S --needed "${yay_flags[@]}" "$pkg" 2>&1 \
+                | tee -a "$log_file"; rc=${PIPESTATUS[0]}; (( rc == 0 )); then
                 ok=1
                 break
             fi
