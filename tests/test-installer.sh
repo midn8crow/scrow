@@ -125,7 +125,12 @@ check "official.txt has packages (>=60)" "$([ "$official_count" -ge 60 ] && echo
 aur_count=$(grep -v '^#' "$REPO_ROOT/packages/aur.txt" | grep -v '^[[:space:]]*$' | wc -l)
 check "aur.txt has packages (>=5)" "$([ "$aur_count" -ge 5 ] && echo true || echo false)" "count=$aur_count"
 check "official.txt has hyprland"  "$(grep -q '^hyprland$' "$REPO_ROOT/packages/official.txt" && echo true || echo false)"
-check "official.txt has no stable waybar (use AUR git)"    "$(grep -q '^waybar$' "$REPO_ROOT/packages/official.txt" && echo false || echo true)"
+check "official.txt has stable waybar (built with -Dexperimental)" \
+    "$(grep -q '^waybar$' "$REPO_ROOT/packages/official.txt" && echo true || echo false)"
+check "aur.txt no longer needs waybar-cava-git (download-fragile -git build)" \
+    "$(grep -q '^waybar-cava-git$' "$REPO_ROOT/packages/aur.txt" && echo false || echo true)"
+check "aur.txt uses ytdlp-gui-bin (prebuilt) not slow cargo build" \
+    "$(grep -q '^ytdlp-gui-bin$' "$REPO_ROOT/packages/aur.txt" && echo true || echo false)"
 check "official.txt has rust"      "$(grep -q '^rust$' "$REPO_ROOT/packages/official.txt" && echo true || echo false)"
 check "official.txt has go"        "$(grep -q '^go$' "$REPO_ROOT/packages/official.txt" && echo true || echo false)"
 

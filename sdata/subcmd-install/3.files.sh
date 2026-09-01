@@ -138,13 +138,14 @@ waybar_preflight() {
             "$src_n" "$dst_n" "$(sed 's/^/    /' <<< "$missing")"
     fi
 
-    # 2) The bar binary must actually exist (it only comes from AUR waybar-cava-git)
+    # 2) The bar binary must actually exist (official 'waybar' package).
+    # Waybar is an official-repo package; the old AUR waybar-cava-git failed its
+    # git-clone download on slow installs and left the bar missing.
     if command -v waybar >/dev/null 2>&1 || [[ -x "$HOME/.local/bin/waybar" ]]; then
         printf "${GREEN}  [OK]${RST} Waybar binary: %s\n" \
             "$(command -v waybar 2>/dev/null || echo "$HOME/.local/bin/waybar")"
     else
-        printf "${RED}  [FAIL]${RST} No waybar binary — waybar-cava-git failed in phase 1. See %s\n" \
-            "${XDG_CACHE_HOME:-$HOME/.cache}/scrow/aur-install.log"
+        printf "${RED}  [FAIL]${RST} No waybar binary — the 'waybar' official package was not installed.\n"
     fi
 
     # 3) .current must resolve to an existing config (style is optional; launch.sh

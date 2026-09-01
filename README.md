@@ -241,8 +241,8 @@ sddm grub efibootmgr
 
 ```
 hyprpolkitagent openbangla-keyboard-fcitx-git hypr-kdeconnect-fix-git
-waybar-cava-git matugen awww mpvpaper gpu-screen-recorder hyprlauncher
-wlr-randr ytdlp-gui
+matugen awww mpvpaper gpu-screen-recorder wlr-randr ytdlp-gui-bin songrec
+bibata-cursor-theme stockfish moviebox-tui
 ```
 
 ## Customization

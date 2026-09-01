@@ -104,7 +104,9 @@ install_aur_packages() {
         local attempt=1 ok=0
         while (( attempt <= 2 )); do
             printf -- "--- %s (attempt %d) ---\n" "$pkg" "$attempt" >> "$log_file"
-            if "$SCROW_AUR_HELPER" -S --needed "${yay_flags[@]}" "$pkg" >>"$log_file" 2>&1; then
+            # Hard per-package ceiling so one stuck build (e.g. a heavy -git
+            # package that hangs on a slow link) can't stall the whole setup.
+            if timeout 1800 "$SCROW_AUR_HELPER" -S --needed "${yay_flags[@]}" "$pkg" >>"$log_file" 2>&1; then
                 ok=1
                 break
             fi
