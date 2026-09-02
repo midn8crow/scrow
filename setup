@@ -10,6 +10,13 @@ source ./sdata/lib/functions.sh
 
 prevent_sudo_or_root
 set -e
+# Failure diagnostics: print the EXACT command that made the script abort.
+# ERR (with -E) also fires inside guarded probes that `set -e` lets through, so
+# the trap only RECORDS the last failure (silent, cheap), and a chained EXIT trap
+# prints it ONLY if the script actually aborted (exit rc != 0 and rc == recorded).
+set -E
+_lastfail_rc= _lastfail_line= _lastfail_cmd= _lastfail_file= _lastfail_func=
+trap '_lastfail_rc="$?"; _lastfail_line="$LINENO"; _lastfail_cmd="$BASH_COMMAND"; _lastfail_file="${BASH_SOURCE[0]##*/}"; _lastfail_func="${FUNCNAME[1]:-top-level}"' ERR
 
 # Options
 ask=false
@@ -79,6 +86,18 @@ printf "${CYAN}Repository: ${REPO_ROOT}${RST}\n\n"
 sudo_init_keepalive
 trap sudo_stop_keepalive EXIT INT TERM
 
+# Chain the failure report into the EXISTING EXIT hook. It must be installed
+# here, after every other EXIT trap, so it stays active when the script aborts.
+report_last_failure() {
+    local rc=$?
+    if (( rc != 0 )) && [[ -n "$_lastfail_cmd" ]] && (( rc == _lastfail_rc )); then
+        printf "${RED}[$0]: FAILED (rc=%d) at %s:%d in %s: %s${RST}\n" \
+            "$_lastfail_rc" "$_lastfail_file" "$_lastfail_line" "$_lastfail_func" "$_lastfail_cmd" >&2
+    fi
+}
+_prev_exit_hook="$(trap -p EXIT | sed -nE "s/^trap -- '(.*)' EXIT\$/\1/p")"
+trap "report_last_failure; ${_prev_exit_hook:-:}" EXIT
+
 # Phase 1: Dependencies
 if [[ "$SKIP_DEPS" != true ]]; then
     source "$REPO_ROOT/sdata/subcmd-install/1.deps.sh"
@@ -97,10 +116,9 @@ fi
 printf "\n${GREEN}${BOLD}=== SCROW Installation Complete ===${RST}\n"
 printf "${CYAN}Reboot for all changes to take effect.${RST}\n\n"
 
-if [[ "${SKIP_REBOOT:-false}" != true ]]; then
+if [[ "${SKIP_REBOOT:-false}" != true && -t 0 ]]; then
     printf "${YELLOW}Reboot now? (y/N): ${RST}"
-    read -r answer
-    if [[ "$answer" =~ ^[Yy]$ ]]; then
+    if read -r answer && [[ "$answer" =~ ^[Yy]$ ]]; then
         sudo reboot
     fi
 fi

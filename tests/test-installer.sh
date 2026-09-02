@@ -154,6 +154,21 @@ check "aur.txt uses ytdlp-gui-bin (prebuilt) not slow cargo build" \
 check "official.txt has rust"      "$(grep -q '^rust$' "$REPO_ROOT/packages/official.txt" && echo true || echo false)"
 check "official.txt has go"        "$(grep -q '^go$' "$REPO_ROOT/packages/official.txt" && echo true || echo false)"
 
+# Fresh-install regression: name errors in the manifests made the single unguarded
+# `sudo pacman -S --needed --noconfirm ${pkgs[@]}` abort on the first unresolvable
+# target (swww, then p7zip, jack, libappindicator-gtk3, libsndio, libdate-tz — all
+# gone from current Arch repos). official.txt must only name packages that exist.
+check "official.txt no longer lists dropped names (swww p7zip jack libappindicator-gtk3 libsndio libdate-tz)" \
+    "$(! grep -qx 'swww' "$REPO_ROOT/packages/official.txt" && ! grep -qx 'p7zip' "$REPO_ROOT/packages/official.txt" && ! grep -qx 'jack' "$REPO_ROOT/packages/official.txt" && ! grep -qx 'libappindicator-gtk3' "$REPO_ROOT/packages/official.txt" && ! grep -qx 'libsndio' "$REPO_ROOT/packages/official.txt" && ! grep -qx 'libdate-tz' "$REPO_ROOT/packages/official.txt" && echo true || echo false)"
+check "official.txt uses current Arch names (awww 7zip jack2 libappindicator sndio chrono-date)" \
+    "$(grep -qx 'awww' "$REPO_ROOT/packages/official.txt" && grep -qx '7zip' "$REPO_ROOT/packages/official.txt" && grep -qx 'jack2' "$REPO_ROOT/packages/official.txt" && grep -qx 'libappindicator' "$REPO_ROOT/packages/official.txt" && grep -qx 'sndio' "$REPO_ROOT/packages/official.txt" && grep -qx 'chrono-date' "$REPO_ROOT/packages/official.txt" && echo true || echo false)"
+check "waybar PKGBUILD depends use real names (jack2 libappindicator sndio chrono-date)" \
+    "$(grep -q "'jack2'" "$REPO_ROOT/packages/waybar-cava/PKGBUILD" && grep -q "'libappindicator'" "$REPO_ROOT/packages/waybar-cava/PKGBUILD" && grep -q "'sndio'" "$REPO_ROOT/packages/waybar-cava/PKGBUILD" && grep -q "'chrono-date'" "$REPO_ROOT/packages/waybar-cava/PKGBUILD" && ! grep -q "'jack'" "$REPO_ROOT/packages/waybar-cava/PKGBUILD" && ! grep -q "'libappindicator-gtk3'" "$REPO_ROOT/packages/waybar-cava/PKGBUILD" && ! grep -q "'libsndio'" "$REPO_ROOT/packages/waybar-cava/PKGBUILD" && ! grep -q "'libdate-tz'" "$REPO_ROOT/packages/waybar-cava/PKGBUILD" && echo true || echo false)"
+check "setup skips reboot prompt when stdin is not a TTY (unguarded read aborted non-interactive installs)" \
+    "$(grep -q -- '-t 0' "$REPO_ROOT/setup" && grep -q 'read -r answer &&' "$REPO_ROOT/setup" && echo true || echo false)"
+check "setup traps ERR to print the exact first failing command (file:line + rc, silent on successful runs)" \
+    "$(grep -q 'set -E' "$REPO_ROOT/setup" && grep -q '_lastfail_cmd="\$BASH_COMMAND"' "$REPO_ROOT/setup" && grep -q 'report_last_failure' "$REPO_ROOT/setup" && echo true || echo false)"
+
 # Launcher coverage: every app referenced by the SCROW menu / configs must be
 # representable in a manifest so a fresh install actually installs it.
 check "official.txt has uv (WayClick dep)" \

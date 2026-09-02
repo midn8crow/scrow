@@ -14,7 +14,7 @@ cliphist
 grim
 slurp
 satty
-swww
+awww
 
 # Networking & Bluetooth
 networkmanager
@@ -47,9 +47,9 @@ jq
 fmt
 gtk-layer-shell
 gtkmm3
-jack
+jack2
 jsoncpp
-libappindicator-gtk3
+libappindicator
 libdbusmenu-gtk3
 libevdev
 libinput
@@ -57,10 +57,10 @@ libmpdclient
 libnl
 libpulse
 libsigc++
-libsndio
+sndio
 libwireplumber
 libxkbcommon
-libdate-tz
+chrono-date
 spdlog
 upower
 # waybar-cava makedepends
@@ -121,7 +121,7 @@ brightnessctl
 ffmpeg
 imagemagick
 tree
-p7zip
+7zip
 unzip
 wget
 curl

@@ -172,7 +172,7 @@ Packages are defined in `packages/official.txt` (pacman) and `packages/aur.txt` 
 ```
 hyprland hyprlock hypridle hyprutils uwsm xdg-desktop-portal-hyprland
 xdg-desktop-portal-gtk xdg-utils wl-clipboard cliphist grim slurp swappy
-satty hyprshot swww gnome-keyring network-manager-applet blueman
+satty hyprshot awww gnome-keyring network-manager-applet blueman
 nm-connection-editor kdeconnect fcitx5 fcitx5-configtool fcitx5-gtk
 fcitx5-qt pipewire pipewire-pulse wireplumber pipewire-alsa pipewire-jack
 pavucontrol polkit-kde-agent
@@ -221,7 +221,7 @@ ttf-font-awesome ttf-cascadia-code
 
 ```
 fastfetch btop htop mpv cava yazi yt-dlp brightnessctl playerctl
-ffmpeg imagemagick jq tree p7zip wget curl git unzip xdg-user-dirs
+ffmpeg imagemagick jq tree 7zip wget curl git unzip xdg-user-dirs
 wtype pacman-contrib
 ```
 
