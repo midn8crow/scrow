@@ -60,3 +60,6 @@ target/
 .config/mimeinfo.cache
 *.tmp
 *.pid
+
+# session capture artifacts
+/typescript

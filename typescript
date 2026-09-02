@@ -1,5 +1,0 @@
-Script started on 2026-09-02 08:08:07+06:00 [COMMAND=" for k in awww matugen cxorz; do sleep 0.6; mkdir -p "$bd/$k"; done sleep 0.4; touch "$bd/awww"/awww-1-1-x86_64.pkg.tar.zst "$bd/matugen"/m-1-1-x86_64.pkg.tar.zst sleep 0.6 echo " (2/3) Installing awww" echo "AUR_RC=0" " <not executed on terminal>]
- (2/3) Installing awww
-AUR_RC=0
-
-Script done on 2026-09-02 08:08:10+06:00 [COMMAND_EXIT_CODE="0"]
