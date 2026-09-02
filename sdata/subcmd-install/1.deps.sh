@@ -134,8 +134,6 @@ aur_consume() {
 
 draw_aur_status() {
     local build_dir="$1" msg="$2" n="$3" start="$4"
-    local sp='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
-    local i=$(( SECONDS - start ))
     local working=() built=0 tot=0 name
     local el=$(( SECONDS - start ))
     for d in "$build_dir"/*/; do
@@ -149,8 +147,9 @@ draw_aur_status() {
             working+=("$name")
         fi
     done
-    local now_str
+    local now_str pct=0
     printf -v now_str "%d:%02d" $((el/60)) $((el%60))
+    (( n > 0 )) && pct=$(( built * 100 / n ))
     local suffix
     if (( tot > 0 && built == tot )); then
         suffix="${YELLOW}installing (pacman transaction)…${RST}"
@@ -159,8 +158,8 @@ draw_aur_status() {
     else
         suffix="${YELLOW}working on: $(IFS=' '; printf '%s' "${working[*]}")${RST}"
     fi
-    printf "\r\033[K  %s  [%d/%d built]  %s  %s  %s" \
-        "${sp:$((i % ${#sp})):1}" "$built" "$n" "$suffix" "$now_str" "$msg"
+    printf "\r\033[K  [%d/%d built]  (%d%%)  %s  %s  %s" \
+        "$built" "$n" "$pct" "$suffix" "$now_str" "$msg"
 }
 
 # ── Waybar: local cava-enabled build, then stock fallback ─────────────────────
@@ -188,17 +187,63 @@ install_waybar_cava() {
         return 1
     fi
 
+    # Cache/validate sudo credentials BEFORE any progress display starts:
+    # makepkg -si runs `sudo pacman -U` to install the built package, and a
+    # status line drawing over that prompt while it waits only hides the prompt
+    # (and looks stuck). sudo -v runs first so it's one obvious prompt; makepkg
+    # gets stdin from /dev/null so a late (slow-build) sudo re-prompt fails fast
+    # instead of hanging silently behind the progress display.
+    if ! sudo -v 2>/dev/null; then
+        printf "${YELLOW}  sudo did not accept credentials (no tty or no password given) — cannot build waybar locally${RST}\n"
+        return 1
+    fi
+
     printf "${BLUE}  Building waybar with the compiled cava module (pinned 0.15.0 tarball — a few minutes, log: %s)...${RST}\n" "$build_log"
-    local build_dir
+    local build_dir t0=$SECONDS
     build_dir="$(mktemp -d)"
     cp "$pkgdir/PKGBUILD" "$build_dir/" 2>/dev/null || true
-    (cd "$build_dir" && timeout 3600 makepkg --noconfirm -si >"$build_log" 2>&1) &
+    (cd "$build_dir" && timeout 3600 makepkg --noconfirm -si </dev/null >"$build_log" 2>&1) &
     local mpid=$!
+
+    # REAL progress, not a fake animation: read ninja's own build counter
+    # "[done/total]" straight from the log as it grows and show the % from it.
+    # Before the numbers appear we show the actual makepkg stage name. Updates
+    # are throttled to 0.3s but every move reflects work actually completed.
     if [[ -t 1 ]]; then
-        local sp='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏' i=0
+        local pos=0 pct= count= phase="starting" sz chunk num den
         while kill -0 "$mpid" 2>/dev/null; do
-            printf "\r\033[K  %s  Building waybar (cava module)..." "${sp:i++ % ${#sp}}"
-            sleep 0.2
+            if [[ -f "$build_log" ]]; then
+                sz="$(stat -c %s "$build_log" 2>/dev/null || echo 0)"
+                if (( sz > pos )); then
+                    chunk="$(dd if="$build_log" bs=1 skip="$pos" count=$((sz - pos)) 2>/dev/null | tr '\r' '\n')"
+                    pos=$sz
+                    case "$chunk" in
+                        *'==> Downloading sources'*)      phase="downloading" ;;&
+                        *'==> Validating source files'*)  phase="validating" ;;&
+                        *'==> Extracting sources'*)       phase="extracting" ;;&
+                        *'==> Starting build()'*)         phase="compiling" ;;&
+                        *'==> Entering fakeroot'*)        phase="packaging" ;;&
+                        *'==> Starting package()'*)       phase="packaging" ;;&
+                        *'==> Making package:'*)          phase="packaging" ;;&
+                        *'Installing '*|*'pacman -U'*)   phase="installing" ;;
+                    esac
+                    count="$(printf '%s' "$chunk" | grep -aoE '\[[0-9]+/[0-9]+\]' | tail -1)"
+                    if [[ -n "$count" ]]; then
+                        num="${count#\[}"; num="${num%%/*}"
+                        den="${count%\]}"; den="${den##*/}"
+                        (( den > 0 )) && pct=$(( num * 100 / den ))
+                    fi
+                fi
+            fi
+            local el=$(( SECONDS - t0 ))
+            if [[ -n "$pct" ]]; then
+                printf "\r\033[K  Building waybar (cava module)…  [%d%%]  %s  %s  %d:%02d  " \
+                    "$pct" "$count" "$phase" $((el/60)) $((el%60))
+            else
+                printf "\r\033[K  Building waybar (cava module)…  %s  %d:%02d  " \
+                    "$phase" $((el/60)) $((el%60))
+            fi
+            sleep 0.3
         done
         printf "\r\033[K"
     fi
