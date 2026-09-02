@@ -188,11 +188,10 @@ install_waybar_cava() {
     fi
 
     # Resolve the sudo credential ONCE, explicitly and visibly, BEFORE the
-    # build: the waybar build itself (makepkg WITHOUT -s/-i, see below) never
-    # calls sudo, so a password prompt can never appear mid-display and get
-    # hidden behind the progress line. The only sudo a clean build needs
-    # happens here (one marked prompt if a credential isn't already valid) or
-    # right after the progress display has fully stopped (sudo pacman -U).
+    # build: makepkg -s auto-installs any missing deps and sudo pacman -U
+    # installs the finished package, so making credentials valid up-front keeps
+    # a password prompt from ever appearing mid-display. Any late sudo ask
+    # (slow build, >15min) fails fast via /dev/null and prints an explicit line.
     if sudo -n -v 2>/dev/null; then
         printf "${GREEN}  [sudo] already authenticated (valid credential from the package phases) - build will not prompt${RST}\n"
     else
@@ -209,13 +208,15 @@ install_waybar_cava() {
     build_dir="$(mktemp -d)"
     cp "$pkgdir/PKGBUILD" "$build_dir/" 2>/dev/null || true
 
-    # Build WITHOUT -s/-i so makepkg never calls sudo during the build: a
-    # password prompt can then NEVER appear behind the progress display. Deps
-    # were installed from official.txt + the AUR phase already; --nodeps skips
-    # makepkg's own check, -f allows the build even if an old artifact exists.
-    # The built package is installed with ONE explicit, clean sudo below, after
-    # the progress display has fully stopped.
-    (cd "$build_dir" && timeout 3600 makepkg --noconfirm -f --nodeps </dev/null >"$build_log" 2>&1) &
+    # The build must work on ANY machine, whatever its starting state. makepkg's
+    # -s (--syncdeps) auto-resolves and installs any missing depends/makedepends
+    # on first run, so machines missing parts of a full set are fixed by makepkg
+    # itself instead of by a hand-maintained list. The sudo credential is
+    # pre-cached by sudo -v above (no prompt appears behind the display) and
+    # makepkg gets stdin from /dev/null so any LATE sudo ask fails fast and
+    # loudly rather than hanging. We do NOT use -i: the built package is
+    # installed with ONE explicit, clean sudo below, after the display stops.
+    (cd "$build_dir" && timeout 3600 makepkg --noconfirm -f -s </dev/null >"$build_log" 2>&1) &
     local mpid=$!
 
     # REAL progress, not a fake animation: read ninja's own build counter

@@ -139,6 +139,10 @@ check "waybar PKGBUILD does NOT force --auto-features=enabled (skips absent modu
     "$(grep -v '^#' "$REPO_ROOT/packages/waybar-cava/PKGBUILD" | grep -q -- '-Dcava=enabled' && ! grep -v '^#' "$REPO_ROOT/packages/waybar-cava/PKGBUILD" | grep -q -- '--auto-features=enabled' && echo true || echo false)"
 check "official.txt has spdlog + glib2-devel (waybar-cava build deps, spdlog>=1.15.2)" \
     "$(grep -q '^spdlog$' "$REPO_ROOT/packages/official.txt" && grep -q '^glib2-devel$' "$REPO_ROOT/packages/official.txt" && echo true || echo false)"
+check "installer waybar build uses makepkg -s (auto-resolves missing deps on ANY machine)" \
+    "$(grep -q -- 'makepkg --noconfirm -f -s' "$REPO_ROOT/sdata/subcmd-install/1.deps.sh" && echo true || echo false)"
+check "official.txt ships base-devel (makepkg toolchain needed on any machine)" \
+    "$(grep -q '^base-devel$' "$REPO_ROOT/packages/official.txt" && echo true || echo false)"
 check "installer never installs stock waybar (cava build is required, no fallback)" \
     "$(grep -q 'No stock fallback' "$REPO_ROOT/sdata/subcmd-install/1.deps.sh" && ! grep -q 'sudo pacman -S --needed --noconfirm waybar' "$REPO_ROOT/sdata/subcmd-install/1.deps.sh" && echo true || echo false)"
 check "waybar PKGBUILD provides+conflicts waybar (replaces stock)" \

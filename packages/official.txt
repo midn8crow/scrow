@@ -138,6 +138,9 @@ fuse3
 python-pillow
 firefox
 
+# makepkg (waybar-cava build) needs the base-devel toolchain on ANY machine
+base-devel
+
 # Hyprpm plugin build deps
 cmake
 meson
