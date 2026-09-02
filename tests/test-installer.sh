@@ -127,8 +127,16 @@ check "aur.txt has packages (>=5)" "$([ "$aur_count" -ge 5 ] && echo true || ech
 check "official.txt has hyprland"  "$(grep -q '^hyprland$' "$REPO_ROOT/packages/official.txt" && echo true || echo false)"
 check "official.txt has cava (waybar-cava visualizer runtime)" \
     "$(grep -q '^cava$' "$REPO_ROOT/packages/official.txt" && echo true || echo false)"
-check "aur.txt keeps waybar-cava-git (cava-enabled bar)" \
-    "$(grep -q '^waybar-cava-git$' "$REPO_ROOT/packages/aur.txt" && echo true || echo false)"
+check "aur.txt keeps libcava (cava module shared lib, ships libcava.pc)" \
+    "$(grep -q '^libcava$' "$REPO_ROOT/packages/aur.txt" && echo true || echo false)"
+check "aur.txt drops waybar-cava-git (moving-git clone, unreliable on VM)" \
+    "$(grep -qv '^waybar-cava-git$' "$REPO_ROOT/packages/aur.txt" && echo true || echo false)"
+check "local waybar PKGBUILD exists (packages/waybar-cava)" \
+    "$([ -f "$REPO_ROOT/packages/waybar-cava/PKGBUILD" ] && echo true || echo false)"
+check "waybar PKGBUILD pins release tarball + cava=enabled" \
+    "$(grep -q -- '-Dcava=enabled' "$REPO_ROOT/packages/waybar-cava/PKGBUILD" && echo true || echo false)"
+check "waybar PKGBUILD provides+conflicts waybar (replaces stock)" \
+    "$(grep -q "provides=('waybar')" "$REPO_ROOT/packages/waybar-cava/PKGBUILD" && grep -q "conflicts=('waybar'" "$REPO_ROOT/packages/waybar-cava/PKGBUILD" && echo true || echo false)"
 check "aur.txt uses ytdlp-gui-bin (prebuilt) not slow cargo build" \
     "$(grep -q '^ytdlp-gui-bin$' "$REPO_ROOT/packages/aur.txt" && echo true || echo false)"
 check "official.txt has rust"      "$(grep -q '^rust$' "$REPO_ROOT/packages/official.txt" && echo true || echo false)"

@@ -237,13 +237,20 @@ nftables fail2ban clamav rkhunter pacman-contrib bubblewrap lynis
 sddm grub efibootmgr
 ```
 
-### AUR Packages (via paru)
+### AUR Packages (via yay)
 
 ```
 hyprpolkitagent openbangla-keyboard-fcitx-git hypr-kdeconnect-fix-git
-waybar-cava-git matugen awww mpvpaper gpu-screen-recorder wlr-randr
+libcava matugen awww mpvpaper gpu-screen-recorder wlr-randr
 ytdlp-gui-bin songrec bibata-cursor-theme stockfish moviebox-tui
 ```
+
+> Waybar itself is built locally during setup: the AUR `waybar-cava-git` clones
+> moving-git master and keeps failing on the installer VM's slow link, so the
+> installer builds `packages/waybar-cava/PKGBUILD` (the **real** waybar with the
+> compiled `cava` module) from the pinned 0.15.0 release tarball. That uses the
+> pkg-config `libcava.pc` from the AUR `libcava` above. Only if that build fails
+> does setup fall back to stock `waybar`.
 
 ## Customization
 

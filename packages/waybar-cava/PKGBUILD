@@ -1,0 +1,103 @@
+# SCROW project — local build of waybar WITH the compiled cava module.
+#
+# The AUR waybar-cava-git builds waybar-git (moving master) via a full git
+# clone, which is fragile on this project's installer VM (slow/throttled link,
+# git "slow but alive" aborts). This PKGBUILD does the SAME thing — the real
+# cava module (`-Dcava=enabled`, requires the pkg-config libcava that the AUR
+# libcava package ships) — but from the pinned 0.15.0 release tarball, so it
+# builds deterministically.
+#
+# Install order matters: `libcava` must be installed BEFORE building this
+# (it is in packages/aur.txt, so the AUR phase runs first).
+
+pkgname=waybar-cava
+pkgver=0.15.0
+pkgrel=1
+pkgdesc='Highly customizable Wayland bar for Sway and Wlroots based compositors (cava module compiled in)'
+arch=('x86_64')
+url='https://github.com/Alexays/Waybar/'
+license=('MIT')
+provides=('waybar')
+conflicts=('waybar' 'waybar-cava-git')
+depends=(
+    'atkmm'
+    'cairomm'
+    'fmt'
+    'glib2'
+    'glibc'
+    'glibmm'
+    'gpsd'
+    'gtk-layer-shell'
+    'gtk3'
+    'gtkmm3'
+    'jack'
+    'jsoncpp'
+    'libcava'
+    'libdbusmenu-gtk3'
+    'libevdev'
+    'libgcc'
+    'libinput'
+    'libmpdclient'
+    'libnl'
+    'libpipewire'
+    'libpulse'
+    'libsigc++'
+    'libstdc++'
+    'libwireplumber'
+    'libxkbcommon'
+    'playerctl'
+    'sndio'
+    'spdlog'
+    'systemd-libs'
+    'upower'
+    'wayland'
+)
+makedepends=(
+    'cmake'
+    'glib2-devel' # gdbus-codegen
+    'meson'
+    'scdoc' # manpages
+    'wayland-protocols'
+)
+backup=(
+    etc/xdg/waybar/config.jsonc
+    etc/xdg/waybar/style.css
+)
+optdepends=(
+    'otf-font-awesome: Icons in the default configuration'
+)
+source=("$pkgname-$pkgver.tar.gz::https://github.com/Alexays/Waybar/archive/$pkgver.tar.gz")
+sha256sums=('21c2bbef88c40473c355003582f9331d2f9b8a01efdcce0935edfc5f6b023a3e')
+
+build() {
+    cd "Waybar-$pkgver"
+    meson setup --prefix=/usr \
+          --buildtype=plain \
+          --auto-features=enabled \
+          --wrap-mode=nodownload \
+          -Dcpp_std=c++20 \
+          -Dexperimental=true \
+          -Dcava=enabled \
+          -Dtests=disabled \
+          build
+    meson compile -C build
+}
+
+package() {
+    depends+=(
+      'libatkmm-1.6.so'
+      'libcairomm-1.0.so'
+      'libgtk-3.so'
+      'libjack.so'
+      'libjsoncpp.so'
+      'libpipewire-0.3.so'
+      'libsndio.so'
+      'libspdlog.so'
+      'libudev.so'
+      'libupower-glib.so'
+    )
+
+    cd "Waybar-$pkgver"
+    meson install -C build --destdir "$pkgdir"
+    install -Dm644 LICENSE -t "$pkgdir/usr/share/licenses/$pkgname/"
+}

@@ -138,14 +138,13 @@ waybar_preflight() {
             "$src_n" "$dst_n" "$(sed 's/^/    /' <<< "$missing")"
     fi
 
-    # 2) The bar binary must actually exist (AUR waybar-cava-git).
-    # 1.deps.sh hardens git so the -git clone can't drop on slow VMs.
+    # 2) The bar binary must actually exist (local cava-enabled build in phase 1).
     if command -v waybar >/dev/null 2>&1 || [[ -x "$HOME/.local/bin/waybar" ]]; then
         printf "${GREEN}  [OK]${RST} Waybar binary: %s\n" \
             "$(command -v waybar 2>/dev/null || echo "$HOME/.local/bin/waybar")"
     else
-        printf "${RED}  [FAIL]${RST} No waybar binary — waybar-cava-git failed in phase 1. See %s\n" \
-            "${XDG_CACHE_HOME:-$HOME/.cache}/scrow/aur-install.log"
+        printf "${RED}  [FAIL]${RST} No waybar binary — local waybar-cava build failed in phase 1. See %s\n" \
+            "${XDG_CACHE_HOME:-$HOME/.cache}/scrow/waybar-cava-build.log"
     fi
 
     # 3) .current must resolve to an existing config (style is optional; launch.sh

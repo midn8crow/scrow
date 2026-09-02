@@ -98,17 +98,60 @@ aur_install_run() {
     return "$rc"
 }
 
-# Ensure a working waybar even when the AUR build fails. waybar-cava-git cannot
-# be installed on Arch (its PKGBUILD makedepends on `glib2-devel`, which does
-# not exist in Arch repos or AUR — deterministic failure), but the scrowland
-# cava visualizer is script-based (custom/cava -> waybar-cava.py + cava +
-# python-pillow), so stock waybar renders identically. Prefer the AUR build,
-# fall back to a version of waybar from the official repos when it failed.
+# ── Waybar: local cava-enabled build, then stock fallback ─────────────────────
+# The AUR waybar-cava-git builds moving-git master via a full clone that keeps
+# aborting on this installer's slow/throttled link. Instead we build waybar WITH
+# the compiled cava module from the pinned 0.15.0 release tarball
+# (packages/waybar-cava/PKGBUILD + AUR `libcava`, which ships the libcava.pc
+# that waybar's meson looks for). If that local build fails, fall back to stock
+# waybar — the scrowland cava visualizer is script-based (custom/cava ->
+# waybar-cava.py + cava + python-pillow) so stock renders it identically.
+install_waybar_cava() {
+    pacman -Q waybar-cava >/dev/null 2>&1 && return 0
+
+    local pkgdir="$REPO_ROOT/packages/waybar-cava"
+    local log_dir="${XDG_CACHE_HOME:-$HOME/.cache}/scrow"
+    local build_log="$log_dir/waybar-cava-build.log"
+    mkdir -p "$log_dir"
+
+    if [[ ! -f "$pkgdir/PKGBUILD" ]]; then
+        printf "${YELLOW}  No local waybar PKGBUILD at %s — cannot build cava-enabled waybar${RST}\n" "$pkgdir"
+        return 1
+    fi
+    if ! pacman -Q libcava >/dev/null 2>&1; then
+        printf "${YELLOW}  libcava missing (AUR phase failed?) — cannot build cava-enabled waybar${RST}\n"
+        return 1
+    fi
+
+    printf "${BLUE}  Building waybar with the compiled cava module (pinned 0.15.0 tarball — a few minutes, log: %s)...${RST}\n" "$build_log"
+    local build_dir
+    build_dir="$(mktemp -d)"
+    cp "$pkgdir/PKGBUILD" "$build_dir/" 2>/dev/null || true
+    (cd "$build_dir" && timeout 3600 makepkg --noconfirm -si >"$build_log" 2>&1) &
+    local mpid=$!
+    if [[ -t 1 ]]; then
+        local sp='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏' i=0
+        while kill -0 "$mpid" 2>/dev/null; do
+            printf "\r\033[K  %s  Building waybar (cava module)..." "${sp:i++ % ${#sp}}"
+            sleep 0.2
+        done
+        printf "\r\033[K"
+    fi
+    local rc=0
+    wait "$mpid" && rc=0 || rc=$?
+    rm -rf "$build_dir" 2>/dev/null || true
+
+    if (( rc != 0 )); then
+        printf "${RED}  Local waybar-cava build failed (makepkg rc=%d, log: %s)${RST}\n" "$rc" "$build_log"
+        return 1
+    fi
+    command -v waybar >/dev/null 2>&1
+}
+
 ensure_waybar_fallback() {
     command -v waybar >/dev/null 2>&1 && return 0
-    grep -qx 'waybar-cava-git' "$REPO_ROOT/packages/aur.txt" 2>/dev/null || return 0
-    printf "${YELLOW}  waybar-cava-git build not installable on Arch (broken PKGBUILD," \
-        " missing glib2-devel dep) — installing stock waybar (same cava visualizer).${RST}\n"
+    printf "${YELLOW}  Local waybar-cava build failed — installing stock waybar\n"
+    printf "${YELLOW}  (the scrowland cava visualizer is script-based and renders identically).${RST}\n"
     sudo pacman -S --needed --noconfirm waybar
 }
 
@@ -120,11 +163,11 @@ install_aur_packages() {
 
     ensure_yay || { printf "${RED}  Cannot install AUR packages without an AUR helper${RST}\n"; return 1; }
 
-    # Slow/fragile network hardening for -git clones (fixes waybar-cava-git &
-    # other -git packages dropping mid-download on QEMU user-net / throttled
+    # Slow/fragile network hardening for -git clones (fixes -git packages like
+    # hypr-kdeconnect-fix-git dropping mid-download on QEMU user-net / throttled
     # links): git aborts "slow but alive" transfers by default and HTTP/2
-    # multiplexing stalls on SLIRP. Use HTTP/1.1, no low-speed abort, bigger
-    # request buffer so the full Waybar history clone has time to complete.
+    # multiplexing stalls on SLIRP. Use HTTP/1.1, no low-speed abort, and a
+    # bigger request buffer so long clones have time to complete.
     git config --global http.version HTTP/1.1 2>/dev/null || true
     git config --global http.lowSpeedLimit 0 2>/dev/null || true
     git config --global http.lowSpeedTime 999 2>/dev/null || true
@@ -322,7 +365,7 @@ install_hyprpm_plugins() {
 ensure_yay
 install_official_packages
 install_aur_packages
-ensure_waybar_fallback
+install_waybar_cava || ensure_waybar_fallback
 install_hyprpm_plugins
 
 printf "${GREEN}[$0]: Dependencies installed${RST}\n"
