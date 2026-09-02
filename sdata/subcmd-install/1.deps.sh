@@ -188,16 +188,11 @@ install_waybar_cava() {
     fi
 
     # Resolve the sudo credential ONCE, explicitly and visibly, BEFORE the
-    # build starts: makepkg -si runs `sudo pacman -U` to install the built
-    # package, and a status line drawing over that prompt while it waits only
-    # hides the prompt (and looks stuck). So:
-    #  1. sudo -n -v checks whether a valid credential already exists (from the
-    #     earlier pacman phases, or passwordless sudo) - if yes, no prompt is
-    #     needed and we say so instead of pretending.
-    #  2. otherwise we print an explainer and run sudo -v: ONE clean prompt the
-    #     user can type at, then a confirmation line.
-    # makepkg gets stdin from /dev/null so a late (slow-build) sudo re-prompt
-    # fails fast instead of hanging silently behind the progress display.
+    # build: the waybar build itself (makepkg WITHOUT -s/-i, see below) never
+    # calls sudo, so a password prompt can never appear mid-display and get
+    # hidden behind the progress line. The only sudo a clean build needs
+    # happens here (one marked prompt if a credential isn't already valid) or
+    # right after the progress display has fully stopped (sudo pacman -U).
     if sudo -n -v 2>/dev/null; then
         printf "${GREEN}  [sudo] already authenticated (valid credential from the package phases) - build will not prompt${RST}\n"
     else
@@ -213,7 +208,14 @@ install_waybar_cava() {
     local build_dir t0=$SECONDS
     build_dir="$(mktemp -d)"
     cp "$pkgdir/PKGBUILD" "$build_dir/" 2>/dev/null || true
-    (cd "$build_dir" && timeout 3600 makepkg --noconfirm -si </dev/null >"$build_log" 2>&1) &
+
+    # Build WITHOUT -s/-i so makepkg never calls sudo during the build: a
+    # password prompt can then NEVER appear behind the progress display. Deps
+    # were installed from official.txt + the AUR phase already; --nodeps skips
+    # makepkg's own check, -f allows the build even if an old artifact exists.
+    # The built package is installed with ONE explicit, clean sudo below, after
+    # the progress display has fully stopped.
+    (cd "$build_dir" && timeout 3600 makepkg --noconfirm -f --nodeps </dev/null >"$build_log" 2>&1) &
     local mpid=$!
 
     # REAL progress, not a fake animation: read ninja's own build counter
@@ -235,8 +237,7 @@ install_waybar_cava() {
                         *'==> Starting build()'*)         phase="compiling" ;;&
                         *'==> Entering fakeroot'*)        phase="packaging" ;;&
                         *'==> Starting package()'*)       phase="packaging" ;;&
-                        *'==> Making package:'*)          phase="packaging" ;;&
-                        *'Installing '*|*'pacman -U'*)   phase="installing" ;;
+                        *'==> Making package:'*)          phase="packaging" ;;
                     esac
                     count="$(printf '%s' "$chunk" | grep -aoE '\[[0-9]+/[0-9]+\]' | tail -1)"
                     if [[ -n "$count" ]]; then
@@ -248,10 +249,10 @@ install_waybar_cava() {
             fi
             local el=$(( SECONDS - t0 ))
             if [[ -n "$pct" ]]; then
-                printf "\r\033[K  Building waybar (cava module)…  [%d%%]  %s  %s  %d:%02d  " \
+                printf "\r\033[K  [%d%%]  %s  %s · %d:%02d  " \
                     "$pct" "$count" "$phase" $((el/60)) $((el%60))
             else
-                printf "\r\033[K  Building waybar (cava module)…  %s  %d:%02d  " \
+                printf "\r\033[K  [--%%]  %s · %d:%02d  " \
                     "$phase" $((el/60)) $((el%60))
             fi
             sleep 0.3
@@ -260,12 +261,30 @@ install_waybar_cava() {
     fi
     local rc=0
     wait "$mpid" && rc=0 || rc=$?
-    rm -rf "$build_dir" 2>/dev/null || true
 
     if (( rc != 0 )); then
         printf "${RED}  Local waybar-cava build failed (makepkg rc=%d, log: %s)${RST}\n" "$rc" "$build_log"
+        rm -rf "$build_dir" 2>/dev/null || true
         return 1
     fi
+
+    # Install the freshly built package: ONE clean, explicit sudo moment, after
+    # the progress display is gone, so the prompt is plain and typeable.
+    local pkgfile
+    pkgfile="$(ls "$build_dir"/*.pkg.tar.zst 2>/dev/null | head -1)"
+    if [[ -z "$pkgfile" ]]; then
+        printf "${RED}  waybar built but no package file found in %s${RST}\n" "$build_dir"
+        rm -rf "$build_dir" 2>/dev/null || true
+        return 1
+    fi
+    printf "${BLUE}  Installing freshly built waybar-cava package...${RST}\n"
+    sudo -n -v 2>/dev/null || sudo -v
+    if ! sudo pacman -U --noconfirm "$pkgfile"; then
+        printf "${RED}  sudo pacman -U failed (see log: %s)${RST}\n" "$build_log"
+        rm -rf "$build_dir" 2>/dev/null || true
+        return 2
+    fi
+    rm -rf "$build_dir" 2>/dev/null || true
     command -v waybar >/dev/null 2>&1
 }
 
