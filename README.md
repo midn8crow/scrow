@@ -248,9 +248,11 @@ ytdlp-gui-bin songrec bibata-cursor-theme stockfish moviebox-tui
 > Waybar itself is built locally during setup: the AUR `waybar-cava-git` clones
 > moving-git master and keeps failing on the installer VM's slow link, so the
 > installer builds `packages/waybar-cava/PKGBUILD` (the **real** waybar with the
-> compiled `cava` module) from the pinned 0.15.0 release tarball. That uses the
-> pkg-config `libcava.pc` from the AUR `libcava` above. Only if that build fails
-> does setup fall back to stock `waybar`.
+> compiled `cava` module) from a **pinned Waybar git snapshot** (same master code
+> line upstream `waybar-cava-git` builds, caught up with `libcava` 1.0.0). It uses
+> the pkg-config `libcava.pc` from the AUR `libcava` above. There is **no stock
+> fallback**: if the build fails, setup stops and tells you to fix the cause —
+> the cava module is required, never degraded.
 
 ## Customization
 

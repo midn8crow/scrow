@@ -162,14 +162,14 @@ draw_aur_status() {
         "$built" "$n" "$pct" "$suffix" "$now_str" "$msg"
 }
 
-# ── Waybar: local cava-enabled build, then stock fallback ─────────────────────
+# ── Waybar: local cava-enabled build, NO stock fallback ────────────────────────
 # The AUR waybar-cava-git builds moving-git master via a full clone that keeps
 # aborting on this installer's slow/throttled link. Instead we build waybar WITH
-# the compiled cava module from the pinned 0.15.0 release tarball
+# the compiled cava module from a pinned Waybar *git snapshot* commit
 # (packages/waybar-cava/PKGBUILD + AUR `libcava`, which ships the libcava.pc
-# that waybar's meson looks for). If that local build fails, fall back to stock
-# waybar — the scrowland cava visualizer is script-based (custom/cava ->
-# waybar-cava.py + cava + python-pillow) so stock renders it identically.
+# that waybar's meson looks for). The snapshot is the same code line upstream
+# waybar-cava-git builds (master), pinned deterministically. If that local build
+# fails the install STOPS - the cava module is required, never degraded.
 install_waybar_cava() {
     pacman -Q waybar-cava >/dev/null 2>&1 && return 0
 
@@ -198,13 +198,13 @@ install_waybar_cava() {
     else
         printf "${BLUE}  [sudo] the waybar build needs your password once:${RST}\n"
         if ! sudo -v; then
-            printf "${YELLOW}  sudo did not accept credentials - cannot build waybar locally, falling back to stock waybar${RST}\n"
+            printf "${YELLOW}  sudo did not accept credentials - cannot build waybar locally (cava module required)${RST}\n"
             return 1
         fi
         printf "${GREEN}  [sudo] credentials OK - the build proceeds without further prompts${RST}\n"
     fi
 
-    printf "${BLUE}  Building waybar with the compiled cava module (pinned 0.15.0 tarball — a few minutes, log: %s)...${RST}\n" "$build_log"
+    printf "${BLUE}  Building waybar with the compiled cava module (pinned git snapshot, no stock fallback — log: %s)...${RST}\n" "$build_log"
     local build_dir t0=$SECONDS
     build_dir="$(mktemp -d)"
     cp "$pkgdir/PKGBUILD" "$build_dir/" 2>/dev/null || true
@@ -271,7 +271,7 @@ install_waybar_cava() {
     # Install the freshly built package: ONE clean, explicit sudo moment, after
     # the progress display is gone, so the prompt is plain and typeable.
     local pkgfile
-    pkgfile="$(ls "$build_dir"/*.pkg.tar.zst 2>/dev/null | head -1)"
+    pkgfile="$(ls "$build_dir"/*.pkg.tar.zst 2>/dev/null | rg -v -- '-debug-' | head -1)"
     if [[ -z "$pkgfile" ]]; then
         printf "${RED}  waybar built but no package file found in %s${RST}\n" "$build_dir"
         rm -rf "$build_dir" 2>/dev/null || true
@@ -285,14 +285,7 @@ install_waybar_cava() {
         return 2
     fi
     rm -rf "$build_dir" 2>/dev/null || true
-    command -v waybar >/dev/null 2>&1
-}
-
-ensure_waybar_fallback() {
-    command -v waybar >/dev/null 2>&1 && return 0
-    printf "${YELLOW}  Local waybar-cava build failed — installing stock waybar\n"
-    printf "${YELLOW}  (the scrowland cava visualizer is script-based and renders identically).${RST}\n"
-    sudo pacman -S --needed --noconfirm waybar
+command -v waybar >/dev/null 2>&1
 }
 
 # ── Install AUR packages one by one ───────────────────────────────────────────
@@ -505,7 +498,11 @@ install_hyprpm_plugins() {
 ensure_yay
 install_official_packages
 install_aur_packages
-install_waybar_cava || ensure_waybar_fallback
+install_waybar_cava || {
+        printf "${RED}  No stock fallback: waybar with the cava module built in is REQUIRED and could not be built.\n"
+        printf "  Full build log: %s — fix the cause and rerun; nothing was degraded.${RST}\n" "${XDG_CACHE_HOME:-$HOME/.cache}/scrow/waybar-cava-build.log"
+        return 1
+    }
 install_hyprpm_plugins
 
 printf "${GREEN}[$0]: Dependencies installed${RST}\n"

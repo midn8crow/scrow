@@ -1,103 +1,68 @@
-# SCROW project — local build of waybar WITH the compiled cava module.
-#
-# The AUR waybar-cava-git builds waybar-git (moving master) via a full git
-# clone, which is fragile on this project's installer VM (slow/throttled link,
-# git "slow but alive" aborts). This PKGBUILD does the SAME thing — the real
-# cava module (`-Dcava=enabled`, requires the pkg-config libcava that the AUR
-# libcava package ships) — but from the pinned 0.15.0 release tarball, so it
-# builds deterministically.
-#
-# Install order matters: `libcava` must be installed BEFORE building this
-# (it is in packages/aur.txt, so the AUR phase runs first).
-
 pkgname=waybar-cava
-pkgver=0.15.0
+pkgver=0.15.0.r0.g6d60c8e
 pkgrel=1
-pkgdesc='Highly customizable Wayland bar for Sway and Wlroots based compositors (cava module compiled in)'
+pkgdesc="Highly customizable Wayland bar for Sway/WLroots based compositors, with the cava module built in — pinned Waybar git snapshot (no stock fallback)"
 arch=('x86_64')
-url='https://github.com/Alexays/Waybar/'
+url='https://github.com/Alexays/Waybar'
 license=('MIT')
 provides=('waybar')
 conflicts=('waybar' 'waybar-cava-git')
 depends=(
-    'atkmm'
-    'cairomm'
     'fmt'
-    'glib2'
-    'glibc'
-    'glibmm'
-    'gpsd'
     'gtk-layer-shell'
-    'gtk3'
     'gtkmm3'
     'jack'
     'jsoncpp'
+    'libappindicator-gtk3'
     'libcava'
     'libdbusmenu-gtk3'
     'libevdev'
-    'libgcc'
     'libinput'
     'libmpdclient'
     'libnl'
-    'libpipewire'
     'libpulse'
     'libsigc++'
-    'libstdc++'
+    'libsndio'
     'libwireplumber'
     'libxkbcommon'
+    'libdate-tz'
     'playerctl'
-    'sndio'
     'spdlog'
-    'systemd-libs'
     'upower'
     'wayland'
 )
 makedepends=(
     'cmake'
-    'glib2-devel' # gdbus-codegen
+    'glib2-devel'
     'meson'
-    'scdoc' # manpages
+    'ninja'
+    'python-setuptools'
+    'scdoc'
     'wayland-protocols'
 )
 backup=(
-    etc/xdg/waybar/config.jsonc
+    etc/xdg/waybar/config
     etc/xdg/waybar/style.css
 )
 optdepends=(
     'otf-font-awesome: Icons in the default configuration'
 )
-source=("$pkgname-$pkgver.tar.gz::https://github.com/Alexays/Waybar/archive/$pkgver.tar.gz")
-sha256sums=('21c2bbef88c40473c355003582f9331d2f9b8a01efdcce0935edfc5f6b023a3e')
+source=("https://github.com/Alexays/Waybar/archive/6d60c8e02be67bb85bb9b1ea803f2fbcf0722002.tar.gz")
+sha256sums=('420c0750092f6ab07fe807e298243dc69ab8ea1224e2f2597a82bd65892d8320')
 
 build() {
-    cd "Waybar-$pkgver"
-    meson setup --prefix=/usr \
-          --buildtype=plain \
-          --auto-features=enabled \
-          --wrap-mode=nodownload \
-          -Dcpp_std=c++20 \
-          -Dexperimental=true \
-          -Dcava=enabled \
-          -Dtests=disabled \
-          build
+    cd "$srcdir/Waybar-6d60c8e02be67bb85bb9b1ea803f2fbcf0722002"
+    meson setup --prefix=/usr --buildtype=plain --auto-features=enabled \
+        --wrap-mode=nodownload -Dexperimental=true \
+        -Dcava=enabled -Dtests=disabled \
+        build
     meson compile -C build
 }
 
 package() {
-    depends+=(
-      'libatkmm-1.6.so'
-      'libcairomm-1.0.so'
-      'libgtk-3.so'
-      'libjack.so'
-      'libjsoncpp.so'
-      'libpipewire-0.3.so'
-      'libsndio.so'
-      'libspdlog.so'
-      'libudev.so'
-      'libupower-glib.so'
-    )
-
-    cd "Waybar-$pkgver"
-    meson install -C build --destdir "$pkgdir"
+    cd "$srcdir/Waybar-6d60c8e02be67bb85bb9b1ea803f2fbcf0722002"
+    DESTDIR="$pkgdir" meson install -C build
     install -Dm644 LICENSE -t "$pkgdir/usr/share/licenses/$pkgname/"
 }
+
+# vim:set ts=2 sw=2 et:

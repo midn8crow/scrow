@@ -40,10 +40,35 @@ pipewire-jack
 pavucontrol
 alsa-utils
 
-# Status bar
+# Status bar (waybar-cava local build: full dep set for --auto-features=enabled)
 cava
 playerctl
 jq
+fmt
+gtk-layer-shell
+gtkmm3
+jack
+jsoncpp
+libappindicator-gtk3
+libdbusmenu-gtk3
+libevdev
+libinput
+libmpdclient
+libnl
+libpulse
+libsigc++
+libsndio
+libwireplumber
+libxkbcommon
+libdate-tz
+spdlog
+upower
+# waybar-cava makedepends
+ninja
+scdoc
+wayland-protocols
+glib2-devel
+python-setuptools
 
 # Launcher
 rofi
