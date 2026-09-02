@@ -51,6 +51,7 @@ jack
 jsoncpp
 libappindicator-gtk3
 libdbusmenu-gtk3
+libepoxy
 libevdev
 libinput
 libmpdclient
@@ -63,6 +64,8 @@ libxkbcommon
 libdate-tz
 spdlog
 upower
+gpsd
+modemmanager
 # waybar-cava makedepends
 ninja
 scdoc

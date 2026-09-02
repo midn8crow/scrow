@@ -263,7 +263,10 @@ install_waybar_cava() {
     wait "$mpid" && rc=0 || rc=$?
 
     if (( rc != 0 )); then
-        printf "${RED}  Local waybar-cava build failed (makepkg rc=%d, log: %s)${RST}\n" "$rc" "$build_log"
+        printf "${RED}  Local waybar-cava build failed (makepkg rc=%d)${RST}\n" "$rc"
+        printf "${YELLOW}  ===== last lines of %s =====${RST}\n" "$build_log"
+        tail -n 30 "$build_log" 2>/dev/null | sed 's/^/    /'
+        printf "${YELLOW}  ===== end of log =====${RST}\n"
         rm -rf "$build_dir" 2>/dev/null || true
         return 1
     fi
@@ -271,9 +274,16 @@ install_waybar_cava() {
     # Install the freshly built package: ONE clean, explicit sudo moment, after
     # the progress display is gone, so the prompt is plain and typeable.
     local pkgfile
-    pkgfile="$(ls "$build_dir"/*.pkg.tar.zst 2>/dev/null | rg -v -- '-debug-' | head -1)"
+    pkgfile=""
+    for f in "$build_dir"/*.pkg.tar.zst; do
+        [[ -e "$f" ]] || continue
+        [[ "$f" == *-debug-* ]] && continue
+        pkgfile="$f"
+        break
+    done
     if [[ -z "$pkgfile" ]]; then
         printf "${RED}  waybar built but no package file found in %s${RST}\n" "$build_dir"
+        printf "${YELLOW}  artifacts present: %s${RST}\n" "$(ls "$build_dir" 2>/dev/null | sed 's/^/    /')"
         rm -rf "$build_dir" 2>/dev/null || true
         return 1
     fi
