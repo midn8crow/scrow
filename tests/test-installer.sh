@@ -141,6 +141,8 @@ check "official.txt has spdlog + glib2-devel (waybar-cava build deps, spdlog>=1.
     "$(grep -q '^spdlog$' "$REPO_ROOT/packages/official.txt" && grep -q '^glib2-devel$' "$REPO_ROOT/packages/official.txt" && echo true || echo false)"
 check "installer waybar build uses makepkg -s (auto-resolves missing deps on ANY machine)" \
     "$(grep -q -- 'makepkg --noconfirm -f -s' "$REPO_ROOT/sdata/subcmd-install/1.deps.sh" && echo true || echo false)"
+check "waybar build dir is disk-backed under cache, never /tmp (tmpfs/noexec machines)" \
+    "$(grep -q -- 'XDG_CACHE_HOME:-$HOME/.cache}/scrow/waybar-build' "$REPO_ROOT/sdata/subcmd-install/1.deps.sh" && echo true || echo false)"
 check "official.txt ships base-devel (makepkg toolchain needed on any machine)" \
     "$(grep -q '^base-devel$' "$REPO_ROOT/packages/official.txt" && echo true || echo false)"
 check "installer never installs stock waybar (cava build is required, no fallback)" \

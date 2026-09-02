@@ -204,8 +204,13 @@ install_waybar_cava() {
     fi
 
     printf "${BLUE}  Building waybar with the compiled cava module (pinned git snapshot, no stock fallback — log: %s)...${RST}\n" "$build_log"
+    # Build in a disk-backed dir under XDG_CACHE_HOME, NEVER /tmp: on many
+    # machines /tmp is a small tmpfs or mounted noexec and the full waybar+cava
+    # compile would die there. A fixed reusable name keeps reruns clean.
     local build_dir t0=$SECONDS
-    build_dir="$(mktemp -d)"
+    build_dir="${XDG_CACHE_HOME:-$HOME/.cache}/scrow/waybar-build"
+    rm -rf "$build_dir"
+    mkdir -p "$build_dir"
     cp "$pkgdir/PKGBUILD" "$build_dir/" 2>/dev/null || true
 
     # The build must work on ANY machine, whatever its starting state. makepkg's
@@ -216,7 +221,7 @@ install_waybar_cava() {
     # makepkg gets stdin from /dev/null so any LATE sudo ask fails fast and
     # loudly rather than hanging. We do NOT use -i: the built package is
     # installed with ONE explicit, clean sudo below, after the display stops.
-    (cd "$build_dir" && timeout 3600 makepkg --noconfirm -f -s </dev/null >"$build_log" 2>&1) &
+    (cd "$build_dir" && timeout 5400 makepkg --noconfirm -f -s </dev/null >"$build_log" 2>&1) &
     local mpid=$!
 
     # REAL progress, not a fake animation: read ninja's own build counter
