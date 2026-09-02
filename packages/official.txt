@@ -40,7 +40,7 @@ pipewire-jack
 pavucontrol
 alsa-utils
 
-# Status bar (waybar-cava local build: full dep set for --auto-features=enabled)
+# Status bar (waybar-cava local build deps: only what our configs use - the PKGBUILD does NOT force --auto-features=enabled, meson skips absent module deps)
 cava
 playerctl
 jq
@@ -51,7 +51,6 @@ jack
 jsoncpp
 libappindicator-gtk3
 libdbusmenu-gtk3
-libepoxy
 libevdev
 libinput
 libmpdclient
@@ -64,8 +63,6 @@ libxkbcommon
 libdate-tz
 spdlog
 upower
-gpsd
-modemmanager
 # waybar-cava makedepends
 ninja
 scdoc

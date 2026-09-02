@@ -249,10 +249,12 @@ ytdlp-gui-bin songrec bibata-cursor-theme stockfish moviebox-tui
 > moving-git master and keeps failing on the installer VM's slow link, so the
 > installer builds `packages/waybar-cava/PKGBUILD` (the **real** waybar with the
 > compiled `cava` module) from a **pinned Waybar git snapshot** (same master code
-> line upstream `waybar-cava-git` builds, caught up with `libcava` 1.0.0). It uses
-> the pkg-config `libcava.pc` from the AUR `libcava` above. There is **no stock
-> fallback**: if the build fails, setup stops and tells you to fix the cause —
-> the cava module is required, never degraded.
+> line upstream `waybar-cava-git` builds, caught up with `libcava` 1.0.0). The
+> build does **not** force `--auto-features=enabled` — meson builds every module
+> whose dependency is installed and skips the rest (that flag is what made fresh
+> VMs abort on missing `gpsd`/`modemmanager`/`epoxy`); only `cava` is forced on.
+> There is **no stock fallback**: if the build fails, setup stops and shows the
+> log — the cava module is required, never degraded.
 
 ## Customization
 

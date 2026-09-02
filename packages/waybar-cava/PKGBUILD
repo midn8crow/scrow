@@ -50,9 +50,15 @@ optdepends=(
 source=("https://github.com/Alexays/Waybar/archive/6d60c8e02be67bb85bb9b1ea803f2fbcf0722002.tar.gz")
 sha256sums=('420c0750092f6ab07fe807e298243dc69ab8ea1224e2f2597a82bd65892d8320')
 
+# NOTE: NO --auto-features=enabled here. That flag hard-requires every optional
+# module's dependency (gpsd, modemmanager, epoxy, ...) and drifts out of sync
+# with upstream - it is what made the fresh VM build abort. Waybar's meson
+# options are all 'auto' by default, so a plain setup builds every module whose
+# dependency is present and SILENTLY SKIPS the rest. official.txt supplies the
+# deps our configs actually use; only cava is forced enabled below.
 build() {
     cd "$srcdir/Waybar-6d60c8e02be67bb85bb9b1ea803f2fbcf0722002"
-    meson setup --prefix=/usr --buildtype=plain --auto-features=enabled \
+    meson setup --prefix=/usr --buildtype=plain \
         --wrap-mode=nodownload -Dexperimental=true \
         -Dcava=enabled -Dtests=disabled \
         build

@@ -135,8 +135,8 @@ check "local waybar PKGBUILD exists (packages/waybar-cava)" \
     "$([ -f "$REPO_ROOT/packages/waybar-cava/PKGBUILD" ] && echo true || echo false)"
 check "waybar PKGBUILD pins git snapshot commit + -Dcava=enabled" \
     "$(grep -q -- '-Dcava=enabled' "$REPO_ROOT/packages/waybar-cava/PKGBUILD" && grep -q 'Waybar/archive/6d60c8e02be67bb85bb9b1ea803f2fbcf0722002' "$REPO_ROOT/packages/waybar-cava/PKGBUILD" && echo true || echo false)"
-check "waybar PKGBUILD uses --auto-features=enabled (full modules like working waybar-cava-git)" \
-    "$(grep -q -- '--auto-features=enabled' "$REPO_ROOT/packages/waybar-cava/PKGBUILD" && echo true || echo false)"
+check "waybar PKGBUILD does NOT force --auto-features=enabled (skips absent module deps, immune to VM drift)" \
+    "$(grep -v '^#' "$REPO_ROOT/packages/waybar-cava/PKGBUILD" | grep -q -- '-Dcava=enabled' && ! grep -v '^#' "$REPO_ROOT/packages/waybar-cava/PKGBUILD" | grep -q -- '--auto-features=enabled' && echo true || echo false)"
 check "official.txt has spdlog + glib2-devel (waybar-cava build deps, spdlog>=1.15.2)" \
     "$(grep -q '^spdlog$' "$REPO_ROOT/packages/official.txt" && grep -q '^glib2-devel$' "$REPO_ROOT/packages/official.txt" && echo true || echo false)"
 check "installer never installs stock waybar (cava build is required, no fallback)" \
