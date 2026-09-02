@@ -187,15 +187,26 @@ install_waybar_cava() {
         return 1
     fi
 
-    # Cache/validate sudo credentials BEFORE any progress display starts:
-    # makepkg -si runs `sudo pacman -U` to install the built package, and a
-    # status line drawing over that prompt while it waits only hides the prompt
-    # (and looks stuck). sudo -v runs first so it's one obvious prompt; makepkg
-    # gets stdin from /dev/null so a late (slow-build) sudo re-prompt fails fast
-    # instead of hanging silently behind the progress display.
-    if ! sudo -v 2>/dev/null; then
-        printf "${YELLOW}  sudo did not accept credentials (no tty or no password given) — cannot build waybar locally${RST}\n"
-        return 1
+    # Resolve the sudo credential ONCE, explicitly and visibly, BEFORE the
+    # build starts: makepkg -si runs `sudo pacman -U` to install the built
+    # package, and a status line drawing over that prompt while it waits only
+    # hides the prompt (and looks stuck). So:
+    #  1. sudo -n -v checks whether a valid credential already exists (from the
+    #     earlier pacman phases, or passwordless sudo) - if yes, no prompt is
+    #     needed and we say so instead of pretending.
+    #  2. otherwise we print an explainer and run sudo -v: ONE clean prompt the
+    #     user can type at, then a confirmation line.
+    # makepkg gets stdin from /dev/null so a late (slow-build) sudo re-prompt
+    # fails fast instead of hanging silently behind the progress display.
+    if sudo -n -v 2>/dev/null; then
+        printf "${GREEN}  [sudo] already authenticated (valid credential from the package phases) - build will not prompt${RST}\n"
+    else
+        printf "${BLUE}  [sudo] the waybar build needs your password once:${RST}\n"
+        if ! sudo -v; then
+            printf "${YELLOW}  sudo did not accept credentials - cannot build waybar locally, falling back to stock waybar${RST}\n"
+            return 1
+        fi
+        printf "${GREEN}  [sudo] credentials OK - the build proceeds without further prompts${RST}\n"
     fi
 
     printf "${BLUE}  Building waybar with the compiled cava module (pinned 0.15.0 tarball — a few minutes, log: %s)...${RST}\n" "$build_log"
