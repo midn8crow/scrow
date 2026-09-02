@@ -69,33 +69,98 @@ install_official_packages() {
     sudo pacman -S --needed --noconfirm "${pkgs[@]}"
 }
 
-# ── Run one AUR install quietly (into the log) with an animated spinner ───────
+# ── Run one yay install, capturing output to the log, with live status ────────
 
-# yay's build output goes to BOTH the log and the screen would flood the
-# terminal, so it is kept in the log while a braille spinner + elapsed time
-# shows the install is alive. Honors the 1800s ceiling and returns yay's exit
-# status without ever tripping set -e (the wait-and-rc guard pattern is
-    # identical to the old `wait ... && rc=0 || rc=$?`).
+# Single-pass (many packages): a compact per-package ticker watches yay's build
+# dir (~/.cache/yay). Each AUR package shows up there as a directory and gets a
+# built *.pkg.tar.zst when done, so we can print "[N/14 built]  working on: ..."
+# WITHOUT parsing yay's stdout — yay downloads several sources in parallel and
+# that output is garbled (see Jguer/yay#1620). One-at-a-time: spinner + elapsed
+# time. yay's real exit code is smuggled through the pipe as a trailing
+# "AUR_RC=n" marker so set -e and callers always see the true status.
 aur_install_run() {
     local log_file="$1"; shift
     local msg="$1"; shift
+    local n="$#"
+    local tty_display=0
+    [[ -t 1 ]] && tty_display=1
 
-    timeout 1800 "$SCROW_AUR_HELPER" -S --needed "${yay_flags[@]}" "$@" \
-        >>"$log_file" 2>&1 &
+    local build_dir
+    build_dir="$("$SCROW_AUR_HELPER" -Pg 2>/dev/null | sed -n 's/.*"buildDir"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
+    [[ -n "$build_dir" ]] || build_dir="${XDG_CACHE_HOME:-$HOME/.cache}/yay"
+
+    ( timeout 1800 "$SCROW_AUR_HELPER" -S --needed "${yay_flags[@]}" "$@" 2>&1
+      echo "AUR_RC=$?" ) | aur_consume "$log_file" "$n" "$build_dir" "$msg" "$tty_display" &
+
     local ypid=$!
-
-    if [[ -t 1 ]]; then
-        local sp='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏' i=0
-        while kill -0 "$ypid" 2>/dev/null; do
-            printf "\r\033[K  %s  %s" "${sp:i++ % ${#sp}}" "$msg"
-            sleep 0.2
-        done
-        printf "\r\033[K"
-    fi
-
     local rc=0
     wait "$ypid" && rc=0 || rc=$?
     return "$rc"
+}
+
+# Reads yay's stream from the pipe, appends it to the log, and draws live
+# status while it runs. Returns the marker rc (yay's own exit code).
+aur_consume() {
+    local log_file="$1" n="$2" build_dir="$3" msg="$4" tty_display="$5"
+    local rc=0 line tick=0 start=$SECONDS
+    local d
+    declare -Ag seen=()
+    for d in "$build_dir"/*/; do
+        [[ -e "$d" ]] || continue
+        seen["$(basename "$d")"]=1
+    done
+
+    while :; do
+        if IFS= read -r -t 0.25 line; then
+            if [[ "${line:0:7}" == "AUR_RC=" ]]; then
+                rc="${line:7}"
+                break
+            fi
+            printf '%s\n' "$line" >>"$log_file"
+        fi
+        (( tty_display )) || continue
+        (( ++tick % 2 == 0 )) || continue
+        draw_aur_status "$build_dir" "$msg" "$n" "$start"
+    done
+
+    if (( tty_display && n > 1 )); then
+        local el=$(( SECONDS - start ))
+        printf "\r\033[K  ${GREEN}  All %d AUR packages processed in %d:%02d${RST}\n" "$n" $((el/60)) $((el%60))
+    elif (( tty_display )); then
+        printf "\r\033[K"
+    fi
+    return "${rc:-1}"
+}
+
+draw_aur_status() {
+    local build_dir="$1" msg="$2" n="$3" start="$4"
+    local sp='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
+    local i=$(( SECONDS - start ))
+    local working=() built=0 tot=0 name
+    local el=$(( SECONDS - start ))
+    for d in "$build_dir"/*/; do
+        [[ -e "$d" ]] || continue
+        name="$(basename "$d")"
+        [[ "${seen[$name]+1}" ]] && continue
+        tot=$(( tot + 1 ))
+        if ls "$d"/*.pkg.tar.zst >/dev/null 2>&1; then
+            built=$(( built + 1 ))
+        elif (( ${#working[@]} < 4 )); then
+            working+=("$name")
+        fi
+    done
+    local now_str
+    printf -v now_str "%d:%02d" $((el/60)) $((el%60))
+    local suffix
+    if (( tot > 0 && built == tot )); then
+        suffix="${YELLOW}installing (pacman transaction)…${RST}"
+    elif (( tot == 0 )); then
+        suffix="${YELLOW}resolving…${RST}"
+    else
+        suffix="${YELLOW}working on: $(IFS=' '; printf '%s' "${working[*]}")${RST}"
+    fi
+    printf "\r\033[K  %s  [%d/%d built]  %s  %s  %s" \
+        "${sp:$((i % ${#sp})):1}" "$built" "$n" "$suffix" "$now_str" "$msg"
 }
 
 # ── Waybar: local cava-enabled build, then stock fallback ─────────────────────
