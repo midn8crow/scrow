@@ -246,7 +246,8 @@ deploy_etc() {
     # GRUB_THEME, then regenerate grub.cfg so the menu picks it up.
     if [[ -d "$REPO_ROOT/boot/grub/themes/minegrub" ]]; then
         sudo mkdir -p /boot/grub/themes/minegrub
-        if sudo cp -a "$REPO_ROOT/boot/grub/themes/minegrub/." /boot/grub/themes/minegrub/ 2>/dev/null; then
+        sudo cp -a "$REPO_ROOT/boot/grub/themes/minegrub/." /boot/grub/themes/minegrub/ 2>/dev/null || true
+        if sudo test -s /boot/grub/themes/minegrub/theme.txt; then
             printf "${GREEN}  [OK]${RST} minegrub GRUB theme deployed\n"
         else
             printf "${RED}  [FAIL]${RST} Could not deploy minegrub GRUB theme\n"
@@ -269,7 +270,7 @@ deploy_etc() {
         if command -v grub-mkconfig >/dev/null 2>&1; then
             printf "${BLUE}    Regenerating GRUB config...${RST}\n"
             sudo grub-mkconfig -o /boot/grub/grub.cfg 2>&1 | grep -Ev '^Found|searching for|^Generating' || true
-            if [[ -f /boot/grub/grub.cfg ]]; then
+            if sudo test -s /boot/grub/grub.cfg; then
                 printf "${GREEN}  [OK]${RST} GRUB config regenerated\n"
             else
                 printf "${RED}  [FAIL]${RST} grub-mkconfig produced no config\n"

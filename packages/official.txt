@@ -41,13 +41,15 @@ pavucontrol
 alsa-utils
 
 # Status bar (waybar-cava local build deps: only what our configs use - the PKGBUILD does NOT force --auto-features=enabled, meson skips absent module deps)
+# JACK provider: ONLY pipewire-jack (bridge JACK clients onto PipeWire). A real
+# jackd server (jack2) conflicts with pipewire-jack and the SCROW audio stack is
+# PipeWire/WirePlumber (wpctl, pipewire-pulse, pipewire-alsa) — no jackd needed.
 cava
 playerctl
 jq
 fmt
 gtk-layer-shell
 gtkmm3
-jack2
 jsoncpp
 libappindicator
 libdbusmenu-gtk3

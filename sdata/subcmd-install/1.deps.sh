@@ -295,6 +295,7 @@ install_waybar_cava() {
     fi
     printf "${BLUE}  Installing freshly built waybar-cava package...${RST}\n"
     sudo -n -v 2>/dev/null || sudo -v
+    sudo pacman -R --noconfirm waybar 2>/dev/null || sudo pacman -Rd --noconfirm waybar 2>/dev/null || true
     if ! sudo pacman -U --noconfirm "$pkgfile"; then
         printf "${RED}  sudo pacman -U failed (see log: %s)${RST}\n" "$build_log"
         rm -rf "$build_dir" 2>/dev/null || true

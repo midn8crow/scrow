@@ -149,6 +149,8 @@ check "installer never installs stock waybar (cava build is required, no fallbac
     "$(grep -q 'No stock fallback' "$REPO_ROOT/sdata/subcmd-install/1.deps.sh" && ! grep -q 'sudo pacman -S --needed --noconfirm waybar' "$REPO_ROOT/sdata/subcmd-install/1.deps.sh" && echo true || echo false)"
 check "waybar PKGBUILD provides+conflicts waybar (replaces stock)" \
     "$(grep -q "provides=('waybar')" "$REPO_ROOT/packages/waybar-cava/PKGBUILD" && grep -q "conflicts=('waybar'" "$REPO_ROOT/packages/waybar-cava/PKGBUILD" && echo true || echo false)"
+check "installer removes stock waybar BEFORE pacman -U waybar-cava (noconfirm denies pacman's conflict-removal prompt)" \
+    "$(awk '/sudo pacman -R --noconfirm waybar/{r=1} /sudo pacman -U --noconfirm/{if(r)ok=1} END{print ok?"true":"false"}' "$REPO_ROOT/sdata/subcmd-install/1.deps.sh")"
 check "aur.txt uses ytdlp-gui-bin (prebuilt) not slow cargo build" \
     "$(grep -q '^ytdlp-gui-bin$' "$REPO_ROOT/packages/aur.txt" && echo true || echo false)"
 check "official.txt has rust"      "$(grep -q '^rust$' "$REPO_ROOT/packages/official.txt" && echo true || echo false)"
@@ -160,14 +162,25 @@ check "official.txt has go"        "$(grep -q '^go$' "$REPO_ROOT/packages/offici
 # gone from current Arch repos). official.txt must only name packages that exist.
 check "official.txt no longer lists dropped names (swww p7zip jack libappindicator-gtk3 libsndio libdate-tz)" \
     "$(! grep -qx 'swww' "$REPO_ROOT/packages/official.txt" && ! grep -qx 'p7zip' "$REPO_ROOT/packages/official.txt" && ! grep -qx 'jack' "$REPO_ROOT/packages/official.txt" && ! grep -qx 'libappindicator-gtk3' "$REPO_ROOT/packages/official.txt" && ! grep -qx 'libsndio' "$REPO_ROOT/packages/official.txt" && ! grep -qx 'libdate-tz' "$REPO_ROOT/packages/official.txt" && echo true || echo false)"
-check "official.txt uses current Arch names (awww 7zip jack2 libappindicator sndio chrono-date)" \
-    "$(grep -qx 'awww' "$REPO_ROOT/packages/official.txt" && grep -qx '7zip' "$REPO_ROOT/packages/official.txt" && grep -qx 'jack2' "$REPO_ROOT/packages/official.txt" && grep -qx 'libappindicator' "$REPO_ROOT/packages/official.txt" && grep -qx 'sndio' "$REPO_ROOT/packages/official.txt" && grep -qx 'chrono-date' "$REPO_ROOT/packages/official.txt" && echo true || echo false)"
-check "waybar PKGBUILD depends use real names (jack2 libappindicator sndio chrono-date)" \
-    "$(grep -q "'jack2'" "$REPO_ROOT/packages/waybar-cava/PKGBUILD" && grep -q "'libappindicator'" "$REPO_ROOT/packages/waybar-cava/PKGBUILD" && grep -q "'sndio'" "$REPO_ROOT/packages/waybar-cava/PKGBUILD" && grep -q "'chrono-date'" "$REPO_ROOT/packages/waybar-cava/PKGBUILD" && ! grep -q "'jack'" "$REPO_ROOT/packages/waybar-cava/PKGBUILD" && ! grep -q "'libappindicator-gtk3'" "$REPO_ROOT/packages/waybar-cava/PKGBUILD" && ! grep -q "'libsndio'" "$REPO_ROOT/packages/waybar-cava/PKGBUILD" && ! grep -q "'libdate-tz'" "$REPO_ROOT/packages/waybar-cava/PKGBUILD" && echo true || echo false)"
+check "official.txt uses current Arch names (awww 7zip libappindicator sndio chrono-date)" \
+    "$(grep -qx 'awww' "$REPO_ROOT/packages/official.txt" && grep -qx '7zip' "$REPO_ROOT/packages/official.txt" && grep -qx 'libappindicator' "$REPO_ROOT/packages/official.txt" && grep -qx 'sndio' "$REPO_ROOT/packages/official.txt" && grep -qx 'chrono-date' "$REPO_ROOT/packages/official.txt" && echo true || echo false)"
+check "waybar PKGBUILD depends use real names (libappindicator sndio chrono-date) + library soname (libjack)" \
+    "$(grep -q "'libappindicator'" "$REPO_ROOT/packages/waybar-cava/PKGBUILD" && grep -q "'sndio'" "$REPO_ROOT/packages/waybar-cava/PKGBUILD" && grep -q "'chrono-date'" "$REPO_ROOT/packages/waybar-cava/PKGBUILD" && grep -q "'libjack.so=0-64'" "$REPO_ROOT/packages/waybar-cava/PKGBUILD" && ! grep -q "^[[:space:]]*'jack'$" "$REPO_ROOT/packages/waybar-cava/PKGBUILD" && ! grep -q "^[[:space:]]*'jack2'$" "$REPO_ROOT/packages/waybar-cava/PKGBUILD" && ! grep -q "'libappindicator-gtk3'" "$REPO_ROOT/packages/waybar-cava/PKGBUILD" && ! grep -q "'libsndio'" "$REPO_ROOT/packages/waybar-cava/PKGBUILD" && ! grep -q "'libdate-tz'" "$REPO_ROOT/packages/waybar-cava/PKGBUILD" && echo true || echo false)"
+check "single JACK provider: official.txt has pipewire-jack but NOT jack2 (jackd conflicts with the PipeWire audio stack)" \
+    "$(grep -qx 'pipewire-jack' "$REPO_ROOT/packages/official.txt" && ! grep -qx 'jack2' "$REPO_ROOT/packages/official.txt" && echo true || echo false)"
 check "setup skips reboot prompt when stdin is not a TTY (unguarded read aborted non-interactive installs)" \
     "$(grep -q -- '-t 0' "$REPO_ROOT/setup" && grep -q 'read -r answer &&' "$REPO_ROOT/setup" && echo true || echo false)"
 check "setup traps ERR to print the exact first failing command (file:line + rc, silent on successful runs)" \
     "$(grep -q 'set -E' "$REPO_ROOT/setup" && grep -q '_lastfail_cmd="\$BASH_COMMAND"' "$REPO_ROOT/setup" && grep -q 'report_last_failure' "$REPO_ROOT/setup" && echo true || echo false)"
+
+# Fresh-install regression: /boot on the test VM is a vfat EFI mounted with
+# dmask/fmask=0077, so the unprivileged installer user cannot read /boot and
+# `cp -a` fails on perm preservation even though the copies land. Checks must
+# therefore judge results through sudo (`sudo test -s`), not plain file tests.
+check "grub.cfg judged through sudo test -s (vm cannot stat root-only /boot vfat)" \
+    "$(grep -q 'sudo test -s /boot/grub/grub.cfg' "$REPO_ROOT/sdata/subcmd-install/3.files.sh" && ! grep -q '\[ -f /boot/grub/grub.cfg \]' "$REPO_ROOT/sdata/subcmd-install/3.files.sh" && echo true || echo false)"
+check "minegrub deploy tolerates vfat cp -a perm errors and verifies via sudo test -s" \
+    "$(awk '/sudo cp -a .*themes\/minegrub/{r=1} /sudo test -s \/boot\/grub\/themes\/minegrub\/theme.txt/{if(r)ok=1} END{print ok?"true":"false"}' "$REPO_ROOT/sdata/subcmd-install/3.files.sh")"
 
 # Launcher coverage: every app referenced by the SCROW menu / configs must be
 # representable in a manifest so a fresh install actually installs it.
