@@ -166,6 +166,12 @@ check "installer never installs stock waybar (cava build is required, no fallbac
 # be a declared dependency in official.txt (mapped via the owning package name).
 check "official.txt ships every runtime lib the vendored fork waybar ldd needs (no missing -> no silent missing bar)" \
     "$(set +euo pipefail; needed=0; miss=0; for lib in "libgps.so:gpsd" "libmm-glib.so:libmm-glib" "libcloudproviders.so:libcloudproviders" "libtinysparql.so:tinysparql" "libwacom.so:libwacom" "libiniparser.so:iniparser" "libSDL2-2.0.so.0:sdl2-compat" "libglycin-2.so.0:glycin"; do l=${lib%%:*}; p=${lib##*:}; if ldd "$REPO_ROOT/dots/.local/bin/waybar" 2>/dev/null | grep -q "$l"; then needed=$((needed+1)); if ! grep -qix "$p" "$REPO_ROOT/packages/official.txt"; then miss=$((miss+1)); fi; fi; done; [ "$needed" -gt 0 ] && [ "$miss" -eq 0 ] && echo true || echo false)"
+# Fresh-install regression: rolling Arch bumped jsoncpp's soname (libjsoncpp.so.26
+# -> .so.27). The vendored fork waybar still links .so.26, so without a bridge the
+# bar silently fails to load on a current system ("libjsoncpp.so.26: cannot open").
+# 3.files.sh must create a soname shim when a newer jsoncpp is present.
+check "waybar preflight creates jsoncpp soname shim (libjsoncpp.so.26 -> newer) for the vendored fork bar" \
+    "$(grep -q 'libjsoncpp.so.26' "$REPO_ROOT/sdata/subcmd-install/3.files.sh" && grep -q 'libjsoncpp.so.\*' "$REPO_ROOT/sdata/subcmd-install/3.files.sh" && grep -q 'ln -s' "$REPO_ROOT/sdata/subcmd-install/3.files.sh" && echo true || echo false)"
 check "waybar PKGBUILD provides+conflicts waybar (replaces stock)" \
     "$(grep -q "provides=('waybar')" "$REPO_ROOT/packages/waybar-cava/PKGBUILD" && grep -q "conflicts=('waybar'" "$REPO_ROOT/packages/waybar-cava/PKGBUILD" && echo true || echo false)"
 check "installer removes stock waybar BEFORE pacman -U waybar-cava (noconfirm denies pacman's conflict-removal prompt)" \

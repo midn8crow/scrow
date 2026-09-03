@@ -142,6 +142,29 @@ waybar_preflight() {
     if command -v waybar >/dev/null 2>&1 || [[ -x "$HOME/.local/bin/waybar" ]]; then
         printf "${GREEN}  [OK]${RST} Waybar binary: %s\n" \
             "$(command -v waybar 2>/dev/null || echo "$HOME/.local/bin/waybar")"
+
+        # 2a) The vendored fork waybar (right-click reveal island) links against
+        #     libjsoncpp.so.26, but rolling Arch bumped jsoncpp's soname to
+        #     libjsoncpp.so.27. Without a shim this binary fails to load on a
+        #     current system and the bar silently never appears. Bridge the
+        #     soname so the vendored bar can run on modern Arch.
+        if [[ -x "$HOME/.local/bin/waybar" ]]; then
+            local _jc26="/usr/lib/libjsoncpp.so.26"
+            local _jcnew
+            local _jcbase
+            _jcnew="$(find /usr/lib -maxdepth 1 -name 'libjsoncpp.so.*' 2>/dev/null \
+                ! -name 'libjsoncpp.so' ! -name '*.so.*.*' | sort -V | tail -n1)"
+            _jcbase="$(basename "$_jcnew" 2>/dev/null)"
+            if [[ -n "$_jcbase" && "$_jcbase" != "libjsoncpp.so.26" ]]; then
+                if [[ -e "$_jc26" || -L "$_jc26" ]]; then
+                    : # already present
+                elif sudo ln -s "$_jcbase" "$_jc26" 2>/dev/null; then
+                    printf "${YELLOW}  [WARN]${RST} jsoncpp soname shim: %s -> %s (vendored waybar ABI fix)\n" "$_jc26" "$_jcbase"
+                else
+                    printf "${RED}  [FAIL]${RST} Could not create jsoncpp soname shim %s (vendored waybar may not load)\n" "$_jc26"
+                fi
+            fi
+        fi
     else
         printf "${RED}  [FAIL]${RST} No waybar binary — local waybar-cava build failed in phase 1. See %s\n" \
             "${XDG_CACHE_HOME:-$HOME/.cache}/scrow/waybar-cava-build.log"
