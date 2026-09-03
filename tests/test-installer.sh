@@ -160,6 +160,12 @@ check "official.txt ships base-devel (makepkg toolchain needed on any machine)" 
     "$(grep -q '^base-devel$' "$REPO_ROOT/packages/official.txt" && echo true || echo false)"
 check "installer never installs stock waybar (cava build is required, no fallback)" \
     "$(grep -q 'No stock fallback' "$REPO_ROOT/sdata/subcmd-install/1.deps.sh" && ! grep -q 'sudo pacman -S --needed --noconfirm waybar' "$REPO_ROOT/sdata/subcmd-install/1.deps.sh" && echo true || echo false)"
+# The vendored fork waybar (.local/bin/waybar) links experimental-module libs
+# that a fresh install would otherwise lack, so the bar silently disappears.
+# Every library the vendored binary's ldd resolves to a known Arch package must
+# be a declared dependency in official.txt (mapped via the owning package name).
+check "official.txt ships every runtime lib the vendored fork waybar ldd needs (no missing -> no silent missing bar)" \
+    "$(set +euo pipefail; needed=0; miss=0; for lib in "libgps.so:gpsd" "libmm-glib.so:libmm-glib" "libcloudproviders.so:libcloudproviders" "libtinysparql.so:tinysparql" "libwacom.so:libwacom" "libiniparser.so:iniparser" "libSDL2-2.0.so.0:sdl2-compat" "libglycin-2.so.0:glycin"; do l=${lib%%:*}; p=${lib##*:}; if ldd "$REPO_ROOT/dots/.local/bin/waybar" 2>/dev/null | grep -q "$l"; then needed=$((needed+1)); if ! grep -qix "$p" "$REPO_ROOT/packages/official.txt"; then miss=$((miss+1)); fi; fi; done; [ "$needed" -gt 0 ] && [ "$miss" -eq 0 ] && echo true || echo false)"
 check "waybar PKGBUILD provides+conflicts waybar (replaces stock)" \
     "$(grep -q "provides=('waybar')" "$REPO_ROOT/packages/waybar-cava/PKGBUILD" && grep -q "conflicts=('waybar'" "$REPO_ROOT/packages/waybar-cava/PKGBUILD" && echo true || echo false)"
 check "installer removes stock waybar BEFORE pacman -U waybar-cava (noconfirm denies pacman's conflict-removal prompt)" \

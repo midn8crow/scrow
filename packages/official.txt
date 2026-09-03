@@ -65,6 +65,19 @@ libxkbcommon
 chrono-date
 spdlog
 upower
+# Vendored fork waybar (.local/bin/waybar): built with experimental modules
+# (gps/belt/ups/cloudproviders/tinysparql/cava/tray) that link extra libraries
+# a fresh install would otherwise lack, so the bar silently fails to start.
+# These are the runtime libs its ldd pulls in (verified). Keep in sync with the
+# vendored binary; do NOT drop or the right-click island bar disappears.
+gpsd
+libmm-glib
+libcloudproviders
+tinysparql
+libwacom
+iniparser
+sdl2-compat
+glycin
 # waybar-cava makedepends
 ninja
 scdoc
