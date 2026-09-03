@@ -66,6 +66,19 @@ check "waybar/colors/ dir"      "$([ -d "$REPO_ROOT/dots/.config/waybar/colors" 
 check "waybar/cava/ dir"        "$([ -d "$REPO_ROOT/dots/.config/waybar/cava" ] && echo true || echo false)"
 check "waybar/context/ dir"     "$([ -d "$REPO_ROOT/dots/.config/waybar/context" ] && echo true || echo false)"
 
+# The right-click island/tray behavior is powered by a vendored waybar fork
+# binary (the host binary has it; the pinned stock build does not). It is
+# bundled at dots/.local/bin/waybar so launch.sh's existing preference picks
+# it up on fresh installs. These guard that the binary is present, executable,
+# and still carries the drawer/reveal capability (and that it matches the
+# known-good working fork so the repo doesn't silently regress to stock).
+check "vendored waybar fork binary present at .local/bin/waybar" \
+    "$([ -f "$REPO_ROOT/dots/.local/bin/waybar" ] && [ -x "$REPO_ROOT/dots/.local/bin/waybar" ] && echo true || echo false)"
+check "vendored waybar still carries drawer island feature (drawer/start-expanded/reveal/cava)" \
+    "$(set +euo pipefail; strings "$REPO_ROOT/dots/.local/bin/waybar" 2>/dev/null | grep -qm1 'waybar-drawer'; a=$?; strings "$REPO_ROOT/dots/.local/bin/waybar" 2>/dev/null | grep -qm1 'reveal-on-right-click'; b=$?; strings "$REPO_ROOT/dots/.local/bin/waybar" 2>/dev/null | grep -qm1 'start-expanded'; c=$?; strings "$REPO_ROOT/dots/.local/bin/waybar" 2>/dev/null | grep -qm1 'libcava'; d=$?; [ $((a+b+c+d)) -eq 0 ] && echo true || echo false)"
+check "vendored waybar binary size is sane (>=9MB, real fork not a stub)" \
+    "$([ "$(stat -c%s "$REPO_ROOT/dots/.local/bin/waybar" 2>/dev/null)" -ge 9000000 ] && echo true || echo false)"
+
 # Hyprland: complete tree
 hypr_files=$(find "$REPO_ROOT/dots/.config/hypr" -type f 2>/dev/null | wc -l)
 check "hypr has files (>=20)"   "$([ "$hypr_files" -ge 20 ] && echo true || echo false)" "count=$hypr_files"
