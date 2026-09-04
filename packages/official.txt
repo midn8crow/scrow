@@ -175,6 +175,11 @@ go
 sddm
 grub
 efibootmgr
+# power-profiles-daemon provides powerprofilesctl, which the SCROW menu uses to
+# read/display the active power profile ([active]) and switch performance /
+# balanced / power-saver. Without it a fresh install has no powerprofilesctl and
+# the menu shows no active marker.
+power-profiles-daemon
 
 # Security
 nftables

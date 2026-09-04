@@ -158,6 +158,12 @@ check "waybar build dir is disk-backed under cache, never /tmp (tmpfs/noexec mac
     "$(grep -q -- 'XDG_CACHE_HOME:-$HOME/.cache}/scrow/waybar-build' "$REPO_ROOT/sdata/subcmd-install/1.deps.sh" && echo true || echo false)"
 check "official.txt ships base-devel (makepkg toolchain needed on any machine)" \
     "$(grep -q '^base-devel$' "$REPO_ROOT/packages/official.txt" && echo true || echo false)"
+# The SCROW menu (compiled scrow-menu-tui) calls `powerprofilesctl` to display the
+# active power profile ([active]) and switch performance / balanced / power-saver.
+# power-profiles-daemon provides /usr/bin/powerprofilesctl; without it a fresh
+# install shows no active marker in the Power Profile menu.
+check "official.txt ships power-profiles-daemon (menu power profile shows [active])" \
+    "$(grep -q '^power-profiles-daemon$' "$REPO_ROOT/packages/official.txt" && echo true || echo false)"
 check "installer never installs stock waybar (cava build is required, no fallback)" \
     "$(grep -q 'No stock fallback' "$REPO_ROOT/sdata/subcmd-install/1.deps.sh" && ! grep -q 'sudo pacman -S --needed --noconfirm waybar' "$REPO_ROOT/sdata/subcmd-install/1.deps.sh" && echo true || echo false)"
 # The vendored fork waybar (.local/bin/waybar) links experimental-module libs
